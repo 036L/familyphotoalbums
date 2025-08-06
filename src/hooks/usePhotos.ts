@@ -128,7 +128,7 @@ export const usePhotos = (albumId?: string) => {
             .from('photos')
             .upload(thumbnailFileName, thumbnailFile);
 
-          if (!thumbnailError) {
+          if (!thumbnailError && thumbnailData) {
             thumbnailPath = thumbnailData.path;
           }
         }
@@ -216,9 +216,14 @@ export const usePhotos = (albumId?: string) => {
       // ストレージからファイルを削除
       const filesToDelete = [photo.filename];
       if (photo.thumbnail_url) {
-        // サムネイルのパスを抽出
-        const thumbnailPath = photo.thumbnail_url.split('/').slice(-2).join('/');
-        filesToDelete.push(thumbnailPath);
+        // サムネイルのパスを抽出（URLからパス部分のみを取得）
+        const url = new URL(photo.thumbnail_url);
+        const pathSegments = url.pathname.split('/');
+        // '/storage/v1/object/public/photos/' を除いた部分を取得
+        const thumbnailPath = pathSegments.slice(6).join('/');
+        if (thumbnailPath) {
+          filesToDelete.push(thumbnailPath);
+        }
       }
 
       const { error: storageError } = await supabase.storage
@@ -237,8 +242,8 @@ export const usePhotos = (albumId?: string) => {
 
       if (dbError) throw dbError;
 
-      // 写真一覧を再取得
-      await fetchPhotos();
+      // ローカル状態を更新
+      setPhotos(prev => prev.filter(p => p.id !== id));
     } catch (err) {
       console.error('写真削除エラー:', err);
       throw new Error('写真の削除に失敗しました');
