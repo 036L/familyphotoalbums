@@ -7,6 +7,8 @@ import { AlbumGrid } from './components/album/AlbumGrid';
 import { PhotoGrid } from './components/photo/PhotoGrid';
 import { UploadModal } from './components/upload/UploadModal';
 import { Button } from './components/ui/Button';
+import { Camera } from 'lucide-react';
+import { Modal } from './components/ui/Modal';
 
 function AppContent() {
   const { isAuthenticated, currentAlbum, setCurrentAlbum, loading, createAlbum } = useApp();
