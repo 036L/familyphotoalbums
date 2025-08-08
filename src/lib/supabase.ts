@@ -1,13 +1,37 @@
+// src/lib/supabase.ts に一時的に追加して確認
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+console.log('🔍 環境変数確認:');
+console.log('VITE_SUPABASE_URL:', supabaseUrl);
+console.log('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? '設定済み' : '未設定');
+console.log('URL length:', supabaseUrl ? supabaseUrl.length : 0);
+console.log('Key length:', supabaseAnonKey ? supabaseAnonKey.length : 0);
+
 if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('❌ Supabase環境変数が設定されていません');
+  console.log('必要な設定:');
+  console.log('VITE_SUPABASE_URL=https://your-project.supabase.co');
+  console.log('VITE_SUPABASE_ANON_KEY=your-anon-key');
   throw new Error('Missing Supabase environment variables');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// 接続テスト
+supabase.auth.getSession().then(({ data, error }) => {
+  if (error) {
+    console.error('❌ Supabase接続エラー:', error);
+  } else {
+    console.log('✅ Supabase接続成功');
+    console.log('セッション:', data.session ? 'あり' : 'なし');
+  }
+}).catch(err => {
+  console.error('❌ Supabase接続テスト失敗:', err);
+});
 
 // Database types
 export interface Database {
