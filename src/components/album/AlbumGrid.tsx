@@ -25,13 +25,19 @@ export const AlbumGrid: React.FC = () => {
       </div>
     );
   }
+
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('ja-JP', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return '日付不明';
+    }
   };
 
   return (
@@ -48,6 +54,9 @@ export const AlbumGrid: React.FC = () => {
                 src={album.cover_image_url}
                 alt={album.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                onError={(e) => {
+                  console.error('Image load error:', e);
+                }}
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center">
@@ -70,7 +79,7 @@ export const AlbumGrid: React.FC = () => {
             <div className="flex items-center justify-between text-sm text-gray-500">
               <div className="flex items-center space-x-1">
                 <Calendar size={14} />
-                <span>{formatDate(album.createdAt)}</span>
+                <span>{formatDate(album.created_at)}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <ImageIcon size={14} />

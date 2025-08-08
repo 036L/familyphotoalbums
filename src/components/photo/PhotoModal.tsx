@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Calendar, User } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { Photo } from '../../types';
+import { Photo } from '../../hooks/usePhotos';
 import { useApp } from '../../context/AppContext';
 import { CommentSection } from './CommentSection';
 
@@ -21,10 +21,10 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showComments, setShowComments] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (photo) {
       const index = photos.findIndex(p => p.id === photo.id);
-      setCurrentIndex(index);
+      setCurrentIndex(index >= 0 ? index : 0);
     }
   }, [photo, photos]);
 
@@ -45,14 +45,19 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('ja-JP', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return '日付不明';
+    }
   };
 
   return (
@@ -62,8 +67,11 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
         <div className="relative flex-1 bg-black rounded-l-2xl lg:rounded-r-none rounded-r-2xl">
           <img
             src={currentPhoto.url}
-            alt={currentPhoto.filename}
+            alt={currentPhoto.original_filename || currentPhoto.filename}
             className="w-full h-full object-contain"
+            onError={(e) => {
+              console.error('Image load error:', e);
+            }}
           />
           
           {/* ナビゲーションボタン */}
@@ -99,13 +107,13 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
         <div className="w-full lg:w-96 bg-white rounded-r-2xl lg:rounded-l-none rounded-l-2xl flex flex-col">
           <div className="p-6 border-b border-gray-100">
             <h3 className="font-semibold text-lg text-gray-900 mb-2">
-              {currentPhoto.filename}
+              {currentPhoto.original_filename || currentPhoto.filename}
             </h3>
             
             <div className="space-y-2 text-sm text-gray-600">
               <div className="flex items-center space-x-2">
                 <Calendar size={16} />
-                <span>{formatDate(currentPhoto.uploadedAt)}</span>
+                <span>{formatDate(currentPhoto.created_at)}</span>
               </div>
               {currentPhoto.uploader_name && (
                 <div className="flex items-center space-x-2">
