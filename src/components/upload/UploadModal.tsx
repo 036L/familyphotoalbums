@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Upload, X, Image, Film, CheckCircle, AlertCircle } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -17,7 +17,6 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -45,15 +44,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     if (e.target.files) {
       const files = Array.from(e.target.files);
       setSelectedFiles(prev => [...prev, ...files]);
-      // ファイル選択後、inputをリセット（同じファイルを再選択可能にする）
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      // ファイル選択後、inputをリセット
+      e.target.value = '';
     }
-  };
-
-  const handleFileButtonClick = () => {
-    fileInputRef.current?.click();
   };
 
   const removeFile = (index: number) => {
@@ -119,6 +112,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     }
   };
 
+  if (!currentAlbum) {
+    return null;
+  }
+
   return (
     <Modal isOpen={isOpen} onClose={handleModalClose} className="w-full max-w-2xl">
       <div className="p-6">
@@ -131,7 +128,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
           onDrop={handleDrop}
           className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-200 ${
             isDragging
-              ? 'border-orange-400 bg-orange-50 scale-105'
+              ? 'border-orange-400 bg-orange-50'
               : 'border-gray-300 hover:border-orange-300 hover:bg-orange-50'
           }`}
         >
@@ -145,26 +142,26 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             または下のボタンからファイルを選択してください
           </p>
           
-          {/* 隠しファイル入力 */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,video/*"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
+          {/* ファイル選択ボタンとinput */}
+          <div className="relative inline-block">
+            <input
+              type="file"
+              multiple
+              accept="image/*,video/*"
+              onChange={handleFileSelect}
+              disabled={isUploading}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+            />
+            <Button 
+              variant="primary" 
+              disabled={isUploading}
+              className="relative pointer-events-none"
+            >
+              ファイルを選択
+            </Button>
+          </div>
           
-          <Button 
-            variant="primary" 
-            onClick={handleFileButtonClick}
-            disabled={isUploading}
-            className="mb-4"
-          >
-            ファイルを選択
-          </Button>
-          
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 mt-4">
             対応形式: JPEG, PNG, WebP, MP4, MOV, AVI<br />
             最大サイズ: 画像 10MB、動画 100MB
           </p>
@@ -180,7 +177,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               {selectedFiles.map((file, index) => {
                 const error = validateFile(file);
                 return (
-                  <div key={`${file.name}-${index}`} className={`flex items-center justify-between p-3 rounded-xl ${
+                  <div key={`${file.name}-${index}-${file.lastModified}`} className={`flex items-center justify-between p-3 rounded-xl ${
                     error ? 'bg-red-50 border border-red-200' : 'bg-gray-50'
                   }`}>
                     <div className="flex items-center space-x-3 flex-1 min-w-0">
@@ -220,14 +217,14 @@ export const UploadModal: React.FC<UploadModalProps> = ({
         )}
 
         {/* アップロード進行状況 */}
-        {uploadProgress.length > 0 && (
+        {uploadProgress && uploadProgress.length > 0 && (
           <div className="mt-6">
             <h3 className="font-medium text-gray-900 mb-3">
               アップロード進行状況
             </h3>
             <div className="space-y-3 max-h-40 overflow-y-auto">
               {uploadProgress.map((progress, index) => (
-                <div key={`progress-${index}`} className="bg-gray-50 rounded-xl p-3">
+                <div key={`progress-${index}-${progress.file.name}`} className="bg-gray-50 rounded-xl p-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-gray-900 truncate max-w-xs">
                       {progress.file.name}
@@ -283,7 +280,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             disabled={selectedFiles.length === 0 || isUploading || !currentAlbum}
           >
             {isUploading 
-              ? `アップロード中... (${uploadProgress.filter(p => p.status === 'completed').length}/${uploadProgress.length})`
+              ? `アップロード中...`
               : `アップロード (${selectedFiles.length})`
             }
           </Button>
