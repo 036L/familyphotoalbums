@@ -98,19 +98,18 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             または下のボタンからファイルを選択してください
           </p>
           
-          {/* 元のコード構造を維持しつつ、labelとinputの順序を修正 */}
-          <input
-            id="file-upload"
-            type="file"
-            multiple
-            accept="image/*,video/*"
-            onChange={handleFileSelect}
-            style={{ display: 'none' }}
-          />
           <label htmlFor="file-upload">
-            <Button variant="primary" className="cursor-pointer" type="button">
+            <Button variant="primary" className="cursor-pointer">
               ファイルを選択
             </Button>
+            <input
+              id="file-upload"
+              type="file"
+              multiple
+              accept="image/*,video/*"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
           </label>
           
           <p className="text-sm text-gray-500 mt-4">
@@ -205,7 +204,6 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             </div>
           </div>
         )}
-        
         {/* アップロードボタン */}
         <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-100">
           <Button variant="outline" onClick={onClose}>
