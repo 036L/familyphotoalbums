@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { AppProvider, useApp } from './context/AppContext';
 import { LoginForm } from './components/auth/LoginForm';
@@ -11,11 +11,60 @@ import { Camera } from 'lucide-react';
 import { Modal } from './components/ui/Modal';
 
 function AppContent() {
-  const { isAuthenticated, currentAlbum, setCurrentAlbum, loading, createAlbum } = useApp();
+  const { 
+    isAuthenticated, 
+    currentAlbum, 
+    setCurrentAlbum, 
+    loading, 
+    createAlbum 
+  } = useApp();
+  
   const [showUpload, setShowUpload] = useState(false);
   const [showCreateAlbum, setShowCreateAlbum] = useState(false);
   const [newAlbumTitle, setNewAlbumTitle] = useState('');
   const [newAlbumDescription, setNewAlbumDescription] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  // エラーキャッチ用のuseEffect
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error('Global error:', event.error);
+      setError(event.error?.message || 'アプリケーションエラーが発生しました');
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      console.error('Unhandled promise rejection:', event.reason);
+      setError('データの読み込みでエラーが発生しました');
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center">
+        <div className="text-center bg-white p-8 rounded-2xl shadow-lg max-w-md">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4 mx-auto">
+            <span className="text-red-500 text-2xl">⚠️</span>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">エラーが発生しました</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={() => {
+            setError(null);
+            window.location.reload();
+          }}>
+            再読み込み
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -29,6 +78,7 @@ function AppContent() {
       </div>
     );
   }
+
   if (!isAuthenticated) {
     return <LoginForm />;
   }
@@ -48,8 +98,10 @@ function AppContent() {
       setShowCreateAlbum(false);
     } catch (error) {
       console.error('アルバム作成エラー:', error);
+      setError('アルバムの作成に失敗しました');
     }
   };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
       <Header onShowUpload={() => setShowUpload(true)} />
