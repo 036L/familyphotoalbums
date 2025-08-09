@@ -25,6 +25,7 @@ export const AlbumGrid: React.FC = () => {
       </div>
     );
   }
+  
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('ja-JP', {
@@ -70,7 +71,7 @@ export const AlbumGrid: React.FC = () => {
             <div className="flex items-center justify-between text-sm text-gray-500">
               <div className="flex items-center space-x-1">
                 <Calendar size={14} />
-                <span>{formatDate(album.createdAt)}</span>
+                <span>{formatDate(album.created_at)}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <ImageIcon size={14} />

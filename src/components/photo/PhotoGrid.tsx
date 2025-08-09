@@ -16,6 +16,7 @@ export const PhotoGrid: React.FC = () => {
       </div>
     );
   }
+  
   if (photos.length === 0) {
     return (
       <div className="text-center py-12">
@@ -41,7 +42,7 @@ export const PhotoGrid: React.FC = () => {
           >
             <img
               src={photo.thumbnail_url || photo.url}
-              alt={photo.filename}
+              alt={photo.original_filename}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
           </div>
