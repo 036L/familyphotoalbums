@@ -1,6 +1,6 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { useAlbums } from '../hooks/useAlbums';
+import { useAlbums, Album } from '../hooks/useAlbums';
 import { usePhotos } from '../hooks/usePhotos';
 
 interface AppContextType {
@@ -14,7 +14,7 @@ interface AppContextType {
   logout: () => void;
   
   // Albums
-  albums: any[];
+  albums: Album[];
   albumsLoading: boolean;
   createAlbum: (data: any) => Promise<any>;
   updateAlbum: (id: string, updates: any) => Promise<any>;
@@ -29,8 +29,8 @@ interface AppContextType {
   deletePhoto: (id: string) => Promise<void>;
   
   // UI State
-  currentAlbum: any;
-  setCurrentAlbum: (album: any) => void;
+  currentAlbum: Album | null;
+  setCurrentAlbum: (album: Album | null) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -51,7 +51,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const auth = useAuth();
   const albumsHook = useAlbums();
   const photosHook = usePhotos();
-  const [currentAlbum, setCurrentAlbum] = React.useState<any>(null);
+  const [currentAlbum, setCurrentAlbum] = React.useState<Album | null>(null);
 
   const logout = async () => {
     await auth.signOut();
