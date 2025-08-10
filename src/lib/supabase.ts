@@ -1,13 +1,105 @@
+// src/lib/supabase.ts
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// デモ用の設定（実際の開発では環境変数を使用してください）
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://demo.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'demo-anon-key';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
+// デモモードかどうかを判定
+const isDemoMode = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// デモモード用のモッククライアント
+const createMockClient = () => ({
+  auth: {
+    getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+    getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+    onAuthStateChange: () => ({
+      data: { subscription: { unsubscribe: () => {} } }
+    }),
+    signInWithPassword: ({ email, password }: { email: string; password: string }) => {
+      if (email === 'test@example.com' && password === 'password123') {
+        return Promise.resolve({
+          data: {
+            user: {
+              id: 'demo-user-1',
+              email: 'test@example.com',
+              user_metadata: { name: 'デモユーザー' }
+            },
+            session: { access_token: 'demo-token' }
+          },
+          error: null
+        });
+      }
+      return Promise.resolve({
+        data: { user: null, session: null },
+        error: new Error('認証情報が正しくありません')
+      });
+    },
+    signUp: () => Promise.resolve({
+      data: { user: null, session: null },
+      error: new Error('デモモードではサインアップできません')
+    }),
+    signOut: () => Promise.resolve({ error: null })
+  },
+  from: () => ({
+    select: () => ({
+      eq: () => ({
+        single: () => Promise.resolve({
+          data: {
+            id: 'demo-user-1',
+            name: 'デモユーザー',
+            avatar_url: null,
+            role: 'admin'
+          },
+          error: null
+        }),
+        order: () => Promise.resolve({
+          data: [],
+          error: null
+        })
+      }),
+      order: () => Promise.resolve({
+        data: [],
+        error: null
+      })
+    }),
+    insert: () => ({
+      select: () => ({
+        single: () => Promise.resolve({
+          data: { id: 'new-item', created_at: new Date().toISOString() },
+          error: null
+        })
+      })
+    }),
+    update: () => ({
+      eq: () => ({
+        select: () => ({
+          single: () => Promise.resolve({
+            data: { id: 'updated-item', updated_at: new Date().toISOString() },
+            error: null
+          })
+        })
+      })
+    }),
+    delete: () => ({
+      eq: () => Promise.resolve({ error: null })
+    })
+  }),
+  storage: {
+    from: () => ({
+      upload: () => Promise.resolve({
+        data: { path: 'demo/path.jpg' },
+        error: null
+      }),
+      getPublicUrl: () => ({
+        data: { publicUrl: 'https://via.placeholder.com/800x600' }
+      }),
+      remove: () => Promise.resolve({ error: null })
+    })
+  }
+});
+
+export const supabase = isDemoMode ? createMockClient() as any : createClient(supabaseUrl, supabaseAnonKey);
 
 // Database types
 export interface Database {
