@@ -17,6 +17,7 @@ export interface Photo {
   metadata: Record<string, any>;
   created_at: string;
   uploader_name?: string;
+  uploadedAt?: string; // 互換性のため
 }
 
 export interface UploadProgress {
@@ -25,6 +26,154 @@ export interface UploadProgress {
   status: 'compressing' | 'uploading' | 'completed' | 'error';
   error?: string;
 }
+
+// デモデータ
+const demoPhotos: Record<string, Photo[]> = {
+  '1': [ // 2024年家族旅行
+    {
+      id: 'demo-1',
+      filename: 'beach-sunset.jpg',
+      original_filename: 'beach-sunset.jpg',
+      url: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&h=600&fit=crop',
+      thumbnail_url: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=300&h=300&fit=crop',
+      file_type: 'image',
+      file_size: 1024000,
+      width: 800,
+      height: 600,
+      album_id: '1',
+      uploaded_by: 'demo-user-1',
+      metadata: {},
+      created_at: '2024-01-15T10:00:00Z',
+      uploadedAt: '2024-01-15T10:00:00Z',
+      uploader_name: 'デモユーザー'
+    },
+    {
+      id: 'demo-2',
+      filename: 'family-beach.jpg',
+      original_filename: 'family-beach.jpg',
+      url: 'https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?w=800&h=600&fit=crop',
+      thumbnail_url: 'https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?w=300&h=300&fit=crop',
+      file_type: 'image',
+      file_size: 956000,
+      width: 800,
+      height: 600,
+      album_id: '1',
+      uploaded_by: 'demo-user-1',
+      metadata: {},
+      created_at: '2024-01-15T12:30:00Z',
+      uploadedAt: '2024-01-15T12:30:00Z',
+      uploader_name: 'デモユーザー'
+    },
+    {
+      id: 'demo-3',
+      filename: 'tropical-fish.jpg',
+      original_filename: 'tropical-fish.jpg',
+      url: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&h=600&fit=crop',
+      thumbnail_url: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=300&h=300&fit=crop',
+      file_type: 'image',
+      file_size: 780000,
+      width: 800,
+      height: 600,
+      album_id: '1',
+      uploaded_by: 'demo-user-1',
+      metadata: {},
+      created_at: '2024-01-16T09:15:00Z',
+      uploadedAt: '2024-01-16T09:15:00Z',
+      uploader_name: 'デモユーザー'
+    },
+    {
+      id: 'demo-4',
+      filename: 'hotel-pool.jpg',
+      original_filename: 'hotel-pool.jpg',
+      url: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&h=600&fit=crop',
+      thumbnail_url: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=300&h=300&fit=crop',
+      file_type: 'image',
+      file_size: 1200000,
+      width: 800,
+      height: 600,
+      album_id: '1',
+      uploaded_by: 'demo-user-1',
+      metadata: {},
+      created_at: '2024-01-16T16:45:00Z',
+      uploadedAt: '2024-01-16T16:45:00Z',
+      uploader_name: 'デモユーザー'
+    }
+  ],
+  '2': [ // お正月2024
+    {
+      id: 'demo-5',
+      filename: 'osechi.jpg',
+      original_filename: 'osechi.jpg',
+      url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&h=600&fit=crop',
+      thumbnail_url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=300&fit=crop',
+      file_type: 'image',
+      file_size: 890000,
+      width: 800,
+      height: 600,
+      album_id: '2',
+      uploaded_by: 'demo-user-1',
+      metadata: {},
+      created_at: '2024-01-01T12:00:00Z',
+      uploadedAt: '2024-01-01T12:00:00Z',
+      uploader_name: 'デモユーザー'
+    },
+    {
+      id: 'demo-6',
+      filename: 'family-new-year.jpg',
+      original_filename: 'family-new-year.jpg',
+      url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&h=600&fit=crop',
+      thumbnail_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=300&h=300&fit=crop',
+      file_type: 'image',
+      file_size: 1100000,
+      width: 800,
+      height: 600,
+      album_id: '2',
+      uploaded_by: 'demo-user-1',
+      metadata: {},
+      created_at: '2024-01-01T15:30:00Z',
+      uploadedAt: '2024-01-01T15:30:00Z',
+      uploader_name: 'デモユーザー'
+    }
+  ],
+  '3': [ // 桜の季節
+    {
+      id: 'demo-7',
+      filename: 'sakura-tree.jpg',
+      original_filename: 'sakura-tree.jpg',
+      url: 'https://images.unsplash.com/photo-1522383225653-ed111181a951?w=800&h=600&fit=crop',
+      thumbnail_url: 'https://images.unsplash.com/photo-1522383225653-ed111181a951?w=300&h=300&fit=crop',
+      file_type: 'image',
+      file_size: 1050000,
+      width: 800,
+      height: 600,
+      album_id: '3',
+      uploaded_by: 'demo-user-1',
+      metadata: {},
+      created_at: '2024-04-05T14:20:00Z',
+      uploadedAt: '2024-04-05T14:20:00Z',
+      uploader_name: 'デモユーザー'
+    },
+    {
+      id: 'demo-8',
+      filename: 'hanami-picnic.jpg',
+      original_filename: 'hanami-picnic.jpg',
+      url: 'https://images.unsplash.com/photo-1490644658840-3f2e3f8c5625?w=800&h=600&fit=crop',
+      thumbnail_url: 'https://images.unsplash.com/photo-1490644658840-3f2e3f8c5625?w=300&h=300&fit=crop',
+      file_type: 'image',
+      file_size: 920000,
+      width: 800,
+      height: 600,
+      album_id: '3',
+      uploaded_by: 'demo-user-1',
+      metadata: {},
+      created_at: '2024-04-05T16:10:00Z',
+      uploadedAt: '2024-04-05T16:10:00Z',
+      uploader_name: 'デモユーザー'
+    }
+  ]
+};
+
+const isDemo = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const usePhotos = (albumId?: string) => {
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -36,6 +185,16 @@ export const usePhotos = (albumId?: string) => {
     try {
       setLoading(true);
       setError(null);
+
+      if (isDemo) {
+        // デモモードの場合
+        setTimeout(() => {
+          const albumPhotos = demoPhotos[targetAlbumId || albumId || ''] || [];
+          setPhotos(albumPhotos);
+          setLoading(false);
+        }, 300);
+        return;
+      }
 
       let query = supabase
         .from('photos')
@@ -56,6 +215,7 @@ export const usePhotos = (albumId?: string) => {
       const photosWithUploaderName = data.map(photo => ({
         ...photo,
         uploader_name: photo.profiles?.name || '不明',
+        uploadedAt: photo.created_at,
       }));
 
       setPhotos(photosWithUploaderName);
@@ -68,6 +228,73 @@ export const usePhotos = (albumId?: string) => {
   };
 
   const uploadPhotos = async (files: File[], targetAlbumId: string) => {
+    if (isDemo) {
+      // デモモードでのアップロードシミュレーション
+      const initialProgress = files.map(file => ({
+        file,
+        progress: 0,
+        status: 'compressing' as const,
+      }));
+      setUploadProgress(initialProgress);
+
+      // 段階的な進行状況の更新をシミュレート
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        // 圧縮段階
+        setUploadProgress(prev => 
+          prev.map((item, index) => 
+            index === i ? { ...item, status: 'compressing', progress: 20 } : item
+          )
+        );
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // アップロード段階
+        setUploadProgress(prev => 
+          prev.map((item, index) => 
+            index === i ? { ...item, status: 'uploading', progress: 60 } : item
+          )
+        );
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        // 完了
+        setUploadProgress(prev => 
+          prev.map((item, index) => 
+            index === i ? { ...item, status: 'completed', progress: 100 } : item
+          )
+        );
+
+        // デモ写真をローカルに追加
+        const newPhoto: Photo = {
+          id: `demo-new-${Date.now()}-${i}`,
+          filename: file.name,
+          original_filename: file.name,
+          url: URL.createObjectURL(file),
+          thumbnail_url: URL.createObjectURL(file),
+          file_type: file.type.startsWith('image/') ? 'image' : 'video',
+          file_size: file.size,
+          width: 800,
+          height: 600,
+          album_id: targetAlbumId,
+          uploaded_by: 'demo-user-1',
+          metadata: { demo: true },
+          created_at: new Date().toISOString(),
+          uploadedAt: new Date().toISOString(),
+          uploader_name: 'デモユーザー'
+        };
+
+        setPhotos(prev => [newPhoto, ...prev]);
+      }
+
+      // 進行状況をクリア
+      setTimeout(() => {
+        setUploadProgress([]);
+      }, 2000);
+
+      return;
+    }
+
+    // 実際のSupabaseアップロード処理
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('ログインが必要です');
 
@@ -204,6 +431,12 @@ export const usePhotos = (albumId?: string) => {
 
   const deletePhoto = async (id: string) => {
     try {
+      if (isDemo) {
+        // デモモードではローカルから削除
+        setPhotos(prev => prev.filter(p => p.id !== id));
+        return;
+      }
+
       // データベースから写真情報を取得
       const { data: photo, error: fetchError } = await supabase
         .from('photos')

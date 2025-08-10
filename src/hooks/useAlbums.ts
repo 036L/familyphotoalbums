@@ -16,13 +16,13 @@ export interface Album {
   createdAt: string; // 互換性のため
 }
 
-// デモデータ
+// デモデータを改善（実際の画像URLを使用）
 const demoAlbums: Album[] = [
   {
     id: '1',
     title: '2024年家族旅行',
     description: '沖縄での楽しい思い出',
-    cover_image_url: 'https://images.pexels.com/photos/457882/pexels-photo-457882.jpeg?auto=compress&cs=tinysrgb&w=400',
+    cover_image_url: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=400&fit=crop',
     created_by: 'demo-user-1',
     is_public: false,
     created_at: '2024-01-15T00:00:00Z',
@@ -35,7 +35,7 @@ const demoAlbums: Album[] = [
     id: '2',
     title: 'お正月2024',
     description: 'みんなでお雑煮を食べました',
-    cover_image_url: 'https://images.pexels.com/photos/1402787/pexels-photo-1402787.jpeg?auto=compress&cs=tinysrgb&w=400',
+    cover_image_url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=400&fit=crop',
     created_by: 'demo-user-1',
     is_public: false,
     created_at: '2024-01-01T00:00:00Z',
@@ -48,7 +48,7 @@ const demoAlbums: Album[] = [
     id: '3',
     title: '桜の季節',
     description: '近所の公園で花見',
-    cover_image_url: 'https://images.pexels.com/photos/1647962/pexels-photo-1647962.jpeg?auto=compress&cs=tinysrgb&w=400',
+    cover_image_url: 'https://images.unsplash.com/photo-1522383225653-ed111181a951?w=400&h=400&fit=crop',
     created_by: 'demo-user-1',
     is_public: false,
     created_at: '2024-04-05T00:00:00Z',
@@ -61,13 +61,39 @@ const demoAlbums: Album[] = [
     id: '4',
     title: '夏祭り',
     description: '地域の夏祭りに参加',
-    cover_image_url: 'https://images.pexels.com/photos/1679618/pexels-photo-1679618.jpeg?auto=compress&cs=tinysrgb&w=400',
+    cover_image_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=400&fit=crop',
     created_by: 'demo-user-1',
     is_public: false,
     created_at: '2024-07-20T00:00:00Z',
     updated_at: '2024-07-20T00:00:00Z',
     createdAt: '2024-07-20T00:00:00Z',
     photo_count: 30,
+    creator_name: 'デモユーザー'
+  },
+  {
+    id: '5',
+    title: '秋の紅葉狩り',
+    description: '山に紅葉を見に行きました',
+    cover_image_url: 'https://images.unsplash.com/photo-1507041957456-9c397ce39c97?w=400&h=400&fit=crop',
+    created_by: 'demo-user-1',
+    is_public: false,
+    created_at: '2024-11-10T00:00:00Z',
+    updated_at: '2024-11-10T00:00:00Z',
+    createdAt: '2024-11-10T00:00:00Z',
+    photo_count: 45,
+    creator_name: 'デモユーザー'
+  },
+  {
+    id: '6',
+    title: '誕生日パーティー',
+    description: 'おじいちゃんの80歳のお祝い',
+    cover_image_url: 'https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?w=400&h=400&fit=crop',
+    created_by: 'demo-user-1',
+    is_public: false,
+    created_at: '2024-08-25T00:00:00Z',
+    updated_at: '2024-08-25T00:00:00Z',
+    createdAt: '2024-08-25T00:00:00Z',
+    photo_count: 67,
     creator_name: 'デモユーザー'
   }
 ];
@@ -78,6 +104,60 @@ export const useAlbums = () => {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // カバー画像を自動設定する関数
+  const getLatestPhotoForCover = async (albumId: string): Promise<string | null> => {
+    try {
+      if (isDemo) {
+        // デモモードでは既にカバー画像が設定されている
+        return null;
+      }
+
+      const { data, error } = await supabase
+        .from('photos')
+        .select('thumbnail_url, url')
+        .eq('album_id', albumId)
+        .eq('file_type', 'image')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error || !data) return null;
+
+      return data.thumbnail_url || data.url;
+    } catch (err) {
+      console.warn('カバー画像取得エラー:', err);
+      return null;
+    }
+  };
+
+  // アルバムのカバー画像を更新する関数
+  const updateAlbumCover = async (albumId: string, coverImageUrl: string) => {
+    try {
+      if (isDemo) return;
+
+      const { error } = await supabase
+        .from('albums')
+        .update({ 
+          cover_image_url: coverImageUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', albumId);
+
+      if (error) throw error;
+
+      // ローカル状態も更新
+      setAlbums(prev => 
+        prev.map(album => 
+          album.id === albumId 
+            ? { ...album, cover_image_url: coverImageUrl }
+            : album
+        )
+      );
+    } catch (err) {
+      console.error('カバー画像更新エラー:', err);
+    }
+  };
 
   const fetchAlbums = async () => {
     try {
@@ -104,12 +184,28 @@ export const useAlbums = () => {
 
       if (error) throw error;
 
-      const albumsWithCounts = data.map(album => ({
-        ...album,
-        createdAt: album.created_at,
-        photo_count: album.photos?.[0]?.count || 0,
-        creator_name: album.profiles?.name || '不明',
-      }));
+      const albumsWithCounts = await Promise.all(
+        data.map(async (album) => {
+          let coverImageUrl = album.cover_image_url;
+          
+          // カバー画像が設定されていない場合、最新の写真を取得
+          if (!coverImageUrl) {
+            coverImageUrl = await getLatestPhotoForCover(album.id);
+            if (coverImageUrl) {
+              // カバー画像を非同期で更新（UIをブロックしない）
+              updateAlbumCover(album.id, coverImageUrl);
+            }
+          }
+
+          return {
+            ...album,
+            createdAt: album.created_at,
+            cover_image_url: coverImageUrl,
+            photo_count: album.photos?.[0]?.count || 0,
+            creator_name: album.profiles?.name || '不明',
+          };
+        })
+      );
 
       setAlbums(albumsWithCounts);
     } catch (err) {
@@ -220,6 +316,17 @@ export const useAlbums = () => {
     }
   };
 
+  // 写真が追加された時にカバー画像を自動更新
+  const handlePhotoAdded = async (albumId: string) => {
+    const album = albums.find(a => a.id === albumId);
+    if (!album?.cover_image_url) {
+      const newCoverImage = await getLatestPhotoForCover(albumId);
+      if (newCoverImage) {
+        await updateAlbumCover(albumId, newCoverImage);
+      }
+    }
+  };
+
   useEffect(() => {
     fetchAlbums();
   }, []);
@@ -232,5 +339,7 @@ export const useAlbums = () => {
     createAlbum,
     updateAlbum,
     deleteAlbum,
+    updateAlbumCover,
+    handlePhotoAdded, // 写真追加時の処理
   };
 };
