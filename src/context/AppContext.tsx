@@ -11,6 +11,7 @@ interface AppContextType {
   loading: boolean;
   signInWithEmail: (email: string, password: string) => Promise<any>;
   signUpWithEmail: (email: string, password: string, name: string) => Promise<any>;
+  updateProfile: (updates: any) => Promise<any>;
   logout: () => void;
   
   // Albums
@@ -69,6 +70,44 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
   };
 
+  // プロフィール更新の処理を追加
+  const updateProfile = async (updates: any) => {
+    try {
+      // デモモードの場合
+      if (!import.meta.env.VITE_SUPABASE_URL) {
+        // ローカルストレージにプロフィール情報を保存
+        const currentProfile = auth.profile || {
+          id: 'demo-user-1',
+          name: 'デモユーザー',
+          email: 'test@example.com',
+          avatar_url: null,
+          role: 'admin'
+        };
+        
+        const updatedProfile = {
+          ...currentProfile,
+          ...updates,
+          updated_at: new Date().toISOString()
+        };
+        
+        localStorage.setItem('demoProfile', JSON.stringify(updatedProfile));
+        
+        // auth.profileを更新する（デモモード用の処理）
+        if (auth.updateProfile) {
+          return await auth.updateProfile(updates);
+        }
+        
+        return updatedProfile;
+      } else {
+        // 実際のSupabase実装
+        return await auth.updateProfile(updates);
+      }
+    } catch (error) {
+      console.error('プロフィール更新エラー:', error);
+      throw error;
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -79,6 +118,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         loading: auth.loading,
         signInWithEmail: auth.signInWithEmail,
         signUpWithEmail: auth.signUpWithEmail,
+        updateProfile,
         logout,
         
         // Albums
