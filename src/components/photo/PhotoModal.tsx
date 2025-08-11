@@ -4,7 +4,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Photo } from '../../types';
 import { useApp } from '../../context/AppContext';
-import { CommentSection } from './CommentSection';
+import { EnhancedCommentSection } from './EnhancedCommentSection';
 
 interface PhotoModalProps {
   photo: Photo | null;
@@ -134,7 +134,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
 
           {showComments && (
             <div className="flex-1 overflow-hidden">
-              <CommentSection photoId={currentPhoto.id} />
+              <EnhancedCommentSection photoId={currentPhoto.id} />
             </div>
           )}
         </div>

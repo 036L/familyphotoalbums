@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft, Plus, Accessibility } from 'lucide-react';
 import { AppProvider, useApp } from './context/AppContext';
+import { AccessibilityProvider } from './context/AccessibilityContext';
 import { LoginForm } from './components/auth/LoginForm';
 import { Header } from './components/layout/Header';
 import { AlbumGrid } from './components/album/AlbumGrid';
 import { PhotoGrid } from './components/photo/PhotoGrid';
 import { UploadModal } from './components/upload/UploadModal';
+import { AccessibilityPanel } from './components/accessibility/AccessibilityPanel';
 import { Button } from './components/ui/Button';
 import { Camera } from 'lucide-react';
 import { Modal } from './components/ui/Modal';
@@ -14,6 +16,7 @@ function AppContent() {
   const { isAuthenticated, currentAlbum, setCurrentAlbum, loading, createAlbum } = useApp();
   const [showUpload, setShowUpload] = useState(false);
   const [showCreateAlbum, setShowCreateAlbum] = useState(false);
+  const [showAccessibilityPanel, setShowAccessibilityPanel] = useState(false);
   const [newAlbumTitle, setNewAlbumTitle] = useState('');
   const [newAlbumDescription, setNewAlbumDescription] = useState('');
 
@@ -29,6 +32,7 @@ function AppContent() {
       </div>
     );
   }
+
   if (!isAuthenticated) {
     return <LoginForm />;
   }
@@ -50,11 +54,27 @@ function AppContent() {
       console.error('アルバム作成エラー:', error);
     }
   };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
+      {/* スキップリンク（アクセシビリティ対応） */}
+      <a href="#main-content" className="skip-link">
+        メインコンテンツにスキップ
+      </a>
+      
+      {/* アクセシビリティボタン */}
+      <button
+        onClick={() => setShowAccessibilityPanel(true)}
+        className="fixed bottom-6 right-6 z-30 p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-all duration-200 focus-ring"
+        title="アクセシビリティ設定を開く"
+        aria-label="アクセシビリティ設定を開く"
+      >
+        <Accessibility size={24} />
+      </button>
+
       <Header onShowUpload={() => setShowUpload(true)} />
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {currentAlbum ? (
           <div>
             {/* アルバム詳細ヘッダー */}
@@ -64,7 +84,8 @@ function AppContent() {
                   variant="outline"
                   size="sm"
                   onClick={() => setCurrentAlbum(null)}
-                  className="flex items-center space-x-2"
+                  className="flex items-center space-x-2 focus-ring"
+                  aria-label="アルバム一覧に戻る"
                 >
                   <ArrowLeft size={16} />
                   <span>戻る</span>
@@ -83,7 +104,8 @@ function AppContent() {
               
               <Button
                 onClick={() => setShowUpload(true)}
-                className="flex items-center space-x-2"
+                className="flex items-center space-x-2 focus-ring"
+                aria-label="写真を追加"
               >
                 <Plus size={20} />
                 <span className="hidden sm:inline">写真を追加</span>
@@ -107,8 +129,9 @@ function AppContent() {
               </div>
               
               <Button 
-                className="flex items-center space-x-2"
+                className="flex items-center space-x-2 focus-ring"
                 onClick={() => setShowCreateAlbum(true)}
+                aria-label="新しいアルバムを作成"
               >
                 <Plus size={20} />
                 <span className="hidden sm:inline">新しいアルバム</span>
@@ -134,30 +157,40 @@ function AppContent() {
           
           <form onSubmit={handleCreateAlbum} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="album-title" className="block text-sm font-medium text-gray-700 mb-2">
                 アルバム名
               </label>
               <input
+                id="album-title"
                 type="text"
                 value={newAlbumTitle}
                 onChange={(e) => setNewAlbumTitle(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent focus-ring"
                 placeholder="例: 2024年家族旅行"
                 required
+                aria-describedby="album-title-desc"
               />
+              <p id="album-title-desc" className="sr-only">
+                アルバムの名前を入力してください
+              </p>
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="album-description" className="block text-sm font-medium text-gray-700 mb-2">
                 説明（任意）
               </label>
               <textarea
+                id="album-description"
                 value={newAlbumDescription}
                 onChange={(e) => setNewAlbumDescription(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent focus-ring"
                 placeholder="アルバムの説明を入力してください"
                 rows={3}
+                aria-describedby="album-desc-desc"
               />
+              <p id="album-desc-desc" className="sr-only">
+                アルバムの詳細説明を入力してください（省略可能）
+              </p>
             </div>
             
             <div className="flex justify-end space-x-3 pt-4">
@@ -165,25 +198,34 @@ function AppContent() {
                 type="button" 
                 variant="outline" 
                 onClick={() => setShowCreateAlbum(false)}
+                className="focus-ring"
               >
                 キャンセル
               </Button>
-              <Button type="submit">
+              <Button type="submit" className="focus-ring">
                 作成
               </Button>
             </div>
           </form>
         </div>
       </Modal>
+
+      {/* アクセシビリティパネル */}
+      <AccessibilityPanel
+        isOpen={showAccessibilityPanel}
+        onClose={() => setShowAccessibilityPanel(false)}
+      />
     </div>
   );
 }
 
 function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <AccessibilityProvider>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </AccessibilityProvider>
   );
 }
 

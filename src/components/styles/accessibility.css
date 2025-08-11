@@ -1,0 +1,425 @@
+/* アクセシビリティ用スタイル */
+
+/* =========================
+   フォントサイズ調整
+========================= */
+
+.text-small {
+    --font-size-base: 14px;
+    --font-size-sm: 12px;
+    --font-size-lg: 16px;
+    --font-size-xl: 18px;
+    --font-size-2xl: 20px;
+    --font-size-3xl: 24px;
+  }
+  
+  .text-medium {
+    --font-size-base: 16px;
+    --font-size-sm: 14px;
+    --font-size-lg: 18px;
+    --font-size-xl: 20px;
+    --font-size-2xl: 24px;
+    --font-size-3xl: 30px;
+  }
+  
+  .text-large {
+    --font-size-base: 18px;
+    --font-size-sm: 16px;
+    --font-size-lg: 20px;
+    --font-size-xl: 24px;
+    --font-size-2xl: 28px;
+    --font-size-3xl: 36px;
+  }
+  
+  .text-extra-large {
+    --font-size-base: 20px;
+    --font-size-sm: 18px;
+    --font-size-lg: 24px;
+    --font-size-xl: 28px;
+    --font-size-2xl: 32px;
+    --font-size-3xl: 42px;
+  }
+  
+  /* フォントサイズの適用 */
+  .text-small body,
+  .text-medium body,
+  .text-large body,
+  .text-extra-large body {
+    font-size: var(--font-size-base);
+  }
+  
+  .text-small .text-sm,
+  .text-medium .text-sm,
+  .text-large .text-sm,
+  .text-extra-large .text-sm {
+    font-size: var(--font-size-sm) !important;
+  }
+  
+  .text-small .text-base,
+  .text-medium .text-base,
+  .text-large .text-base,
+  .text-extra-large .text-base {
+    font-size: var(--font-size-base) !important;
+  }
+  
+  .text-small .text-lg,
+  .text-medium .text-lg,
+  .text-large .text-lg,
+  .text-extra-large .text-lg {
+    font-size: var(--font-size-lg) !important;
+  }
+  
+  .text-small .text-xl,
+  .text-medium .text-xl,
+  .text-large .text-xl,
+  .text-extra-large .text-xl {
+    font-size: var(--font-size-xl) !important;
+  }
+  
+  .text-small .text-2xl,
+  .text-medium .text-2xl,
+  .text-large .text-2xl,
+  .text-extra-large .text-2xl {
+    font-size: var(--font-size-2xl) !important;
+  }
+  
+  .text-small .text-3xl,
+  .text-medium .text-3xl,
+  .text-large .text-3xl,
+  .text-extra-large .text-3xl {
+    font-size: var(--font-size-3xl) !important;
+  }
+  
+  /* =========================
+     ハイコントラストモード
+  ========================= */
+  
+  .high-contrast {
+    --contrast-bg-primary: #000000;
+    --contrast-bg-secondary: #1a1a1a;
+    --contrast-text-primary: #ffffff;
+    --contrast-text-secondary: #cccccc;
+    --contrast-border: #ffffff;
+    --contrast-accent: #ffff00;
+    --contrast-error: #ff0000;
+    --contrast-success: #00ff00;
+    --contrast-warning: #ffaa00;
+  }
+  
+  .high-contrast body {
+    background-color: var(--contrast-bg-primary) !important;
+    color: var(--contrast-text-primary) !important;
+  }
+  
+  .high-contrast .bg-white {
+    background-color: var(--contrast-bg-primary) !important;
+  }
+  
+  .high-contrast .bg-gray-50,
+  .high-contrast .bg-gray-100 {
+    background-color: var(--contrast-bg-secondary) !important;
+  }
+  
+  .high-contrast .text-gray-900,
+  .high-contrast .text-gray-800,
+  .high-contrast .text-gray-700,
+  .high-contrast .text-gray-600 {
+    color: var(--contrast-text-primary) !important;
+  }
+  
+  .high-contrast .text-gray-500,
+  .high-contrast .text-gray-400 {
+    color: var(--contrast-text-secondary) !important;
+  }
+  
+  .high-contrast .border-gray-200,
+  .high-contrast .border-gray-300,
+  .high-contrast .border-gray-100 {
+    border-color: var(--contrast-border) !important;
+  }
+  
+  .high-contrast .border-orange-300,
+  .high-contrast .border-orange-500 {
+    border-color: var(--contrast-accent) !important;
+  }
+  
+  .high-contrast .bg-orange-50,
+  .high-contrast .bg-orange-100 {
+    background-color: var(--contrast-bg-secondary) !important;
+    border: 2px solid var(--contrast-accent) !important;
+  }
+  
+  .high-contrast .text-orange-600,
+  .high-contrast .text-orange-700,
+  .high-contrast .text-orange-500 {
+    color: var(--contrast-accent) !important;
+  }
+  
+  .high-contrast .bg-gradient-to-r {
+    background: var(--contrast-accent) !important;
+    color: var(--contrast-bg-primary) !important;
+  }
+  
+  .high-contrast .shadow-lg,
+  .high-contrast .shadow-md,
+  .high-contrast .shadow-xl {
+    box-shadow: 0 0 0 2px var(--contrast-border) !important;
+  }
+  
+  /* =========================
+     ダークモード
+  ========================= */
+  
+  .dark {
+    --dark-bg-primary: #121212;
+    --dark-bg-secondary: #1e1e1e;
+    --dark-bg-tertiary: #2d2d2d;
+    --dark-text-primary: #ffffff;
+    --dark-text-secondary: #b3b3b3;
+    --dark-text-tertiary: #8c8c8c;
+    --dark-border: #404040;
+    --dark-accent: #ff6b35;
+  }
+  
+  .dark body {
+    background-color: var(--dark-bg-primary);
+    color: var(--dark-text-primary);
+  }
+  
+  .dark .bg-white {
+    background-color: var(--dark-bg-secondary);
+  }
+  
+  .dark .bg-gray-50 {
+    background-color: var(--dark-bg-tertiary);
+  }
+  
+  .dark .bg-gray-100 {
+    background-color: var(--dark-bg-tertiary);
+  }
+  
+  .dark .text-gray-900 {
+    color: var(--dark-text-primary);
+  }
+  
+  .dark .text-gray-600,
+  .dark .text-gray-700,
+  .dark .text-gray-800 {
+    color: var(--dark-text-secondary);
+  }
+  
+  .dark .text-gray-500,
+  .dark .text-gray-400 {
+    color: var(--dark-text-tertiary);
+  }
+  
+  .dark .border-gray-200,
+  .dark .border-gray-300,
+  .dark .border-gray-100 {
+    border-color: var(--dark-border);
+  }
+  
+  .dark .bg-orange-50 {
+    background-color: rgba(255, 107, 53, 0.1);
+  }
+  
+  .dark .text-orange-600,
+  .dark .text-orange-700 {
+    color: var(--dark-accent);
+  }
+  
+  /* =========================
+     モーション軽減
+  ========================= */
+  
+  .reduced-motion,
+  .reduced-motion *,
+  .reduced-motion *::before,
+  .reduced-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .reduced-motion .animate-pulse {
+    animation: none !important;
+  }
+  
+  .reduced-motion .animate-spin {
+    animation: none !important;
+  }
+  
+  .reduced-motion .hover\:scale-105:hover {
+    transform: none !important;
+  }
+  
+  .reduced-motion .hover\:scale-\[1\.02\]:hover {
+    transform: none !important;
+  }
+  
+  .reduced-motion .transition-all,
+  .reduced-motion .transition-colors,
+  .reduced-motion .transition-transform {
+    transition: none !important;
+  }
+  
+  /* =========================
+     キーボードナビゲーション
+  ========================= */
+  
+  .keyboard-navigation {
+    --focus-ring-width: 3px;
+    --focus-ring-color: #2563eb;
+    --focus-ring-offset: 2px;
+  }
+  
+  .keyboard-user *:focus {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color) !important;
+    outline-offset: var(--focus-ring-offset) !important;
+  }
+  
+  .keyboard-user button:focus,
+  .keyboard-user input:focus,
+  .keyboard-user textarea:focus,
+  .keyboard-user select:focus,
+  .keyboard-user a:focus {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color) !important;
+    outline-offset: var(--focus-ring-offset) !important;
+  }
+  
+  /* ハイコントラストモードでのフォーカスリング */
+  .high-contrast.keyboard-user *:focus {
+    outline: var(--focus-ring-width) solid var(--contrast-accent) !important;
+  }
+  
+  /* ダークモードでのフォーカスリング */
+  .dark.keyboard-user *:focus {
+    outline: var(--focus-ring-width) solid var(--dark-accent) !important;
+  }
+  
+  /* =========================
+     スキップリンク
+  ========================= */
+  
+  .skip-link {
+    position: absolute;
+    top: -40px;
+    left: 6px;
+    background: #000;
+    color: #fff;
+    padding: 8px;
+    text-decoration: none;
+    border-radius: 4px;
+    z-index: 1000;
+    font-size: 14px;
+    font-weight: bold;
+  }
+  
+  .skip-link:focus {
+    top: 6px;
+  }
+  
+  /* =========================
+     スクリーンリーダー専用
+  ========================= */
+  
+  .sr-only {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+  
+  .sr-only-focusable:focus {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    padding: inherit !important;
+    margin: inherit !important;
+    overflow: visible !important;
+    clip: auto !important;
+    white-space: inherit !important;
+  }
+  
+  /* =========================
+     カスタムフォーカススタイル
+  ========================= */
+  
+  .focus-ring {
+    transition: box-shadow 0.15s ease-in-out;
+  }
+  
+  .focus-ring:focus {
+    outline: none;
+    box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring-color);
+  }
+  
+  .high-contrast .focus-ring:focus {
+    box-shadow: 0 0 0 var(--focus-ring-width) var(--contrast-accent);
+  }
+  
+  .dark .focus-ring:focus {
+    box-shadow: 0 0 0 var(--focus-ring-width) var(--dark-accent);
+  }
+  
+  /* =========================
+     レスポンシブデザイン補助
+  ========================= */
+  
+  @media (max-width: 768px) {
+    .text-large,
+    .text-extra-large {
+      --font-size-base: 16px;
+      --font-size-lg: 18px;
+      --font-size-xl: 20px;
+    }
+  }
+  
+  /* =========================
+     印刷用スタイル
+  ========================= */
+  
+  @media print {
+    .high-contrast,
+    .dark {
+      background: white !important;
+      color: black !important;
+    }
+    
+    .high-contrast *,
+    .dark * {
+      background: white !important;
+      color: black !important;
+      border-color: black !important;
+    }
+  }
+  
+  /* =========================
+     プリファレンス対応
+  ========================= */
+  
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+  
+  @media (prefers-contrast: high) {
+    :root {
+      filter: contrast(1.5);
+    }
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    :root:not(.high-contrast) {
+      color-scheme: dark;
+    }
+  }
