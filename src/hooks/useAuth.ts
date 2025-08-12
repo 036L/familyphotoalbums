@@ -22,49 +22,101 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     if (isDemo) {
       // デモモードの初期化
-      const demoProfile = localStorage.getItem('demoProfile');
-      const demoAuth = localStorage.getItem('demoAuth');
-      
-      if (demoAuth === 'authenticated' && demoProfile) {
-        const parsedProfile = JSON.parse(demoProfile);
-        setProfile(parsedProfile);
-        setUser({
-          id: parsedProfile.id,
-          email: parsedProfile.email,
-        } as User);
-      }
-      setLoading(false);
-      return;
+      const initDemo = () => {
+        const demoAuth = localStorage.getItem('demoAuth');
+        const demoProfile = localStorage.getItem('demoProfile');
+        
+        if (demoAuth === 'authenticated' && demoProfile) {
+          try {
+            const parsedProfile = JSON.parse(demoProfile);
+            if (mounted) {
+              setProfile(parsedProfile);
+              setUser({
+                id: parsedProfile.id,
+                email: parsedProfile.email,
+                aud: 'authenticated',
+                role: 'authenticated',
+                email_confirmed_at: new Date().toISOString(),
+                phone: '',
+                confirmed_at: new Date().toISOString(),
+                last_sign_in_at: new Date().toISOString(),
+                app_metadata: {},
+                user_metadata: {},
+                identities: [],
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              } as User);
+            }
+          } catch (error) {
+            console.error('デモプロフィール解析エラー:', error);
+            localStorage.removeItem('demoAuth');
+            localStorage.removeItem('demoProfile');
+          }
+        }
+        
+        if (mounted) {
+          setLoading(false);
+        }
+      };
+
+      // 少し遅延を入れて確実にDOMが準備されてから実行
+      setTimeout(initDemo, 100);
+      return () => { mounted = false; };
     }
 
     // 実際のSupabase認証処理
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setLoading(false);
+    const initAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Session取得エラー:', error);
+        }
+        
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            await fetchProfile(session.user.id);
+          } else {
+            setLoading(false);
+          }
+        }
+      } catch (error) {
+        console.error('認証初期化エラー:', error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
-    });
+    };
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, session: Session | null) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        await fetchProfile(session.user.id);
-      } else {
-        setProfile(null);
-        setLoading(false);
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event: AuthChangeEvent, session: Session | null) => {
+        if (!mounted) return;
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          await fetchProfile(session.user.id);
+        } else {
+          setProfile(null);
+          setLoading(false);
+        }
       }
-    });
+    );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchProfile = async (userId: string) => {
@@ -81,6 +133,10 @@ export const useAuth = () => {
 
       if (error) {
         console.error('プロフィール取得エラー:', error);
+        // プロフィールが存在しない場合はデフォルトを作成
+        if (error.code === 'PGRST116') {
+          await createDefaultProfile(userId);
+        }
       } else {
         setProfile(data);
       }
@@ -88,6 +144,26 @@ export const useAuth = () => {
       console.error('プロフィール取得エラー:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createDefaultProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          name: 'ユーザー',
+          role: 'editor',
+          settings: {}
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      setProfile(data);
+    } catch (error) {
+      console.error('デフォルトプロフィール作成エラー:', error);
     }
   };
 
@@ -113,6 +189,17 @@ export const useAuth = () => {
         setUser({
           id: demoProfile.id,
           email: demoProfile.email,
+          aud: 'authenticated',
+          role: 'authenticated',
+          email_confirmed_at: new Date().toISOString(),
+          phone: '',
+          confirmed_at: new Date().toISOString(),
+          last_sign_in_at: new Date().toISOString(),
+          app_metadata: {},
+          user_metadata: {},
+          identities: [],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         } as User);
         
         return {

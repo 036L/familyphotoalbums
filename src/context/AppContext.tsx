@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useAlbums, Album } from '../hooks/useAlbums';
 import { usePhotos } from '../hooks/usePhotos';
@@ -17,6 +17,7 @@ interface AppContextType {
   // Albums
   albums: Album[];
   albumsLoading: boolean;
+  albumsInitialized: boolean;
   createAlbum: (data: any) => Promise<any>;
   updateAlbum: (id: string, updates: any) => Promise<any>;
   deleteAlbum: (id: string) => Promise<void>;
@@ -54,10 +55,24 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const photosHook = usePhotos();
   const [currentAlbum, setCurrentAlbum] = React.useState<Album | null>(null);
 
+  // 認証状態に基づいてアルバムを再取得
+  useEffect(() => {
+    if (auth.user && !auth.loading && !albumsHook.initialized) {
+      // 認証完了後にアルバムを取得
+      const timer = setTimeout(() => {
+        albumsHook.fetchAlbums();
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [auth.user, auth.loading, albumsHook.initialized]);
+
   const logout = async () => {
     try {
       await auth.signOut();
       setCurrentAlbum(null);
+      // ローカルストレージもクリア
+      localStorage.removeItem('demoAlbums');
     } catch (error) {
       console.error('ログアウトエラー:', error);
     }
@@ -92,12 +107,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         
         localStorage.setItem('demoProfile', JSON.stringify(updatedProfile));
         
-        // auth.profileを更新する（デモモード用の処理）
-        if (auth.updateProfile) {
-          return await auth.updateProfile(updates);
-        }
-        
-        return updatedProfile;
+        // auth.updateProfileを呼び出して状態を更新
+        return await auth.updateProfile(updates);
       } else {
         // 実際のSupabase実装
         return await auth.updateProfile(updates);
@@ -124,6 +135,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         // Albums
         albums: albumsHook.albums,
         albumsLoading: albumsHook.loading,
+        albumsInitialized: albumsHook.initialized,
         createAlbum: albumsHook.createAlbum,
         updateAlbum: albumsHook.updateAlbum,
         deleteAlbum: albumsHook.deleteAlbum,

@@ -4,9 +4,10 @@ import { useApp } from '../../context/AppContext';
 import { Card } from '../ui/Card';
 
 export const AlbumGrid: React.FC = () => {
-  const { albums, albumsLoading, setCurrentAlbum } = useApp();
+  const { albums, albumsLoading, albumsInitialized, setCurrentAlbum } = useApp();
 
-  if (albumsLoading) {
+  // 初期化中または読み込み中の表示
+  if (!albumsInitialized || albumsLoading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {[...Array(8)].map((_, i) => (
@@ -160,7 +161,7 @@ export const AlbumGrid: React.FC = () => {
       })}
       
       {/* アルバムが空の場合の表示 */}
-      {albums.length === 0 && (
+      {albumsInitialized && albums.length === 0 && (
         <div className="col-span-full text-center py-12">
           <div className="w-24 h-24 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
             <ImageIcon size={40} className="text-gray-400" />

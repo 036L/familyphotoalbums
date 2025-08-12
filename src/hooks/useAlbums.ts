@@ -120,6 +120,7 @@ export const useAlbums = () => {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   // カバー画像を自動設定する関数
   const getLatestPhotoForCover = async (albumId: string): Promise<string | null> => {
@@ -182,10 +183,25 @@ export const useAlbums = () => {
 
       if (isDemo) {
         // デモモードの場合はデモデータを使用
+        // ローカルストレージから追加されたアルバムも読み込み
+        const savedAlbums = localStorage.getItem('demoAlbums');
+        let allAlbums = [...demoAlbums];
+        
+        if (savedAlbums) {
+          try {
+            const parsedSavedAlbums = JSON.parse(savedAlbums);
+            allAlbums = [...parsedSavedAlbums, ...demoAlbums];
+          } catch (e) {
+            console.warn('保存されたアルバムの読み込みに失敗:', e);
+          }
+        }
+        
+        // デバウンスして設定
         setTimeout(() => {
-          setAlbums(demoAlbums);
+          setAlbums(allAlbums);
           setLoading(false);
-        }, 500);
+          setInitialized(true);
+        }, 200);
         return;
       }
 
@@ -226,6 +242,7 @@ export const useAlbums = () => {
       );
 
       setAlbums(albumsWithCounts);
+      setInitialized(true);
     } catch (err) {
       console.error('アルバム取得エラー:', err);
       setError('アルバムの取得に失敗しました');
@@ -255,7 +272,16 @@ export const useAlbums = () => {
           photo_count: 0,
           creator_name: 'デモユーザー'
         };
-        setAlbums(prev => [newAlbum, ...prev]);
+        
+        const newAlbums = [newAlbum, ...albums];
+        setAlbums(newAlbums);
+        
+        // ローカルストレージに保存
+        const userCreatedAlbums = newAlbums.filter(album => 
+          !demoAlbums.find(demo => demo.id === album.id)
+        );
+        localStorage.setItem('demoAlbums', JSON.stringify(userCreatedAlbums));
+        
         return newAlbum;
       }
 
@@ -285,13 +311,19 @@ export const useAlbums = () => {
     try {
       if (isDemo) {
         // デモモードではローカルで更新
-        setAlbums(prev => 
-          prev.map(album => 
-            album.id === id 
-              ? { ...album, ...updates, updated_at: new Date().toISOString() }
-              : album
-          )
+        const updatedAlbums = albums.map(album => 
+          album.id === id 
+            ? { ...album, ...updates, updated_at: new Date().toISOString() }
+            : album
         );
+        setAlbums(updatedAlbums);
+        
+        // ローカルストレージも更新
+        const userCreatedAlbums = updatedAlbums.filter(album => 
+          !demoAlbums.find(demo => demo.id === album.id)
+        );
+        localStorage.setItem('demoAlbums', JSON.stringify(userCreatedAlbums));
+        
         return { id, ...updates };
       }
 
@@ -316,7 +348,14 @@ export const useAlbums = () => {
     try {
       if (isDemo) {
         // デモモードではローカルから削除
-        setAlbums(prev => prev.filter(album => album.id !== id));
+        const updatedAlbums = albums.filter(album => album.id !== id);
+        setAlbums(updatedAlbums);
+        
+        // ローカルストレージも更新
+        const userCreatedAlbums = updatedAlbums.filter(album => 
+          !demoAlbums.find(demo => demo.id === album.id)
+        );
+        localStorage.setItem('demoAlbums', JSON.stringify(userCreatedAlbums));
         return;
       }
 
@@ -346,13 +385,26 @@ export const useAlbums = () => {
   };
 
   useEffect(() => {
-    fetchAlbums();
+    let mounted = true;
+    
+    // 初期化の遅延を少し入れる
+    const timer = setTimeout(() => {
+      if (mounted) {
+        fetchAlbums();
+      }
+    }, 50);
+
+    return () => {
+      mounted = false;
+      clearTimeout(timer);
+    };
   }, []);
 
   return {
     albums,
     loading,
     error,
+    initialized,
     fetchAlbums,
     createAlbum,
     updateAlbum,

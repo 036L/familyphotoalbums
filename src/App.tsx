@@ -13,13 +13,22 @@ import { Camera } from 'lucide-react';
 import { Modal } from './components/ui/Modal';
 
 function AppContent() {
-  const { isAuthenticated, currentAlbum, setCurrentAlbum, loading, createAlbum } = useApp();
+  const { 
+    isAuthenticated, 
+    currentAlbum, 
+    setCurrentAlbum, 
+    loading, 
+    createAlbum, 
+    albumsLoading 
+  } = useApp();
+  
   const [showUpload, setShowUpload] = useState(false);
   const [showCreateAlbum, setShowCreateAlbum] = useState(false);
   const [showAccessibilityPanel, setShowAccessibilityPanel] = useState(false);
   const [newAlbumTitle, setNewAlbumTitle] = useState('');
   const [newAlbumDescription, setNewAlbumDescription] = useState('');
 
+  // 認証チェック中の表示
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center">
@@ -33,10 +42,12 @@ function AppContent() {
     );
   }
 
+  // 認証されていない場合はログインフォームを表示
   if (!isAuthenticated) {
     return <LoginForm />;
   }
 
+  // アルバム作成処理
   const handleCreateAlbum = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAlbumTitle.trim()) return;
@@ -52,6 +63,7 @@ function AppContent() {
       setShowCreateAlbum(false);
     } catch (error) {
       console.error('アルバム作成エラー:', error);
+      alert('アルバムの作成に失敗しました');
     }
   };
 
@@ -132,6 +144,7 @@ function AppContent() {
                 className="flex items-center space-x-2 focus-ring"
                 onClick={() => setShowCreateAlbum(true)}
                 aria-label="新しいアルバムを作成"
+                disabled={albumsLoading}
               >
                 <Plus size={20} />
                 <span className="hidden sm:inline">新しいアルバム</span>
