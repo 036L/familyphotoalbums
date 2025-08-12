@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, X, User, Image as ImageIcon, UserPlus, MessageCircle } from 'lucide-react';
+import { Bell, X, Image as ImageIcon, UserPlus, MessageCircle } from 'lucide-react';
 
 interface Notification {
   id: string;
@@ -65,7 +65,7 @@ export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className 
     setUnreadCount(demoNotifications.filter(n => !n.read).length);
   }, []);
 
-  const getNotificationIcon = (type: Notification['type']) => {
+  const getNotificationIcon = (type: Notification['type']): React.ReactElement => {
     const iconProps = { size: 16, className: "text-white" };
     
     switch (type) {
@@ -82,7 +82,7 @@ export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className 
     }
   };
 
-  const getNotificationColor = (type: Notification['type']) => {
+  const getNotificationColor = (type: Notification['type']): string => {
     switch (type) {
       case 'new_photo':
         return 'bg-blue-500';
@@ -120,7 +120,7 @@ export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className 
     }
   };
 
-  const formatTimestamp = (timestamp: string) => {
+  const formatTimestamp = (timestamp: string): string => {
     // 実際のアプリケーションでは、より詳細な日時処理を行う
     return timestamp;
   };

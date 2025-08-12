@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
 export interface Profile {
@@ -40,7 +40,7 @@ export const useAuth = () => {
     }
 
     // 実際のSupabase認証処理
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -52,7 +52,7 @@ export const useAuth = () => {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event: AuthChangeEvent, session: Session | null) => {
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -205,6 +205,8 @@ export const useAuth = () => {
       setProfile(updatedProfile);
       return updatedProfile;
     }
+
+    if (!user) throw new Error('ユーザーがログインしていません');
 
     const { data, error } = await supabase
       .from('profiles')

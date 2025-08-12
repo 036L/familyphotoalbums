@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Bell, Shield, Palette, Type, Moon, Sun, X } from 'lucide-react';
+import { Settings, Bell, Shield, Palette, Type, Moon, X } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 

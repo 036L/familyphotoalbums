@@ -16,6 +16,22 @@ export interface Album {
   createdAt: string; // 互換性のため
 }
 
+// データベースから取得される生のアルバムデータの型
+interface RawAlbumData {
+  id: string;
+  title: string;
+  description: string | null;
+  cover_image_url: string | null;
+  created_by: string;
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+  profiles?: {
+    name: string;
+  } | null;
+  photos?: Array<{ count: number }>;
+}
+
 // デモデータを改善（実際の画像URLを使用）
 const demoAlbums: Album[] = [
   {
@@ -185,7 +201,7 @@ export const useAlbums = () => {
       if (error) throw error;
 
       const albumsWithCounts = await Promise.all(
-        data.map(async (album) => {
+        (data as RawAlbumData[]).map(async (album: RawAlbumData) => {
           let coverImageUrl = album.cover_image_url;
           
           // カバー画像が設定されていない場合、最新の写真を取得
@@ -197,13 +213,15 @@ export const useAlbums = () => {
             }
           }
 
-          return {
+          const processedAlbum: Album = {
             ...album,
             createdAt: album.created_at,
             cover_image_url: coverImageUrl,
             photo_count: album.photos?.[0]?.count || 0,
             creator_name: album.profiles?.name || '不明',
           };
+
+          return processedAlbum;
         })
       );
 

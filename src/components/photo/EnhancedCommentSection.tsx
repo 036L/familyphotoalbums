@@ -6,7 +6,6 @@ import {
   Reply, 
   MoreHorizontal, 
   Smile,
-  ThumbsUp,
   Edit,
   Trash2
 } from 'lucide-react';
@@ -22,7 +21,7 @@ interface Comment {
   created_at: string;
   updated_at: string;
   user_name?: string;
-  user_avatar?: string;
+  user_avatar?: string | null;
   likes_count?: number;
   is_liked?: boolean;
   replies?: Comment[];
