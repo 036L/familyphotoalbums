@@ -11,6 +11,7 @@ import { AccessibilityPanel } from './components/accessibility/AccessibilityPane
 import { Button } from './components/ui/Button';
 import { Camera } from 'lucide-react';
 import { Modal } from './components/ui/Modal';
+import { AlbumDeleteButton } from './components/album/AlbumDeleteButton';
 
 function AppContent() {
   const { 
@@ -114,14 +115,23 @@ function AppContent() {
                 </div>
               </div>
               
-              <Button
-                onClick={() => setShowUpload(true)}
-                className="flex items-center space-x-2 focus-ring"
-                aria-label="写真を追加"
-              >
-                <Plus size={20} />
-                <span className="hidden sm:inline">写真を追加</span>
-              </Button>
+              <div className="flex items-center space-x-3">
+                <Button
+                  onClick={() => setShowUpload(true)}
+                  className="flex items-center space-x-2 focus-ring"
+                  aria-label="写真を追加"
+                >
+                  <Plus size={20} />
+                  <span className="hidden sm:inline">写真を追加</span>
+                </Button>
+                
+                {/* アルバム削除ボタンを追加 */}
+                <AlbumDeleteButton 
+                  album={currentAlbum}
+                  variant="icon"
+                  onDeleted={() => setCurrentAlbum(null)}
+                />
+              </div>
             </div>
 
             {/* 写真グリッド */}

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Heart, MessageCircle, Calendar, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Heart, MessageCircle, Calendar, User, MoreHorizontal } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Photo } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { EnhancedCommentSection } from './EnhancedCommentSection';
+import { PhotoDeleteButton } from './PhotoDeleteButton';
 
 interface PhotoModalProps {
   photo: Photo | null;
@@ -20,6 +21,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   const { photos } = useApp();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showComments, setShowComments] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   React.useEffect(() => {
     if (photo) {
@@ -53,6 +55,19 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handlePhotoDeleted = () => {
+    // 削除後の処理
+    if (photos.length <= 1) {
+      // 最後の写真が削除された場合はモーダルを閉じる
+      onClose();
+    } else {
+      // 他の写真がある場合は次の写真に移動
+      if (currentIndex >= photos.length - 1) {
+        setCurrentIndex(Math.max(0, photos.length - 2));
+      }
+    }
   };
 
   return (
@@ -98,9 +113,45 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
         {/* 情報・コメントエリア */}
         <div className="w-full lg:w-96 bg-white rounded-r-2xl lg:rounded-l-none rounded-l-2xl flex flex-col">
           <div className="p-6 border-b border-gray-100">
-            <h3 className="font-semibold text-lg text-gray-900 mb-2">
-              {currentPhoto.filename}
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-lg text-gray-900">
+                {currentPhoto.filename}
+              </h3>
+              
+              {/* メニューボタン */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowMenu(!showMenu)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <MoreHorizontal size={20} className="text-gray-500" />
+                </button>
+
+                {/* ドロップダウンメニュー */}
+                {showMenu && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-30"
+                      onClick={() => setShowMenu(false)}
+                    />
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 z-40">
+                      <div className="p-2">
+                        <PhotoDeleteButton 
+                          photo={currentPhoto}
+                          variant="button"
+                          size="sm"
+                          className="w-full justify-start"
+                          onDeleted={() => {
+                            setShowMenu(false);
+                            handlePhotoDeleted();
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
             
             <div className="space-y-2 text-sm text-gray-600">
               <div className="flex items-center space-x-2">
