@@ -15,6 +15,11 @@ export interface Profile {
 
 const isDemo = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// デバッグログ関数
+const debugLog = (message: string, data?: any) => {
+  console.log(`[useAuth] ${message}`, data);
+};
+
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -23,59 +28,86 @@ export const useAuth = () => {
 
   useEffect(() => {
     let mounted = true;
+    debugLog('useAuth初期化開始', { isDemo });
 
     if (isDemo) {
+      debugLog('デモモード初期化');
+      
       // デモモードの初期化
       const initDemo = () => {
-        const demoAuth = localStorage.getItem('demoAuth');
-        const demoProfile = localStorage.getItem('demoProfile');
-        
-        if (demoAuth === 'authenticated' && demoProfile) {
-          try {
-            const parsedProfile = JSON.parse(demoProfile);
-            if (mounted) {
-              setProfile(parsedProfile);
-              setUser({
-                id: parsedProfile.id,
-                email: parsedProfile.email,
-                aud: 'authenticated',
-                role: 'authenticated',
-                email_confirmed_at: new Date().toISOString(),
-                phone: '',
-                confirmed_at: new Date().toISOString(),
-                last_sign_in_at: new Date().toISOString(),
-                app_metadata: {},
-                user_metadata: {},
-                identities: [],
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              } as User);
+        try {
+          const demoAuth = localStorage.getItem('demoAuth');
+          const demoProfile = localStorage.getItem('demoProfile');
+          
+          debugLog('ローカルストレージ確認', { demoAuth, hasProfile: !!demoProfile });
+          
+          if (demoAuth === 'authenticated' && demoProfile) {
+            try {
+              const parsedProfile = JSON.parse(demoProfile);
+              debugLog('プロフィール解析成功', parsedProfile);
+              
+              if (mounted) {
+                const demoUser = {
+                  id: parsedProfile.id,
+                  email: parsedProfile.email,
+                  aud: 'authenticated',
+                  role: 'authenticated',
+                  email_confirmed_at: new Date().toISOString(),
+                  phone: '',
+                  confirmed_at: new Date().toISOString(),
+                  last_sign_in_at: new Date().toISOString(),
+                  app_metadata: {},
+                  user_metadata: {},
+                  identities: [],
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                } as User;
+                
+                setProfile(parsedProfile);
+                setUser(demoUser);
+                debugLog('認証状態設定完了', { user: demoUser, profile: parsedProfile });
+              }
+            } catch (error) {
+              debugLog('プロフィール解析エラー', error);
+              localStorage.removeItem('demoAuth');
+              localStorage.removeItem('demoProfile');
             }
-          } catch (error) {
-            console.error('デモプロフィール解析エラー:', error);
-            localStorage.removeItem('demoAuth');
-            localStorage.removeItem('demoProfile');
+          } else {
+            debugLog('未認証状態');
           }
-        }
-        
-        if (mounted) {
-          setLoading(false);
+          
+          if (mounted) {
+            setLoading(false);
+            debugLog('初期化完了');
+          }
+        } catch (error) {
+          debugLog('デモ初期化エラー', error);
+          if (mounted) {
+            setLoading(false);
+          }
         }
       };
 
-      // 少し遅延を入れて確実にDOMが準備されてから実行
-      setTimeout(initDemo, 100);
-      return () => { mounted = false; };
+      // 確実にDOMが準備されてから実行
+      const timer = setTimeout(initDemo, 50);
+      return () => {
+        mounted = false;
+        clearTimeout(timer);
+      };
     }
 
     // 実際のSupabase認証処理
     const initAuth = async () => {
       try {
+        debugLog('Supabase認証初期化開始');
+        
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Session取得エラー:', error);
+          debugLog('Session取得エラー', error);
         }
+        
+        debugLog('Session取得結果', { hasSession: !!session, user: session?.user?.id });
         
         if (mounted) {
           setSession(session);
@@ -88,7 +120,7 @@ export const useAuth = () => {
           }
         }
       } catch (error) {
-        console.error('認証初期化エラー:', error);
+        debugLog('認証初期化エラー', error);
         if (mounted) {
           setLoading(false);
         }
@@ -100,6 +132,8 @@ export const useAuth = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event: AuthChangeEvent, session: Session | null) => {
         if (!mounted) return;
+        
+        debugLog('認証状態変更', { event: _event, hasSession: !!session });
         
         setSession(session);
         setUser(session?.user ?? null);
@@ -116,11 +150,14 @@ export const useAuth = () => {
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      debugLog('useAuthクリーンアップ');
     };
   }, []);
 
   const fetchProfile = async (userId: string) => {
     try {
+      debugLog('プロフィール取得開始', userId);
+      
       if (isDemo) {
         return;
       }
@@ -132,16 +169,17 @@ export const useAuth = () => {
         .single();
 
       if (error) {
-        console.error('プロフィール取得エラー:', error);
+        debugLog('プロフィール取得エラー', error);
         // プロフィールが存在しない場合はデフォルトを作成
         if (error.code === 'PGRST116') {
           await createDefaultProfile(userId);
         }
       } else {
+        debugLog('プロフィール取得成功', data);
         setProfile(data);
       }
     } catch (error) {
-      console.error('プロフィール取得エラー:', error);
+      debugLog('プロフィール取得例外', error);
     } finally {
       setLoading(false);
     }
@@ -149,6 +187,8 @@ export const useAuth = () => {
 
   const createDefaultProfile = async (userId: string) => {
     try {
+      debugLog('デフォルトプロフィール作成開始', userId);
+      
       const { data, error } = await supabase
         .from('profiles')
         .insert({
@@ -161,13 +201,17 @@ export const useAuth = () => {
         .single();
 
       if (error) throw error;
+      
+      debugLog('デフォルトプロフィール作成成功', data);
       setProfile(data);
     } catch (error) {
-      console.error('デフォルトプロフィール作成エラー:', error);
+      debugLog('デフォルトプロフィール作成エラー', error);
     }
   };
 
   const signInWithEmail = async (email: string, password: string) => {
+    debugLog('ログイン試行', { email, isDemo });
+    
     if (isDemo) {
       // デモモードでの認証
       if (email === 'test@example.com' && password === 'password123') {
@@ -182,11 +226,12 @@ export const useAuth = () => {
           updated_at: new Date().toISOString()
         };
         
+        debugLog('デモログイン成功', demoProfile);
+        
         localStorage.setItem('demoAuth', 'authenticated');
         localStorage.setItem('demoProfile', JSON.stringify(demoProfile));
         
-        setProfile(demoProfile);
-        setUser({
+        const demoUser = {
           id: demoProfile.id,
           email: demoProfile.email,
           aud: 'authenticated',
@@ -200,19 +245,20 @@ export const useAuth = () => {
           identities: [],
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        } as User);
+        } as User;
+        
+        setProfile(demoProfile);
+        setUser(demoUser);
         
         return {
           data: {
-            user: {
-              id: demoProfile.id,
-              email: demoProfile.email,
-            },
+            user: demoUser,
             session: { access_token: 'demo-token' }
           },
           error: null
         };
       } else {
+        debugLog('デモログイン失敗');
         throw new Error('認証情報が正しくありません');
       }
     }
@@ -223,6 +269,7 @@ export const useAuth = () => {
     });
 
     if (error) throw error;
+    debugLog('Supabaseログイン成功', data);
     return data;
   };
 
@@ -249,7 +296,7 @@ export const useAuth = () => {
         });
 
       if (profileError) {
-        console.error('プロフィール作成エラー:', profileError);
+        debugLog('プロフィール作成エラー', profileError);
       }
     }
 
@@ -257,16 +304,20 @@ export const useAuth = () => {
   };
 
   const signOut = async () => {
+    debugLog('ログアウト開始');
+    
     if (isDemo) {
       localStorage.removeItem('demoAuth');
       localStorage.removeItem('demoProfile');
       setUser(null);
       setProfile(null);
+      debugLog('デモログアウト完了');
       return;
     }
 
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    debugLog('Supabaseログアウト完了');
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
@@ -288,6 +339,8 @@ export const useAuth = () => {
         updated_at: new Date().toISOString()
       };
 
+      debugLog('プロフィール更新', updatedProfile);
+      
       localStorage.setItem('demoProfile', JSON.stringify(updatedProfile));
       setProfile(updatedProfile);
       return updatedProfile;
@@ -306,6 +359,17 @@ export const useAuth = () => {
     setProfile(data);
     return data;
   };
+
+  // デバッグ用の状態ログ出力
+  useEffect(() => {
+    debugLog('状態変更', { 
+      hasUser: !!user, 
+      hasProfile: !!profile, 
+      loading,
+      userId: user?.id,
+      profileName: profile?.name
+    });
+  }, [user, profile, loading]);
 
   return {
     user,

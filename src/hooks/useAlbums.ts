@@ -16,6 +16,11 @@ export interface Album {
   createdAt: string; // 互換性のため
 }
 
+// デバッグログ関数
+const debugLog = (message: string, data?: any) => {
+  console.log(`[useAlbums] ${message}`, data);
+};
+
 // データベースから取得される生のアルバムデータの型
 interface RawAlbumData {
   id: string;
@@ -122,6 +127,8 @@ export const useAlbums = () => {
   const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
 
+  debugLog('useAlbums初期化', { isDemo });
+
   // カバー画像を自動設定する関数
   const getLatestPhotoForCover = async (albumId: string): Promise<string | null> => {
     try {
@@ -178,30 +185,38 @@ export const useAlbums = () => {
 
   const fetchAlbums = async () => {
     try {
+      debugLog('アルバム取得開始');
       setLoading(true);
       setError(null);
 
       if (isDemo) {
-        // デモモードの場合はデモデータを使用
+        debugLog('デモモードでアルバム取得');
+        
         // ローカルストレージから追加されたアルバムも読み込み
-        const savedAlbums = localStorage.getItem('demoAlbums');
         let allAlbums = [...demoAlbums];
         
-        if (savedAlbums) {
-          try {
+        try {
+          const savedAlbums = localStorage.getItem('demoAlbums');
+          if (savedAlbums) {
             const parsedSavedAlbums = JSON.parse(savedAlbums);
-            allAlbums = [...parsedSavedAlbums, ...demoAlbums];
-          } catch (e) {
-            console.warn('保存されたアルバムの読み込みに失敗:', e);
+            if (Array.isArray(parsedSavedAlbums)) {
+              allAlbums = [...parsedSavedAlbums, ...demoAlbums];
+              debugLog('保存されたアルバムを統合', { savedCount: parsedSavedAlbums.length });
+            }
           }
+        } catch (e) {
+          debugLog('保存されたアルバムの読み込みに失敗', e);
         }
         
-        // デバウンスして設定
+        debugLog('最終アルバム数', allAlbums.length);
+        
+        // 少し遅延を入れて確実に状態を更新
         setTimeout(() => {
           setAlbums(allAlbums);
           setLoading(false);
           setInitialized(true);
-        }, 200);
+          debugLog('デモアルバム設定完了', allAlbums);
+        }, 100);
         return;
       }
 
@@ -243,7 +258,9 @@ export const useAlbums = () => {
 
       setAlbums(albumsWithCounts);
       setInitialized(true);
+      debugLog('Supabaseアルバム取得完了', albumsWithCounts);
     } catch (err) {
+      debugLog('アルバム取得エラー', err);
       console.error('アルバム取得エラー:', err);
       setError('アルバムの取得に失敗しました');
     } finally {
@@ -257,10 +274,12 @@ export const useAlbums = () => {
     is_public?: boolean;
   }) => {
     try {
+      debugLog('アルバム作成開始', albumData);
+      
       if (isDemo) {
         // デモモードでは新しいアルバムをローカルに追加
         const newAlbum: Album = {
-          id: Date.now().toString(),
+          id: `demo-${Date.now()}`,
           ...albumData,
           description: albumData.description || null,
           cover_image_url: null,
@@ -276,12 +295,13 @@ export const useAlbums = () => {
         const newAlbums = [newAlbum, ...albums];
         setAlbums(newAlbums);
         
-        // ローカルストレージに保存
+        // ローカルストレージに保存（デモアルバムは除外）
         const userCreatedAlbums = newAlbums.filter(album => 
           !demoAlbums.find(demo => demo.id === album.id)
         );
         localStorage.setItem('demoAlbums', JSON.stringify(userCreatedAlbums));
         
+        debugLog('デモアルバム作成完了', newAlbum);
         return newAlbum;
       }
 
@@ -300,8 +320,10 @@ export const useAlbums = () => {
       if (error) throw error;
 
       await fetchAlbums(); // アルバム一覧を再取得
+      debugLog('Supabaseアルバム作成完了', data);
       return data;
     } catch (err) {
+      debugLog('アルバム作成エラー', err);
       console.error('アルバム作成エラー:', err);
       throw new Error('アルバムの作成に失敗しました');
     }
@@ -387,9 +409,12 @@ export const useAlbums = () => {
   useEffect(() => {
     let mounted = true;
     
-    // 初期化の遅延を少し入れる
+    debugLog('useAlbumsエフェクト実行');
+    
+    // 少し遅延を入れて確実に実行
     const timer = setTimeout(() => {
       if (mounted) {
+        debugLog('アルバム取得開始タイマー実行');
         fetchAlbums();
       }
     }, 50);
@@ -397,8 +422,19 @@ export const useAlbums = () => {
     return () => {
       mounted = false;
       clearTimeout(timer);
+      debugLog('useAlbumsクリーンアップ');
     };
   }, []);
+
+  // デバッグ用の状態ログ出力
+  useEffect(() => {
+    debugLog('アルバム状態変更', { 
+      albumCount: albums.length, 
+      loading, 
+      initialized, 
+      error 
+    });
+  }, [albums, loading, initialized, error]);
 
   return {
     albums,
