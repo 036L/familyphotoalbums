@@ -8,10 +8,11 @@ import { AlbumGrid } from './components/album/AlbumGrid';
 import { PhotoGrid } from './components/photo/PhotoGrid';
 import { UploadModal } from './components/upload/UploadModal';
 import { AccessibilityPanel } from './components/accessibility/AccessibilityPanel';
+import { AlbumDeleteButton } from './components/album/AlbumDeleteButton'; // 追加
 import { Button } from './components/ui/Button';
 import { Camera } from 'lucide-react';
 import { Modal } from './components/ui/Modal';
-import { AlbumDeleteButton } from './components/album/AlbumDeleteButton';
+import { RoleTestPanel } from './components/debug/RoleTestPanel';
 
 function AppContent() {
   const { 
@@ -238,6 +239,14 @@ function AppContent() {
         isOpen={showAccessibilityPanel}
         onClose={() => setShowAccessibilityPanel(false)}
       />
+    </div>
+  );
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
+      {/* 既存のコンテンツ */}
+      
+      {/* 権限テストパネル（開発時のみ表示） */}
+      <RoleTestPanel />
     </div>
   );
 }
