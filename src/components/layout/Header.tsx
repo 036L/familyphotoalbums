@@ -6,6 +6,8 @@ import { NotificationBadge } from '../notification/NotificationBadge';
 import { ProfileModal } from '../profile/ProfileModal';
 import { SettingsModal } from '../settings/SettingsModal.tsx';
 import { InviteModal } from '../invite/InviteModal';
+import { PermissionGuard } from '../auth/PermissionGuard';
+
 
 interface HeaderProps {
   onShowUpload?: () => void;
@@ -38,6 +40,7 @@ export const Header: React.FC<HeaderProps> = ({ onShowUpload }) => {
             <div className="flex items-center space-x-4">
               {/* 写真追加ボタン（アルバム詳細時のみ） */}
               {currentAlbum && onShowUpload && (
+                <PermissionGuard permission="photo.upload">
                 <Button
                   variant="outline"
                   size="sm"
@@ -47,10 +50,12 @@ export const Header: React.FC<HeaderProps> = ({ onShowUpload }) => {
                   <Upload size={16} />
                   <span>写真を追加</span>
                 </Button>
+                </PermissionGuard>
               )}
 
               {/* 家族招待ボタン（管理者・編集者のみ） */}
               {(profile?.role === 'admin' || profile?.role === 'editor') && (
+                <PermissionGuard permission="invite.create">
                 <Button
                   variant="outline"
                   size="sm"
@@ -60,6 +65,7 @@ export const Header: React.FC<HeaderProps> = ({ onShowUpload }) => {
                   <UserPlus size={16} />
                   <span>家族を招待</span>
                 </Button>
+                </PermissionGuard>
               )}
               
               {/* 通知ベル */}

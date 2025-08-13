@@ -8,11 +8,13 @@ import { AlbumGrid } from './components/album/AlbumGrid';
 import { PhotoGrid } from './components/photo/PhotoGrid';
 import { UploadModal } from './components/upload/UploadModal';
 import { AccessibilityPanel } from './components/accessibility/AccessibilityPanel';
-import { AlbumDeleteButton } from './components/album/AlbumDeleteButton'; // 追加
+import { AlbumDeleteButton } from './components/album/AlbumDeleteButton';
 import { Button } from './components/ui/Button';
 import { Camera } from 'lucide-react';
 import { Modal } from './components/ui/Modal';
 import { RoleTestPanel } from './components/debug/RoleTestPanel';
+import { PermissionDebugger } from './components/debug/PermissionDebugger';
+import { PermissionGuard } from './components/auth/PermissionGuard';
 
 function AppContent() {
   const { 
@@ -40,13 +42,21 @@ function AppContent() {
           </div>
           <p className="text-gray-600">読み込み中...</p>
         </div>
+        {/* 権限テストパネル（ローディング中でも表示） */}
+        <RoleTestPanel />
       </div>
     );
   }
 
   // 認証されていない場合はログインフォームを表示
   if (!isAuthenticated) {
-    return <LoginForm />;
+    return (
+      <>
+        <LoginForm />
+        {/* 権限テストパネル（ログイン画面でも表示） */}
+        <RoleTestPanel />
+      </>
+    );
   }
 
   // アルバム作成処理
@@ -117,16 +127,18 @@ function AppContent() {
               </div>
               
               <div className="flex items-center space-x-3">
-                <Button
-                  onClick={() => setShowUpload(true)}
-                  className="flex items-center space-x-2 focus-ring"
-                  aria-label="写真を追加"
-                >
-                  <Plus size={20} />
-                  <span className="hidden sm:inline">写真を追加</span>
-                </Button>
+                <PermissionGuard permission="photo.upload">
+                  <Button
+                    onClick={() => setShowUpload(true)}
+                    className="flex items-center space-x-2 focus-ring"
+                    aria-label="写真を追加"
+                  >
+                    <Plus size={20} />
+                    <span className="hidden sm:inline">写真を追加</span>
+                  </Button>
+                </PermissionGuard>
                 
-                {/* アルバム削除ボタンを追加 */}
+                {/* アルバム削除ボタン */}
                 <AlbumDeleteButton 
                   album={currentAlbum}
                   variant="icon"
@@ -151,15 +163,17 @@ function AppContent() {
                 </p>
               </div>
               
-              <Button 
-                className="flex items-center space-x-2 focus-ring"
-                onClick={() => setShowCreateAlbum(true)}
-                aria-label="新しいアルバムを作成"
-                disabled={albumsLoading}
-              >
-                <Plus size={20} />
-                <span className="hidden sm:inline">新しいアルバム</span>
-              </Button>
+              <PermissionGuard permission="album.create">
+                <Button 
+                  className="flex items-center space-x-2 focus-ring"
+                  onClick={() => setShowCreateAlbum(true)}
+                  aria-label="新しいアルバムを作成"
+                  disabled={albumsLoading}
+                >
+                  <Plus size={20} />
+                  <span className="hidden sm:inline">新しいアルバム</span>
+                </Button>
+              </PermissionGuard>
             </div>
 
             {/* アルバムグリッド */}
@@ -239,14 +253,12 @@ function AppContent() {
         isOpen={showAccessibilityPanel}
         onClose={() => setShowAccessibilityPanel(false)}
       />
-    </div>
-  );
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
-      {/* 既存のコンテンツ */}
-      
+
       {/* 権限テストパネル（開発時のみ表示） */}
       <RoleTestPanel />
+      
+      {/* 権限デバッガー（開発時のみ表示） */}
+      <PermissionDebugger />
     </div>
   );
 }

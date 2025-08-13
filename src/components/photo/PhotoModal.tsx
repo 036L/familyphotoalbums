@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Heart, MessageCircle, Calendar, User, Trash2} from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ChevronLeft, ChevronRight, Heart, MessageCircle, Calendar, User, Trash2 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useApp } from '../../context/AppContext';
-import { EnhancedCommentSection } from './EnhancedCommentSection';
+import { CommentSection } from './CommentSection'; // EnhancedCommentSectionではなくCommentSectionを使用
 import { ConfirmDeleteModal } from '../ui/ConfirmDeleteModal';
 import { usePermissions } from '../../hooks/usePermissions';
 
@@ -38,7 +38,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   onClose
 }) => {
   const { photos, deletePhoto, currentAlbum } = useApp();
-  const { canDeleteResource, canManageAlbum } = usePermissions();
+  const { canDeleteResource, canManageAlbum, userRole, userId } = usePermissions();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showComments, setShowComments] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -55,10 +55,29 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
 
   const currentPhoto = photos[currentIndex] || photo;
 
-  // 削除権限チェック
-  const canDelete = canDeleteResource('photo.delete', {
-    uploadedBy: currentPhoto.uploaded_by
-  }) || (currentAlbum && canManageAlbum(currentAlbum));
+  // 削除権限チェック（より厳密に）
+  const canDelete = useMemo(() => {
+    const hasDeletePermission = canDeleteResource('photo.delete', {
+      uploadedBy: currentPhoto.uploaded_by
+    });
+    
+    const canManageCurrentAlbum = currentAlbum && canManageAlbum(currentAlbum);
+    
+    const result = hasDeletePermission || canManageCurrentAlbum;
+    
+    // デバッグログ
+    console.log('[PhotoModal] 削除権限チェック:', {
+      photoId: currentPhoto.id,
+      uploadedBy: currentPhoto.uploaded_by,
+      userId,
+      userRole,
+      hasDeletePermission,
+      canManageCurrentAlbum,
+      finalResult: result
+    });
+    
+    return result;
+  }, [currentPhoto.uploaded_by, currentPhoto.id, canDeleteResource, currentAlbum, canManageAlbum, userId, userRole]);
 
   const goToPrevious = () => {
     if (currentIndex > 0) {
@@ -178,17 +197,6 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
                 <h3 className="font-semibold text-lg text-gray-900">
                   {currentPhoto.filename}
                 </h3>
-                
-                {/* 削除ボタン（権限がある場合のみ表示） */}
-                {canDelete && (
-                  <button
-                    onClick={() => setShowDeleteModal(true)}
-                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-                    title="写真を削除"
-                  >
-                    <Trash2 size={20} />
-                  </button>
-                )}
               </div>
               
               <div className="space-y-2 text-sm text-gray-600">
@@ -204,26 +212,39 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
                 )}
               </div>
 
-              <div className="flex items-center space-x-4 mt-4">
-                <Button variant="outline" size="sm" className="flex items-center space-x-2">
-                  <Heart size={16} />
-                  <span>いいね</span>
-                </Button>
-                <Button 
-                  variant={showComments ? 'primary' : 'outline'} 
-                  size="sm" 
-                  className="flex items-center space-x-2"
-                  onClick={() => setShowComments(!showComments)}
-                >
-                  <MessageCircle size={16} />
-                  <span>コメント</span>
-                </Button>
+              <div className="flex items-center justify-between mt-4">
+                <div className="flex items-center space-x-4">
+                  <Button variant="outline" size="sm" className="flex items-center space-x-2">
+                    <Heart size={16} />
+                    <span>いいね</span>
+                  </Button>
+                  <Button 
+                    variant={showComments ? 'primary' : 'outline'} 
+                    size="sm" 
+                    className="flex items-center space-x-2"
+                    onClick={() => setShowComments(!showComments)}
+                  >
+                    <MessageCircle size={16} />
+                    <span>コメント</span>
+                  </Button>
+                </div>
+                
+                {/* 削除ボタンを右下に配置 */}
+                {canDelete && (
+                  <button
+                    onClick={() => setShowDeleteModal(true)}
+                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                    title="写真を削除"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
               </div>
             </div>
 
             {showComments && (
               <div className="flex-1 overflow-hidden">
-                <EnhancedCommentSection photoId={currentPhoto.id} />
+                <CommentSection photoId={currentPhoto.id} />
               </div>
             )}
           </div>

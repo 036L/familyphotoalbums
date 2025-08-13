@@ -26,6 +26,36 @@ export const useAuth = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // プロフィール変更の監視を追加
+  useEffect(() => {
+    if (isDemo) {
+      // ローカルストレージの変更を監視
+      const handleStorageChange = () => {
+        try {
+          const demoProfile = localStorage.getItem('demoProfile');
+          if (demoProfile) {
+            const parsedProfile = JSON.parse(demoProfile);
+            debugLog('ローカルストレージ変更検知', parsedProfile);
+            setProfile(parsedProfile);
+          }
+        } catch (error) {
+          debugLog('ローカルストレージ読み込みエラー', error);
+        }
+      };
+
+      // storage イベントリスナーを追加（他のタブでの変更を検知）
+      window.addEventListener('storage', handleStorageChange);
+      
+      // 定期的にローカルストレージをチェック（同一タブ内での変更検知）
+      const interval = setInterval(handleStorageChange, 500);
+
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        clearInterval(interval);
+      };
+    }
+  }, [isDemo]);
+
   useEffect(() => {
     let mounted = true;
     debugLog('useAuth初期化開始', { isDemo });
@@ -367,7 +397,8 @@ export const useAuth = () => {
       hasProfile: !!profile, 
       loading,
       userId: user?.id,
-      profileName: profile?.name
+      profileName: profile?.name,
+      profileRole: profile?.role
     });
   }, [user, profile, loading]);
 

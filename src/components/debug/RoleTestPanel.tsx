@@ -29,10 +29,9 @@ export const RoleTestPanel: React.FC<RoleTestPanelProps> = ({ className = '' }) 
         localStorage.setItem('demoProfile', JSON.stringify(profile));
         setCurrentRole(newRole);
         
-        // ページをリロードして権限を反映
-        setTimeout(() => {
-          window.location.reload();
-        }, 500);
+        // より確実にページをリロードする
+        console.log(`[RoleTestPanel] 権限を${newRole}に変更 - リロード実行`);
+        window.location.reload();
       }
     } catch (e) {
       console.error('権限変更エラー:', e);

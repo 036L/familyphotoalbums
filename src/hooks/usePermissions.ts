@@ -51,12 +51,13 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'admin.all',
   ],
   editor: [
-    // 基本的な編集権限
+    // 基本的な編集権限（写真削除も含む）
     'album.create',
     'album.edit',
     'album.view',
     'photo.upload',
     'photo.edit',
+    'photo.delete', // 編集者も写真削除可能
     'photo.view',
     'comment.create',
     'comment.edit',
@@ -87,6 +88,14 @@ export const usePermissions = () => {
   const userRole: Role = profile?.role || 'viewer';
   const userId = user?.id || profile?.id;
 
+  // デバッグログ追加
+  console.log('[usePermissions] 現在の権限情報:', {
+    userRole,
+    userId,
+    profile,
+    hasUser: !!user
+  });
+
   // 現在のユーザーの権限一覧を取得
   const permissions = useMemo(() => {
     return ROLE_PERMISSIONS[userRole] || [];
@@ -99,7 +108,9 @@ export const usePermissions = () => {
       return true;
     }
     
-    return permissions.includes(permission);
+    const result = permissions.includes(permission);
+    console.log(`[usePermissions] ${permission} = ${result} (role: ${userRole})`);
+    return result;
   };
 
   // 複数権限のチェック（AND条件）
@@ -149,19 +160,36 @@ export const usePermissions = () => {
     basePermission: Permission,
     resource: ResourceOwnership
   ): boolean => {
+    console.log('[usePermissions] canDeleteResource チェック:', {
+      basePermission,
+      resource,
+      userRole,
+      userId
+    });
+
     // 管理者は常に削除可能
     if (userRole === 'admin') {
+      console.log('[usePermissions] 管理者権限で削除可能');
       return true;
     }
 
     // 削除権限がない場合は不可
     if (!hasPermission(basePermission)) {
+      console.log('[usePermissions] 基本削除権限なし');
       return false;
     }
 
     // 自分が作成したリソースのみ削除可能
     const resourceOwnerId = resource.createdBy || resource.uploadedBy || resource.userId;
-    return resourceOwnerId === userId;
+    const canDelete = resourceOwnerId === userId;
+    
+    console.log('[usePermissions] 所有者チェック:', {
+      resourceOwnerId,
+      userId,
+      canDelete
+    });
+
+    return canDelete;
   };
 
   // アルバム固有の権限チェック
