@@ -51,9 +51,9 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     }
   }, [photo, photos]);
 
-  if (!photo) return null;
-
   const currentPhoto = photos[currentIndex] || photo;
+
+  if (!photo) return null;
 
   // 削除権限チェック（より厳密に）
   const canDelete = useMemo(() => {
