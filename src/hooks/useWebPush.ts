@@ -1,29 +1,19 @@
+// src/hooks/useWebPush.ts
 import { useState, useEffect } from 'react';
-
-interface PushSubscription {
-  endpoint: string;
-  keys: {
-    p256dh: string;
-    auth: string;
-  };
-}
-
-interface NotificationPayload {
-  title: string;
-  body: string;
-  icon?: string;
-  badge?: string;
-  tag?: string;
-  data?: any;
-}
+import { useEnvironment } from './useEnvironment';
+import type { PushSubscription, NotificationPayload } from '../types/core';
 
 export const useWebPush = () => {
+  // すべてのHooksをトップレベルで宣言（Hooksルール遵守）
   const [isSupported, setIsSupported] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // 環境情報をHookで取得
+  const { isDemo } = useEnvironment();
 
   // デモ用のVAPIDキー（実際のアプリケーションでは環境変数から取得）
   const VAPID_PUBLIC_KEY = 'demo-vapid-public-key';
@@ -39,6 +29,17 @@ export const useWebPush = () => {
 
   const checkExistingSubscription = async () => {
     try {
+      if (isDemo) {
+        // デモモードでローカルストレージをチェック
+        const demoSubscription = localStorage.getItem('webPushSubscription');
+        if (demoSubscription) {
+          const parsedSubscription = JSON.parse(demoSubscription);
+          setIsSubscribed(true);
+          setSubscription(parsedSubscription);
+        }
+        return;
+      }
+
       const registration = await navigator.serviceWorker.ready;
       const existingSubscription = await registration.pushManager.getSubscription();
       
@@ -82,11 +83,8 @@ export const useWebPush = () => {
         throw new Error('通知の許可が必要です');
       }
 
-      // Service Workerの登録
-      const registration = await registerServiceWorker();
-      
-      // デモモードでは実際のsubscriptionの代わりにモックデータを返す
-      if (!import.meta.env.VITE_VAPID_PUBLIC_KEY) {
+      if (isDemo) {
+        // デモモードでは実際のsubscriptionの代わりにモックデータを返す
         const mockSubscription: PushSubscription = {
           endpoint: 'https://fcm.googleapis.com/fcm/send/demo-endpoint',
           keys: {
@@ -104,6 +102,9 @@ export const useWebPush = () => {
         return mockSubscription;
       }
 
+      // Service Workerの登録
+      const registration = await registerServiceWorker();
+      
       // 実際のsubscription作成
       const pushSubscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -141,7 +142,7 @@ export const useWebPush = () => {
     setError(null);
 
     try {
-      if (!import.meta.env.VITE_VAPID_PUBLIC_KEY) {
+      if (isDemo) {
         // デモモード
         localStorage.removeItem('webPushSubscription');
         setIsSubscribed(false);
@@ -178,8 +179,8 @@ export const useWebPush = () => {
     }
 
     try {
-      // デモモードでは直接ブラウザ通知を表示
-      if (!import.meta.env.VITE_VAPID_PUBLIC_KEY) {
+      if (isDemo) {
+        // デモモードでは直接ブラウザ通知を表示
         new Notification(payload.title, {
           body: payload.body,
           icon: payload.icon || '/favicon.ico',
@@ -213,8 +214,8 @@ export const useWebPush = () => {
   };
 
   const sendSubscriptionToServer = async (subscription: PushSubscription): Promise<void> => {
-    // デモモードでは何もしない
-    if (!import.meta.env.VITE_VAPID_PUBLIC_KEY) {
+    if (isDemo) {
+      // デモモードでは何もしない
       return;
     }
 
@@ -233,8 +234,8 @@ export const useWebPush = () => {
   };
 
   const removeSubscriptionFromServer = async (subscription: PushSubscription): Promise<void> => {
-    // デモモードでは何もしない
-    if (!import.meta.env.VITE_VAPID_PUBLIC_KEY) {
+    if (isDemo) {
+      // デモモードでは何もしない
       return;
     }
 

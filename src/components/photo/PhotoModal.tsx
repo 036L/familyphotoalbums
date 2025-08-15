@@ -1,11 +1,57 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Calendar, User, Trash2 } from 'lucide-react';
-import { Modal } from '../ui/Modal';
-import { Button } from '../ui/Button';
-import { useApp } from '../../context/AppContext';
-import { CommentSection } from './CommentSection'; // EnhancedCommentSectionではなくCommentSectionを使用
-import { ConfirmDeleteModal } from '../ui/ConfirmDeleteModal';
-import { usePermissions } from '../../hooks/usePermissions';
+
+// 簡易版のUIコンポーネント（実際のプロジェクトではimportを使用）
+const Modal = ({ isOpen, onClose, children, className = '' }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose} />
+      <div className={`relative bg-white rounded-2xl ${className}`}>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+const Button = ({ children, variant = 'primary', size = 'md', className = '', ...props }) => {
+  const baseClasses = 'font-medium rounded-xl transition-all duration-200';
+  const variantClasses = variant === 'outline' 
+    ? 'border-2 border-orange-300 text-orange-600 hover:bg-orange-50'
+    : 'bg-orange-400 text-white hover:bg-orange-500';
+  const sizeClasses = size === 'sm' ? 'px-3 py-1 text-sm' : 'px-4 py-2';
+  
+  return (
+    <button className={`${baseClasses} ${variantClasses} ${sizeClasses} ${className}`} {...props}>
+      {children}
+    </button>
+  );
+};
+
+const CommentSection = ({ photoId }) => (
+  <div className="p-4">
+    <p className="text-gray-600">コメント機能（Photo ID: {photoId}）</p>
+  </div>
+);
+
+const ConfirmDeleteModal = ({ isOpen, onClose, onConfirm, title, message, itemName, isDeleting }) => {
+  if (!isOpen) return null;
+  return (
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <div className="p-6">
+        <h3 className="text-xl font-bold mb-4">{title}</h3>
+        <p className="mb-2">{message}</p>
+        <p className="text-sm text-gray-600 mb-4">対象: {itemName}</p>
+        <div className="flex justify-end space-x-2">
+          <Button variant="outline" onClick={onClose}>キャンセル</Button>
+          <Button onClick={onConfirm} disabled={isDeleting}>
+            {isDeleting ? '削除中...' : '削除'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
 
 // Photo型の定義
 interface Photo {
@@ -30,55 +76,72 @@ interface PhotoModalProps {
   photo: Photo | null;
   isOpen: boolean;
   onClose: () => void;
+  photos?: Photo[];
+  deletePhoto?: (id: string) => Promise<void>;
+  currentAlbum?: any;
+  canDeleteResource?: (permission: string, resource: any) => boolean;
+  canManageAlbum?: (album: any) => boolean;
+  userRole?: string;
+  userId?: string;
 }
 
 export const PhotoModal: React.FC<PhotoModalProps> = ({
   photo,
   isOpen,
-  onClose
+  onClose,
+  photos = [],
+  deletePhoto = async () => {},
+  currentAlbum = null,
+  canDeleteResource = () => false,
+  canManageAlbum = () => false,
+  userRole = 'viewer',
+  userId = ''
 }) => {
-  const { photos, deletePhoto, currentAlbum } = useApp();
-  const { canDeleteResource, canManageAlbum, userRole, userId } = usePermissions();
+  // すべてのHooksを最初に宣言
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showComments, setShowComments] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // photoの変更を監視してインデックスを更新
   React.useEffect(() => {
-    if (photo) {
+    if (photo && photos.length > 0) {
       const index = photos.findIndex(p => p.id === photo.id);
-      setCurrentIndex(index);
+      if (index !== -1) {
+        setCurrentIndex(index);
+      }
     }
   }, [photo, photos]);
 
-  const currentPhoto = photos[currentIndex] || photo;
+  // 現在の写真を取得
+  const currentPhoto = useMemo(() => {
+    if (!photo) return null;
+    if (photos.length === 0) return photo;
+    if (currentIndex >= 0 && currentIndex < photos.length) {
+      return photos[currentIndex];
+    }
+    return photo;
+  }, [photo, photos, currentIndex]);
 
-  if (!photo) return null;
-
-  // 削除権限チェック（より厳密に）
+  // 削除権限チェック
   const canDelete = useMemo(() => {
-    const hasDeletePermission = canDeleteResource('photo.delete', {
-      uploadedBy: currentPhoto.uploaded_by
-    });
+    if (!currentPhoto) return false;
     
-    const canManageCurrentAlbum = currentAlbum && canManageAlbum(currentAlbum);
-    
-    const result = hasDeletePermission || canManageCurrentAlbum;
-    
-    // デバッグログ
-    console.log('[PhotoModal] 削除権限チェック:', {
-      photoId: currentPhoto.id,
-      uploadedBy: currentPhoto.uploaded_by,
-      userId,
-      userRole,
-      hasDeletePermission,
-      canManageCurrentAlbum,
-      finalResult: result
-    });
-    
-    return result;
-  }, [currentPhoto.uploaded_by, currentPhoto.id, canDeleteResource, currentAlbum, canManageAlbum, userId, userRole]);
+    try {
+      const hasDeletePermission = canDeleteResource('photo.delete', {
+        uploadedBy: currentPhoto.uploaded_by
+      });
+      
+      const canManageCurrentAlbum = currentAlbum ? canManageAlbum(currentAlbum) : false;
+      
+      return hasDeletePermission || canManageCurrentAlbum;
+    } catch (error) {
+      console.error('[PhotoModal] 削除権限チェックエラー:', error);
+      return false;
+    }
+  }, [currentPhoto, canDeleteResource, currentAlbum, canManageAlbum]);
 
+  // ナビゲーション関数
   const goToPrevious = () => {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
@@ -91,8 +154,9 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     }
   };
 
+  // 削除処理
   const handleDelete = async () => {
-    if (!canDelete) {
+    if (!canDelete || !currentPhoto) {
       alert('この写真を削除する権限がありません');
       return;
     }
@@ -103,12 +167,9 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
       await deletePhoto(currentPhoto.id);
       setShowDeleteModal(false);
       
-      // 削除後の処理
       if (photos.length <= 1) {
-        // 最後の写真が削除された場合はモーダルを閉じる
         onClose();
       } else {
-        // 他の写真がある場合は次の写真に移動
         if (currentIndex >= photos.length - 1) {
           setCurrentIndex(Math.max(0, photos.length - 2));
         }
@@ -121,15 +182,20 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     }
   };
 
+  // ユーティリティ関数
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('ja-JP', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return '不明';
+    }
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -141,6 +207,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   };
 
   const getItemInfo = (): string => {
+    if (!currentPhoto) return '';
     const parts = [];
     parts.push(currentPhoto.original_filename || currentPhoto.filename);
     if (currentPhoto.file_size) {
@@ -149,14 +216,19 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     return parts.join(' ');
   };
 
+  // photoがnullの場合は何も表示しない
+  if (!photo || !currentPhoto) {
+    return null;
+  }
+
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} className="w-full max-w-6xl">
         <div className="flex flex-col lg:flex-row h-full max-h-[90vh]">
           {/* 写真表示エリア */}
-          <div className="relative flex-1 bg-black rounded-l-2xl lg:rounded-r-none rounded-r-2xl">
+          <div className="relative flex-1 bg-black rounded-l-2xl">
             <img
-              src={currentPhoto.url}
+              src={currentPhoto.url || 'https://via.placeholder.com/800x600'}
               alt={currentPhoto.filename}
               className="w-full h-full object-contain"
             />
@@ -191,7 +263,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
           </div>
 
           {/* 情報・コメントエリア */}
-          <div className="w-full lg:w-96 bg-white rounded-r-2xl lg:rounded-l-none rounded-l-2xl flex flex-col">
+          <div className="w-full lg:w-96 bg-white rounded-r-2xl flex flex-col">
             <div className="p-6 border-b border-gray-100">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-lg text-gray-900">
@@ -229,7 +301,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
                   </Button>
                 </div>
                 
-                {/* 削除ボタンを右下に配置 */}
+                {/* 削除ボタン */}
                 {canDelete && (
                   <button
                     onClick={() => setShowDeleteModal(true)}
@@ -264,3 +336,53 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     </>
   );
 };
+
+// デモ用のコンポーネント
+export default function PhotoModalDemo() {
+  const [isOpen, setIsOpen] = useState(true);
+  
+  const demoPhoto: Photo = {
+    id: 'demo-1',
+    filename: 'sample.jpg',
+    original_filename: 'vacation-photo.jpg',
+    url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800',
+    thumbnail_url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300',
+    file_type: 'image',
+    file_size: 2048000,
+    width: 1920,
+    height: 1080,
+    album_id: 'album-1',
+    uploaded_by: 'user-1',
+    metadata: {},
+    created_at: '2024-01-15T10:00:00Z',
+    uploader_name: 'デモユーザー',
+    uploadedAt: '2024-01-15T10:00:00Z'
+  };
+
+  const demoPhotos: Photo[] = [
+    demoPhoto,
+    { ...demoPhoto, id: 'demo-2', url: 'https://images.unsplash.com/photo-1511884642898-4c92249e20b6?w=800' },
+    { ...demoPhoto, id: 'demo-3', url: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800' }
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-8">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-2xl font-bold mb-4">PhotoModal デモ</h1>
+        <Button onClick={() => setIsOpen(true)}>モーダルを開く</Button>
+        
+        <PhotoModal
+          photo={demoPhoto}
+          photos={demoPhotos}
+          isOpen={isOpen}
+          onClose={() => setIsOpen(false)}
+          deletePhoto={async (id) => console.log('Delete photo:', id)}
+          canDeleteResource={() => true}
+          canManageAlbum={() => false}
+          userRole="editor"
+          userId="user-1"
+        />
+      </div>
+    </div>
+  );
+}

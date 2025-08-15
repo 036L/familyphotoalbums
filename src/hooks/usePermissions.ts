@@ -1,32 +1,8 @@
+// src/hooks/usePermissions.ts
 import { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-
-export type Permission = 
-  // アルバム関連
-  | 'album.create'
-  | 'album.edit'
-  | 'album.delete'
-  | 'album.view'
-  // 写真関連
-  | 'photo.upload'
-  | 'photo.edit'
-  | 'photo.delete'
-  | 'photo.view'
-  // コメント関連
-  | 'comment.create'
-  | 'comment.edit'
-  | 'comment.delete'
-  | 'comment.view'
-  // 招待関連
-  | 'invite.create'
-  | 'invite.manage'
-  // 設定関連
-  | 'settings.edit'
-  | 'family.manage'
-  // 管理者権限
-  | 'admin.all';
-
-export type Role = 'admin' | 'editor' | 'viewer';
+import { useEnvironment } from './useEnvironment';
+import type { Permission, Role, ResourceOwnership } from '../types/core';
 
 // ロール別権限マップ
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
@@ -75,31 +51,26 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
 };
 
-// 特別な権限チェック（自分のコンテンツかどうか）
-interface ResourceOwnership {
-  createdBy?: string;
-  uploadedBy?: string;
-  userId?: string;
-}
-
 export const usePermissions = () => {
   const { profile, user } = useApp();
+  const { isDevelopment } = useEnvironment();
 
   const userRole: Role = profile?.role || 'viewer';
   const userId = user?.id || profile?.id;
 
-  // デバッグログ追加
-  console.log('[usePermissions] 現在の権限情報:', {
-    userRole,
-    userId,
-    profile,
-    hasUser: !!user
-  });
+  // 開発時のみデバッグログを出力
+  const debugLog = (message: string, data?: any) => {
+    if (isDevelopment) {
+      console.log(`[usePermissions] ${message}`, data);
+    }
+  };
 
   // 現在のユーザーの権限一覧を取得
   const permissions = useMemo(() => {
-    return ROLE_PERMISSIONS[userRole] || [];
-  }, [userRole]);
+    const rolePermissions = ROLE_PERMISSIONS[userRole] || [];
+    debugLog('権限計算', { userRole, permissionCount: rolePermissions.length });
+    return rolePermissions;
+  }, [userRole, debugLog]);
 
   // 権限チェック関数
   const hasPermission = (permission: Permission): boolean => {
@@ -109,7 +80,7 @@ export const usePermissions = () => {
     }
     
     const result = permissions.includes(permission);
-    console.log(`[usePermissions] ${permission} = ${result} (role: ${userRole})`);
+    debugLog(`権限チェック: ${permission} = ${result}`);
     return result;
   };
 
@@ -160,7 +131,7 @@ export const usePermissions = () => {
     basePermission: Permission,
     resource: ResourceOwnership
   ): boolean => {
-    console.log('[usePermissions] canDeleteResource チェック:', {
+    debugLog('削除権限チェック', {
       basePermission,
       resource,
       userRole,
@@ -169,13 +140,13 @@ export const usePermissions = () => {
 
     // 管理者は常に削除可能
     if (userRole === 'admin') {
-      console.log('[usePermissions] 管理者権限で削除可能');
+      debugLog('管理者権限で削除可能');
       return true;
     }
 
     // 削除権限がない場合は不可
     if (!hasPermission(basePermission)) {
-      console.log('[usePermissions] 基本削除権限なし');
+      debugLog('基本削除権限なし');
       return false;
     }
 
@@ -183,7 +154,7 @@ export const usePermissions = () => {
     const resourceOwnerId = resource.createdBy || resource.uploadedBy || resource.userId;
     const canDelete = resourceOwnerId === userId;
     
-    console.log('[usePermissions] 所有者チェック:', {
+    debugLog('所有者チェック結果', {
       resourceOwnerId,
       userId,
       canDelete
@@ -240,11 +211,16 @@ export const usePermissions = () => {
     return labels[role];
   };
 
-  // デバッグ用：権限一覧表示
+  // デバッグ用：権限一覧表示（開発時のみ）
   const debugPermissions = () => {
-    console.log('Current User Role:', userRole);
+    if (!isDevelopment) return;
+    
+    console.log('=== 権限デバッグ情報 ===');
+    console.log('User Role:', userRole);
+    console.log('User ID:', userId);
     console.log('Available Permissions:', permissions);
     console.log('Permission Info:', getPermissionInfo());
+    console.log('========================');
   };
 
   return {
@@ -272,7 +248,7 @@ export const usePermissions = () => {
     getPermissionInfo,
     getRoleLabel,
     
-    // デバッグ
+    // デバッグ（開発時のみ）
     debugPermissions,
   };
 };

@@ -1,31 +1,9 @@
+// src/hooks/usePhotos.ts
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { compressImage, createThumbnail, getImageDimensions } from '../lib/imageCompression';
-
-export interface Photo {
-  id: string;
-  filename: string;
-  original_filename: string;
-  url: string;
-  thumbnail_url: string | null;
-  file_type: 'image' | 'video';
-  file_size: number;
-  width: number | null;
-  height: number | null;
-  album_id: string;
-  uploaded_by: string;
-  metadata: Record<string, any>;
-  created_at: string;
-  uploader_name?: string;
-  uploadedAt?: string; // 互換性のため
-}
-
-export interface UploadProgress {
-  file: File;
-  progress: number;
-  status: 'compressing' | 'uploading' | 'completed' | 'error';
-  error?: string;
-}
+import { useEnvironment } from './useEnvironment';
+import type { Photo, UploadProgress } from '../types/core';
 
 // デモデータ
 const demoPhotos: Record<string, Photo[]> = {
@@ -173,13 +151,15 @@ const demoPhotos: Record<string, Photo[]> = {
   ]
 };
 
-const isDemo = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
-
 export const usePhotos = (albumId?: string) => {
+  // すべてのHooksをトップレベルで宣言（Hooksルール遵守）
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
+  
+  // 環境情報をHookで取得
+  const { isDemo } = useEnvironment();
 
   const fetchPhotos = async (targetAlbumId?: string) => {
     try {
@@ -212,7 +192,7 @@ export const usePhotos = (albumId?: string) => {
 
       if (error) throw error;
 
-      const photosWithUploaderName = data.map(photo => ({
+      const photosWithUploaderName = data.map((photo: any) => ({
         ...photo,
         uploader_name: photo.profiles?.name || '不明',
         uploadedAt: photo.created_at,
@@ -487,7 +467,7 @@ export const usePhotos = (albumId?: string) => {
     if (albumId) {
       fetchPhotos();
     }
-  }, [albumId]);
+  }, [albumId, isDemo]); // isDemo も依存配列に追加
 
   return {
     photos,

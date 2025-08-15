@@ -1,20 +1,8 @@
 // src/hooks/useAlbums.ts
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-
-export interface Album {
-  id: string;
-  title: string;
-  description: string | null;
-  cover_image_url: string | null;
-  created_by: string;
-  is_public: boolean;
-  created_at: string;
-  updated_at: string;
-  photo_count?: number;
-  creator_name?: string;
-  createdAt: string; // 互換性のため
-}
+import { useEnvironment } from './useEnvironment';
+import type { Album, AlbumCreateData } from '../types/core';
 
 // デバッグログ関数
 const debugLog = (message: string, data?: any) => {
@@ -119,13 +107,15 @@ const demoAlbums: Album[] = [
   }
 ];
 
-const isDemo = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
-
 export const useAlbums = () => {
+  // すべてのHooksをトップレベルで宣言（Hooksルール遵守）
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
+  
+  // 環境情報をHookで取得
+  const { isDemo } = useEnvironment();
 
   debugLog('useAlbums初期化', { isDemo });
 
@@ -268,11 +258,7 @@ export const useAlbums = () => {
     }
   };
 
-  const createAlbum = async (albumData: {
-    title: string;
-    description?: string;
-    is_public?: boolean;
-  }) => {
+  const createAlbum = async (albumData: AlbumCreateData) => {
     try {
       debugLog('アルバム作成開始', albumData);
       
@@ -424,7 +410,7 @@ export const useAlbums = () => {
       clearTimeout(timer);
       debugLog('useAlbumsクリーンアップ');
     };
-  }, []);
+  }, [isDemo]); // isDemo が変更されたときに再実行
 
   // デバッグ用の状態ログ出力
   useEffect(() => {

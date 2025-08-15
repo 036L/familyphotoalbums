@@ -1,57 +1,15 @@
+// src/hooks/useAutoSort.ts
 import { useState, useCallback } from 'react';
-
-// Photo型の定義（プロジェクトの型定義に合わせて調整）
-interface Photo {
-  id: string;
-  filename?: string;
-  original_filename?: string;
-  url: string;
-  thumbnail_url?: string;
-  file_type: 'image' | 'video';
-  file_size?: number;
-  width?: number | null;
-  height?: number | null;
-  album_id?: string;
-  uploaded_by?: string;
-  created_at?: string;
-  uploadedAt?: string; // 既存のプロパティとの互換性
-  metadata?: Record<string, any>;
-}
-
-export interface SortCriteria {
-  field: 'date' | 'name' | 'size' | 'type' | 'location';
-  order: 'asc' | 'desc';
-}
-
-export interface GroupCriteria {
-  by: 'date' | 'month' | 'year' | 'location' | 'camera' | 'tags' | 'none';
-  showCount?: boolean;
-}
-
-export interface FilterCriteria {
-  dateRange?: {
-    start: string;
-    end: string;
-  };
-  fileTypes?: string[];
-  sizeRange?: {
-    min: number;
-    max: number;
-  };
-  tags?: string[];
-  location?: string;
-  camera?: string;
-}
-
-interface PhotoGroup {
-  key: string;
-  label: string;
-  photos: Photo[];
-  count: number;
-  metadata?: Record<string, any>;
-}
+import type { 
+  Photo, 
+  SortCriteria, 
+  GroupCriteria, 
+  FilterCriteria, 
+  PhotoGroup 
+} from '../types/core';
 
 export const useAutoSort = () => {
+  // すべてのHooksをトップレベルで宣言（Hooksルール遵守）
   const [sortCriteria, setSortCriteria] = useState<SortCriteria>({
     field: 'date',
     order: 'desc'

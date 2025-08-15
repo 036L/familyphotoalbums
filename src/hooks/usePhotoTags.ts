@@ -1,23 +1,8 @@
+// src/hooks/usePhotoTags.ts
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-
-export interface PhotoTag {
-  id: string;
-  name: string;
-  color: string;
-  created_by: string;
-  created_at: string;
-  usage_count?: number;
-}
-
-export interface PhotoTagAssignment {
-  photo_id: string;
-  tag_id: string;
-  assigned_by: string;
-  assigned_at: string;
-}
-
-const isDemo = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
+import { useEnvironment } from './useEnvironment';
+import type { PhotoTag } from '../types/core';
 
 // デモ用のタグデータ
 const demoTags: PhotoTag[] = [
@@ -72,9 +57,13 @@ const demoTags: PhotoTag[] = [
 ];
 
 export const usePhotoTags = () => {
+  // すべてのHooksをトップレベルで宣言（Hooksルール遵守）
   const [tags, setTags] = useState<PhotoTag[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // 環境情報をHookで取得
+  const { isDemo } = useEnvironment();
 
   // タグ一覧の取得
   const fetchTags = async () => {
@@ -101,7 +90,7 @@ export const usePhotoTags = () => {
 
       if (error) throw error;
 
-      const tagsWithUsage = data.map(tag => ({
+      const tagsWithUsage = data.map((tag: any) => ({
         ...tag,
         usage_count: tag.photo_tag_assignments?.[0]?.count || 0
       }));
@@ -275,7 +264,7 @@ export const usePhotoTags = () => {
 
       if (error) throw error;
 
-      return data.map(assignment => assignment.photo_tags).filter(Boolean);
+      return data.map((assignment: any) => assignment.photo_tags).filter(Boolean);
     } catch (err) {
       console.error('写真タグ取得エラー:', err);
       return [];
@@ -328,7 +317,7 @@ export const usePhotoTags = () => {
       if (error) throw error;
 
       // 重複を除去
-      const photoIds = [...new Set(data.map(assignment => assignment.photo_id))];
+      const photoIds = [...new Set(data.map((assignment: any) => assignment.photo_id))];
       return photoIds;
     } catch (err) {
       console.error('タグ検索エラー:', err);
@@ -365,7 +354,7 @@ export const usePhotoTags = () => {
 
   useEffect(() => {
     fetchTags();
-  }, []);
+  }, [isDemo]); // isDemo も依存配列に追加
 
   return {
     tags,

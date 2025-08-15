@@ -1,22 +1,17 @@
+// src/hooks/useComments.ts
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-
-export interface Comment {
-  id: string;
-  content: string;
-  photo_id: string;
-  user_id: string;
-  parent_id: string | null;
-  created_at: string;
-  updated_at: string;
-  user_name?: string;
-  user_avatar?: string;
-}
+import { useEnvironment } from './useEnvironment';
+import type { Comment } from '../types/core';
 
 export const useComments = (photoId?: string) => {
+  // すべてのHooksをトップレベルで宣言（Hooksルール遵守）
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // 環境情報をHookで取得
+  const { isDemo } = useEnvironment();
 
   const fetchComments = async (targetPhotoId?: string) => {
     if (!targetPhotoId && !photoId) return;
@@ -24,6 +19,44 @@ export const useComments = (photoId?: string) => {
     try {
       setLoading(true);
       setError(null);
+
+      if (isDemo) {
+        // デモモードでのコメント（固定データ）
+        const demoComments: Comment[] = [
+          {
+            id: 'demo-comment-1',
+            content: 'とても綺麗な写真ですね！✨ 家族みんなで楽しそう😊',
+            photo_id: targetPhotoId || photoId!,
+            user_id: 'demo-user-2',
+            parent_id: null,
+            created_at: '2024-01-15T10:30:00Z',
+            updated_at: '2024-01-15T10:30:00Z',
+            user_name: '田中花子',
+            user_avatar: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop',
+            likes_count: 5,
+            is_liked: false,
+          },
+          {
+            id: 'demo-comment-2',
+            content: 'この夕日、本当に美しいですね。写真で見ても感動します。',
+            photo_id: targetPhotoId || photoId!,
+            user_id: 'demo-user-3',
+            parent_id: null,
+            created_at: '2024-01-15T19:00:00Z',
+            updated_at: '2024-01-15T19:00:00Z',
+            user_name: '田中おじいちゃん',
+            user_avatar: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop',
+            likes_count: 3,
+            is_liked: false,
+          }
+        ];
+
+        setTimeout(() => {
+          setComments(demoComments);
+          setLoading(false);
+        }, 300);
+        return;
+      }
 
       const { data, error } = await supabase
         .from('comments')
@@ -36,7 +69,7 @@ export const useComments = (photoId?: string) => {
 
       if (error) throw error;
 
-      const commentsWithUserInfo = data.map(comment => ({
+      const commentsWithUserInfo = data.map((comment: any) => ({
         ...comment,
         user_name: comment.profiles?.name || '不明',
         user_avatar: comment.profiles?.avatar_url || null,
@@ -53,6 +86,26 @@ export const useComments = (photoId?: string) => {
 
   const addComment = async (content: string, targetPhotoId?: string, parentId?: string) => {
     try {
+      if (isDemo) {
+        // デモモードでのコメント追加
+        const newComment: Comment = {
+          id: `demo-comment-${Date.now()}`,
+          content,
+          photo_id: targetPhotoId || photoId!,
+          user_id: 'demo-user-1',
+          parent_id: parentId || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          user_name: 'デモユーザー',
+          user_avatar: null,
+          likes_count: 0,
+          is_liked: false,
+        };
+
+        setComments(prev => [...prev, newComment]);
+        return newComment;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('ログインが必要です');
 
@@ -88,6 +141,18 @@ export const useComments = (photoId?: string) => {
 
   const updateComment = async (id: string, content: string) => {
     try {
+      if (isDemo) {
+        // デモモードでのコメント更新
+        setComments(prev =>
+          prev.map(comment =>
+            comment.id === id
+              ? { ...comment, content, updated_at: new Date().toISOString() }
+              : comment
+          )
+        );
+        return comments.find(c => c.id === id);
+      }
+
       const { data, error } = await supabase
         .from('comments')
         .update({ 
@@ -124,6 +189,12 @@ export const useComments = (photoId?: string) => {
 
   const deleteComment = async (id: string) => {
     try {
+      if (isDemo) {
+        // デモモードでのコメント削除
+        setComments(prev => prev.filter(comment => comment.id !== id));
+        return;
+      }
+
       const { error } = await supabase
         .from('comments')
         .delete()
@@ -142,7 +213,7 @@ export const useComments = (photoId?: string) => {
     if (photoId) {
       fetchComments();
     }
-  }, [photoId]);
+  }, [photoId, isDemo]); // isDemo も依存配列に追加
 
   return {
     comments,
