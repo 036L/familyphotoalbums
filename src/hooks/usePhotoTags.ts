@@ -301,7 +301,7 @@ export const usePhotoTags = () => {
     }
   };
 
-  // タグでの写真検索
+  // タグでの写真検索 - ChatGPTの方法1を適用
   const searchPhotosByTags = async (tagIds: string[]): Promise<string[]> => {
     try {
       if (isDemo) {
@@ -316,9 +316,17 @@ export const usePhotoTags = () => {
 
       if (error) throw error;
 
-      // 重複を除去
-      const photoIds = [...new Set(data.map((assignment: any) => assignment.photo_id))];
-      return photoIds;
+      // ChatGPTの方法1: rawPhotoIds に型を付ける
+      const rawPhotoIds: (string | null | undefined)[] = data.map(
+        (assignment: any) => assignment.photo_id
+      );
+      
+      const validPhotoIds = rawPhotoIds.filter(
+        (id): id is string => typeof id === 'string' && id.length > 0
+      );
+      
+      const uniquePhotoIds: string[] = [...new Set(validPhotoIds)];
+      return uniquePhotoIds;
     } catch (err) {
       console.error('タグ検索エラー:', err);
       return [];

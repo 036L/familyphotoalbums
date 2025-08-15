@@ -38,6 +38,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'comment.create',
     'comment.edit',
     'comment.view',
+    'comment.delete',
     'invite.create',
     'settings.edit',
   ],
@@ -47,6 +48,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'photo.view',
     'comment.create',
     'comment.view',
+    'comment.delete',
     'settings.edit', // 自分の設定は編集可能
   ],
 };
