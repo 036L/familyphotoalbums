@@ -1,13 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-interface AccessibilitySettings {
-  fontSize: 'small' | 'medium' | 'large' | 'extra-large';
-  highContrast: boolean;
-  darkMode: boolean;
-  reducedMotion: boolean;
-  announcements: boolean;
-  keyboardNavigation: boolean;
-}
+// src/context/AccessibilityContext.tsx
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import type { AccessibilitySettings } from '../types/core';
 
 interface AccessibilityContextType {
   settings: AccessibilitySettings;
@@ -45,50 +38,44 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
   const [settings, setSettings] = useState<AccessibilitySettings>(defaultSettings);
   const [announcer, setAnnouncer] = useState<HTMLDivElement | null>(null);
 
-  // ローカルストレージから設定を読み込み
-  useEffect(() => {
-    const savedSettings = localStorage.getItem('accessibilitySettings');
-    if (savedSettings) {
-      try {
+  // ローカルストレージから設定を読み込む処理をメモ化
+  const loadSettings = useCallback(() => {
+    try {
+      const savedSettings = localStorage.getItem('accessibilitySettings');
+      if (savedSettings) {
         const parsed = JSON.parse(savedSettings);
-        setSettings({ ...defaultSettings, ...parsed });
-      } catch (error) {
-        console.error('アクセシビリティ設定の読み込みエラー:', error);
+        return { ...defaultSettings, ...parsed };
       }
+    } catch (error) {
+      console.error('アクセシビリティ設定の読み込みエラー:', error);
     }
-
-    // システムの設定を確認
-    checkSystemPreferences();
-    
-    // スクリーンリーダー用のアナウンス要素を作成
-    createAnnouncer();
+    return defaultSettings;
   }, []);
 
-  // 設定が変更されたときにローカルストレージに保存とCSS適用
-  useEffect(() => {
-    localStorage.setItem('accessibilitySettings', JSON.stringify(settings));
-    applySettings();
-  }, [settings]);
+  // システム設定をチェックする処理をメモ化
+  const checkSystemPreferences = useCallback(() => {
+    const preferences: Partial<AccessibilitySettings> = {};
 
-  const checkSystemPreferences = () => {
     // ダークモードの検出
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setSettings(prev => ({ ...prev, darkMode: true }));
+    if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
+      preferences.darkMode = true;
     }
 
     // モーション軽減の検出
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setSettings(prev => ({ ...prev, reducedMotion: true }));
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      preferences.reducedMotion = true;
     }
 
     // 高コントラストの検出
-    if (window.matchMedia && window.matchMedia('(prefers-contrast: high)').matches) {
-      setSettings(prev => ({ ...prev, highContrast: true }));
+    if (window.matchMedia?.('(prefers-contrast: high)').matches) {
+      preferences.highContrast = true;
     }
-  };
 
-  const createAnnouncer = () => {
-    // スクリーンリーダー用の非視覚的なアナウンス要素を作成
+    return preferences;
+  }, []);
+
+  // スクリーンリーダー用のアナウンス要素を作成
+  const createAnnouncer = useCallback(() => {
     const announcerElement = document.createElement('div');
     announcerElement.setAttribute('aria-live', 'polite');
     announcerElement.setAttribute('aria-atomic', 'true');
@@ -98,78 +85,95 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
     announcerElement.style.height = '1px';
     announcerElement.style.overflow = 'hidden';
     document.body.appendChild(announcerElement);
-    setAnnouncer(announcerElement);
-  };
+    return announcerElement;
+  }, []);
 
-  const applySettings = () => {
+  // CSSクラスを適用する処理をメモ化
+  const applySettings = useCallback((settingsToApply: AccessibilitySettings) => {
     const root = document.documentElement;
     
     // フォントサイズの適用
     root.classList.remove('text-small', 'text-medium', 'text-large', 'text-extra-large');
-    root.classList.add(`text-${settings.fontSize}`);
+    root.classList.add(`text-${settingsToApply.fontSize}`);
     
     // 高コントラストの適用
-    if (settings.highContrast) {
-      root.classList.add('high-contrast');
-    } else {
-      root.classList.remove('high-contrast');
-    }
+    root.classList.toggle('high-contrast', settingsToApply.highContrast);
     
     // ダークモードの適用
-    if (settings.darkMode) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
+    root.classList.toggle('dark', settingsToApply.darkMode);
     
     // モーション軽減の適用
-    if (settings.reducedMotion) {
-      root.classList.add('reduced-motion');
-    } else {
-      root.classList.remove('reduced-motion');
-    }
+    root.classList.toggle('reduced-motion', settingsToApply.reducedMotion);
 
     // キーボードナビゲーションの適用
-    if (settings.keyboardNavigation) {
-      root.classList.add('keyboard-navigation');
-    } else {
-      root.classList.remove('keyboard-navigation');
-    }
-  };
+    root.classList.toggle('keyboard-navigation', settingsToApply.keyboardNavigation);
+  }, []);
 
-  const updateSettings = (newSettings: Partial<AccessibilitySettings>) => {
-    setSettings(prev => ({ ...prev, ...newSettings }));
+  // 初期化処理
+  useEffect(() => {
+    const initialSettings = loadSettings();
+    const systemPreferences = checkSystemPreferences();
+    const mergedSettings = { ...initialSettings, ...systemPreferences };
     
-    // 重要な変更をアナウンス
-    if (newSettings.fontSize) {
-      announceMessage(`文字サイズを${getFontSizeLabel(newSettings.fontSize)}に変更しました`);
-    }
-    if (newSettings.highContrast !== undefined) {
-      announceMessage(`ハイコントラストモードを${newSettings.highContrast ? '有効' : '無効'}にしました`);
-    }
-    if (newSettings.darkMode !== undefined) {
-      announceMessage(`ダークモードを${newSettings.darkMode ? '有効' : '無効'}にしました`);
-    }
-  };
+    setSettings(mergedSettings);
+    applySettings(mergedSettings);
+    
+    // アナウンス要素を作成
+    const announcerElement = createAnnouncer();
+    setAnnouncer(announcerElement);
 
-  const announceMessage = (message: string, priority: 'polite' | 'assertive' = 'polite') => {
+    // クリーンアップ
+    return () => {
+      if (announcerElement?.parentNode) {
+        announcerElement.parentNode.removeChild(announcerElement);
+      }
+    };
+  }, [loadSettings, checkSystemPreferences, createAnnouncer, applySettings]);
+
+  // 設定更新処理（最適化）
+  const updateSettings = useCallback((newSettings: Partial<AccessibilitySettings>) => {
+    setSettings(prev => {
+      const updatedSettings = { ...prev, ...newSettings };
+      
+      // ローカルストレージに保存
+      try {
+        localStorage.setItem('accessibilitySettings', JSON.stringify(updatedSettings));
+      } catch (error) {
+        console.error('アクセシビリティ設定の保存エラー:', error);
+      }
+      
+      // CSS適用
+      applySettings(updatedSettings);
+      
+      return updatedSettings;
+    });
+  }, [applySettings]);
+
+  // 音声アナウンス機能（最適化）
+  const announceMessage = useCallback((message: string, priority: 'polite' | 'assertive' = 'polite') => {
     if (!settings.announcements || !announcer) return;
     
     announcer.setAttribute('aria-live', priority);
     announcer.textContent = '';
     
     // わずかな遅延でメッセージを設定（スクリーンリーダーが確実に読み上げるため）
-    setTimeout(() => {
+    const setMessageTimer = setTimeout(() => {
       announcer.textContent = message;
     }, 100);
     
     // メッセージをクリア
-    setTimeout(() => {
+    const clearMessageTimer = setTimeout(() => {
       announcer.textContent = '';
     }, 1000);
-  };
 
-  const getFontSizeClass = (): string => {
+    return () => {
+      clearTimeout(setMessageTimer);
+      clearTimeout(clearMessageTimer);
+    };
+  }, [settings.announcements, announcer]);
+
+  // メモ化されたヘルパー関数
+  const getFontSizeClass = useCallback((): string => {
     const sizeMap = {
       small: 'text-sm',
       medium: 'text-base',
@@ -177,45 +181,32 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
       'extra-large': 'text-xl'
     };
     return sizeMap[settings.fontSize];
-  };
+  }, [settings.fontSize]);
 
-  const getContrastClass = (): string => {
+  const getContrastClass = useCallback((): string => {
     return settings.highContrast ? 'high-contrast' : '';
-  };
+  }, [settings.highContrast]);
 
-  const getMotionClass = (): string => {
+  const getMotionClass = useCallback((): string => {
     return settings.reducedMotion ? 'motion-reduced' : '';
-  };
+  }, [settings.reducedMotion]);
 
-  const getFontSizeLabel = (size: string): string => {
-    const labelMap = {
-      small: '小',
-      medium: '中',
-      large: '大',
-      'extra-large': '特大'
-    };
-    return labelMap[size as keyof typeof labelMap] || '中';
-  };
-
-  // キーボードナビゲーションの監視
+  // キーボードナビゲーションの監視（最適化）
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!settings.keyboardNavigation) return;
+    if (!settings.keyboardNavigation) return;
 
-      // Tabキーが押されたときにキーボードナビゲーションを有効化
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Tab') {
         document.body.classList.add('keyboard-user');
       }
     };
 
     const handleMouseDown = () => {
-      if (!settings.keyboardNavigation) return;
-      // マウスが使われたときにキーボードナビゲーションを一時的に無効化
       document.body.classList.remove('keyboard-user');
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKeyDown, { passive: true });
+    document.addEventListener('mousedown', handleMouseDown, { passive: true });
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
@@ -223,13 +214,13 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
     };
   }, [settings.keyboardNavigation]);
 
-  // ページ変更時のアナウンス
+  // ページ変更時のアナウンス（最適化）
   useEffect(() => {
+    if (!settings.announcements) return;
+
     const handleLocationChange = () => {
-      if (settings.announcements) {
-        const title = document.title || 'ページが変更されました';
-        announceMessage(`${title}に移動しました`);
-      }
+      const title = document.title || 'ページが変更されました';
+      announceMessage(`${title}に移動しました`);
     };
 
     // History API の監視
@@ -253,19 +244,27 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
       window.history.replaceState = originalReplaceState;
       window.removeEventListener('popstate', handleLocationChange);
     };
-  }, [settings.announcements]);
+  }, [settings.announcements, announceMessage]);
+
+  // メモ化されたコンテキスト値
+  const contextValue = useMemo(() => ({
+    settings,
+    updateSettings,
+    announceMessage,
+    getFontSizeClass,
+    getContrastClass,
+    getMotionClass,
+  }), [
+    settings,
+    updateSettings,
+    announceMessage,
+    getFontSizeClass,
+    getContrastClass,
+    getMotionClass,
+  ]);
 
   return (
-    <AccessibilityContext.Provider
-      value={{
-        settings,
-        updateSettings,
-        announceMessage,
-        getFontSizeClass,
-        getContrastClass,
-        getMotionClass,
-      }}
-    >
+    <AccessibilityContext.Provider value={contextValue}>
       {children}
     </AccessibilityContext.Provider>
   );

@@ -1,11 +1,11 @@
 // src/hooks/usePermissions.ts
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { useEnvironment } from './useEnvironment';
 import type { Permission, Role, ResourceOwnership } from '../types/core';
 
-// ロール別権限マップ
-const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
+// ロール別権限マップ（型安全性を向上）
+const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
   admin: [
     // すべての権限
     'album.create',
@@ -25,7 +25,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'settings.edit',
     'family.manage',
     'admin.all',
-  ],
+  ] as const,
   editor: [
     // 基本的な編集権限（写真削除も含む）
     'album.create',
@@ -41,7 +41,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'comment.delete',
     'invite.create',
     'settings.edit',
-  ],
+  ] as const,
   viewer: [
     // 閲覧とコメントのみ
     'album.view',
@@ -50,8 +50,15 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'comment.view',
     'comment.delete',
     'settings.edit', // 自分の設定は編集可能
-  ],
-};
+  ] as const,
+} as const;
+
+// より具体的なリソース所有権の型定義
+interface ExtendedResourceOwnership extends ResourceOwnership {
+  created_by?: string; // データベースフィールドとの互換性
+  uploaded_by?: string; // データベースフィールドとの互換性
+  user_id?: string; // データベースフィールドとの互換性
+}
 
 export const usePermissions = () => {
   const { profile, user } = useApp();
@@ -60,46 +67,52 @@ export const usePermissions = () => {
   const userRole: Role = profile?.role || 'viewer';
   const userId = user?.id || profile?.id;
 
-  // 開発時のみデバッグログを出力
-  const debugLog = (message: string, data?: any) => {
+  // デバッグログ関数をuseCallbackでメモ化
+  const debugLog = useCallback((message: string, data?: any) => {
     if (isDevelopment) {
       console.log(`[usePermissions] ${message}`, data);
     }
-  };
+  }, [isDevelopment]);
 
-  // 現在のユーザーの権限一覧を取得
+  // 現在のユーザーの権限一覧を取得（最適化済み）
   const permissions = useMemo(() => {
     const rolePermissions = ROLE_PERMISSIONS[userRole] || [];
-    debugLog('権限計算', { userRole, permissionCount: rolePermissions.length });
+    // デバッグログは開発時かつ初回のみ
+    if (isDevelopment) {
+      debugLog('権限計算', { userRole, permissionCount: rolePermissions.length });
+    }
     return rolePermissions;
-  }, [userRole, debugLog]);
+  }, [userRole, isDevelopment]); // debugLogを依存配列から除外
 
-  // 権限チェック関数
-  const hasPermission = (permission: Permission): boolean => {
+  // 権限チェック関数（メモ化で最適化）
+  const hasPermission = useCallback((permission: Permission): boolean => {
     // 管理者は全権限を持つ
     if (userRole === 'admin') {
       return true;
     }
     
     const result = permissions.includes(permission);
-    debugLog(`権限チェック: ${permission} = ${result}`);
+    // デバッグログは重要な権限チェック時のみ
+    if (isDevelopment && (permission.includes('delete') || permission.includes('admin'))) {
+      debugLog(`重要権限チェック: ${permission} = ${result}`);
+    }
     return result;
-  };
+  }, [userRole, permissions, isDevelopment, debugLog]);
 
   // 複数権限のチェック（AND条件）
-  const hasAllPermissions = (requiredPermissions: Permission[]): boolean => {
+  const hasAllPermissions = useCallback((requiredPermissions: Permission[]): boolean => {
     return requiredPermissions.every(permission => hasPermission(permission));
-  };
+  }, [hasPermission]);
 
   // 複数権限のチェック（OR条件）
-  const hasAnyPermission = (requiredPermissions: Permission[]): boolean => {
+  const hasAnyPermission = useCallback((requiredPermissions: Permission[]): boolean => {
     return requiredPermissions.some(permission => hasPermission(permission));
-  };
+  }, [hasPermission]);
 
-  // リソース所有者チェック付き権限確認
-  const canEditResource = (
+  // リソース所有者チェック付き権限確認（型安全性向上）
+  const canEditResource = useCallback((
     basePermission: Permission,
-    resource: ResourceOwnership
+    resource: ExtendedResourceOwnership
   ): boolean => {
     // 管理者は常に編集可能
     if (userRole === 'admin') {
@@ -111,8 +124,14 @@ export const usePermissions = () => {
       return false;
     }
 
-    // 自分が作成したリソースの場合は編集可能
-    const resourceOwnerId = resource.createdBy || resource.uploadedBy || resource.userId;
+    // 複数の所有者IDフィールドをチェック
+    const resourceOwnerId = resource.createdBy || 
+                          resource.uploadedBy || 
+                          resource.userId ||
+                          resource.created_by ||
+                          resource.uploaded_by ||
+                          resource.user_id;
+    
     if (resourceOwnerId === userId) {
       return true;
     }
@@ -126,110 +145,138 @@ export const usePermissions = () => {
     }
 
     return false;
-  };
+  }, [userRole, hasPermission, userId]);
 
-  // リソース削除権限チェック
-  const canDeleteResource = (
+  // リソース削除権限チェック（デバッグログ最適化）
+  const canDeleteResource = useCallback((
     basePermission: Permission,
-    resource: ResourceOwnership
+    resource: ExtendedResourceOwnership
   ): boolean => {
-    debugLog('削除権限チェック', {
-      basePermission,
-      resource,
-      userRole,
-      userId
-    });
+    // 重要な削除操作のみデバッグログ
+    const shouldLog = isDevelopment && (
+      basePermission === 'album.delete' || 
+      basePermission === 'photo.delete'
+    );
+
+    if (shouldLog) {
+      debugLog('削除権限チェック開始', {
+        basePermission,
+        resource,
+        userRole,
+        userId
+      });
+    }
 
     // 管理者は常に削除可能
     if (userRole === 'admin') {
-      debugLog('管理者権限で削除可能');
+      if (shouldLog) debugLog('管理者権限で削除可能');
       return true;
     }
 
     // 削除権限がない場合は不可
     if (!hasPermission(basePermission)) {
-      debugLog('基本削除権限なし');
+      if (shouldLog) debugLog('基本削除権限なし');
       return false;
     }
 
-    // 自分が作成したリソースのみ削除可能
-    const resourceOwnerId = resource.createdBy || resource.uploadedBy || resource.userId;
+    // 複数の所有者IDフィールドをチェック
+    const resourceOwnerId = resource.createdBy || 
+                          resource.uploadedBy || 
+                          resource.userId ||
+                          resource.created_by ||
+                          resource.uploaded_by ||
+                          resource.user_id;
+    
     const canDelete = resourceOwnerId === userId;
     
-    debugLog('所有者チェック結果', {
-      resourceOwnerId,
-      userId,
-      canDelete
-    });
+    if (shouldLog) {
+      debugLog('所有者チェック結果', {
+        resourceOwnerId,
+        userId,
+        canDelete
+      });
+    }
 
     return canDelete;
-  };
+  }, [userRole, hasPermission, userId, isDevelopment, debugLog]);
 
   // アルバム固有の権限チェック
-  const canManageAlbum = (album: { created_by?: string; is_public?: boolean }) => {
+  const canManageAlbum = useCallback((album: { 
+    created_by?: string; 
+    is_public?: boolean;
+    createdBy?: string; // 互換性のため 
+  }) => {
     if (userRole === 'admin') return true;
-    if (album.created_by === userId) return true;
+    
+    const albumCreator = album.created_by || album.createdBy;
+    if (albumCreator === userId) return true;
+    
     if (userRole === 'editor' && album.is_public) return true;
     return false;
-  };
+  }, [userRole, userId]);
 
   // コメント固有の権限チェック
-  const canManageComment = (comment: { user_id?: string }) => {
+  const canManageComment = useCallback((comment: { 
+    user_id?: string;
+    userId?: string; // 互換性のため
+  }) => {
     if (userRole === 'admin') return true;
-    if (comment.user_id === userId) return true;
+    
+    const commentAuthor = comment.user_id || comment.userId;
+    if (commentAuthor === userId) return true;
     return false;
-  };
+  }, [userRole, userId]);
 
   // 招待権限チェック
-  const canInviteMembers = (): boolean => {
+  const canInviteMembers = useCallback((): boolean => {
     return hasPermission('invite.create');
-  };
+  }, [hasPermission]);
 
   // 家族管理権限チェック
-  const canManageFamily = (): boolean => {
+  const canManageFamily = useCallback((): boolean => {
     return hasPermission('family.manage');
-  };
+  }, [hasPermission]);
 
-  // UI表示用の権限情報
-  const getPermissionInfo = () => ({
+  // UI表示用の権限情報（メモ化）
+  const getPermissionInfo = useMemo(() => ({
     role: userRole,
     roleLabel: getRoleLabel(userRole),
-    permissions: permissions,
+    permissions: [...permissions], // 配列のコピーを返す
     canCreateAlbum: hasPermission('album.create'),
     canInvite: hasPermission('invite.create'),
     canManageSettings: hasPermission('settings.edit'),
     isAdmin: userRole === 'admin',
     isEditor: userRole === 'editor',
     isViewer: userRole === 'viewer',
-  });
+  }), [userRole, permissions, hasPermission]);
 
-  // ロールラベル取得
-  const getRoleLabel = (role: Role): string => {
-    const labels = {
+  // ロールラベル取得（関数を外部に移動して最適化）
+  const getRoleLabel = useCallback((role: Role): string => {
+    const labels: Record<Role, string> = {
       admin: '管理者',
       editor: '編集者',
       viewer: '閲覧者',
     };
     return labels[role];
-  };
+  }, []);
 
-  // デバッグ用：権限一覧表示（開発時のみ）
-  const debugPermissions = () => {
+  // デバッグ用：権限一覧表示（開発時のみ、実行を最適化）
+  const debugPermissions = useCallback(() => {
     if (!isDevelopment) return;
     
-    console.log('=== 権限デバッグ情報 ===');
+    console.group('=== 権限デバッグ情報 ===');
     console.log('User Role:', userRole);
     console.log('User ID:', userId);
     console.log('Available Permissions:', permissions);
-    console.log('Permission Info:', getPermissionInfo());
-    console.log('========================');
-  };
+    console.table(getPermissionInfo);
+    console.groupEnd();
+  }, [isDevelopment, userRole, userId, permissions, getPermissionInfo]);
 
   return {
     // 基本情報
     userRole,
     userId,
-    permissions,
+    permissions: [...permissions], // 配列のコピーを返す（イミュータブル）
     
     // 権限チェック関数
     hasPermission,
