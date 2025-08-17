@@ -12,8 +12,6 @@ import { AlbumDeleteButton } from './components/album/AlbumDeleteButton';
 import { Button } from './components/ui/Button';
 import { Camera } from 'lucide-react';
 import { Modal } from './components/ui/Modal';
-import { RoleTestPanel } from './components/debug/RoleTestPanel';
-import { PermissionDebugger } from './components/debug/PermissionDebugger';
 import { PermissionGuard } from './components/auth/PermissionGuard';
 
 function AppContent() {
@@ -42,21 +40,13 @@ function AppContent() {
           </div>
           <p className="text-gray-600">読み込み中...</p>
         </div>
-        {/* 権限テストパネル（ローディング中でも表示） */}
-        <RoleTestPanel />
       </div>
     );
   }
 
   // 認証されていない場合はログインフォームを表示
   if (!isAuthenticated) {
-    return (
-      <>
-        <LoginForm />
-        {/* 権限テストパネル（ログイン画面でも表示） */}
-        <RoleTestPanel />
-      </>
-    );
+    return <LoginForm />;
   }
 
   // アルバム作成処理
@@ -253,12 +243,6 @@ function AppContent() {
         isOpen={showAccessibilityPanel}
         onClose={() => setShowAccessibilityPanel(false)}
       />
-
-      {/* 権限テストパネル（開発時のみ表示） */}
-      <RoleTestPanel />
-      
-      {/* 権限デバッガー（開発時のみ表示） */}
-      <PermissionDebugger />
     </div>
   );
 }

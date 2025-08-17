@@ -23,6 +23,7 @@ export const PermissionDebugger: React.FC<PermissionDebuggerProps> = ({ classNam
     return null;
   }
 
+  // getPermissionInfo を関数として呼び出し
   const permissionInfo = getPermissionInfo();
 
   React.useEffect(() => {

@@ -60,6 +60,16 @@ interface ExtendedResourceOwnership extends ResourceOwnership {
   user_id?: string; // データベースフィールドとの互換性
 }
 
+// ロールラベル取得関数（Hookの外部で定義）
+const getRoleLabel = (role: Role): string => {
+  const labels: Record<Role, string> = {
+    admin: '管理者',
+    editor: '編集者',
+    viewer: '閲覧者',
+  };
+  return labels[role];
+};
+
 export const usePermissions = () => {
   const { profile, user } = useApp();
   const { isDevelopment } = useEnvironment();
@@ -82,7 +92,7 @@ export const usePermissions = () => {
       debugLog('権限計算', { userRole, permissionCount: rolePermissions.length });
     }
     return rolePermissions;
-  }, [userRole, isDevelopment]); // debugLogを依存配列から除外
+  }, [userRole, isDevelopment, debugLog]);
 
   // 権限チェック関数（メモ化で最適化）
   const hasPermission = useCallback((permission: Permission): boolean => {
@@ -237,10 +247,10 @@ export const usePermissions = () => {
     return hasPermission('family.manage');
   }, [hasPermission]);
 
-  // UI表示用の権限情報（メモ化）
-  const getPermissionInfo = useMemo(() => ({
+  // UI表示用の権限情報（関数として定義）
+  const getPermissionInfo = useCallback(() => ({
     role: userRole,
-    roleLabel: getRoleLabel(userRole),
+    roleLabel: getRoleLabel(userRole), // 外部関数を使用
     permissions: [...permissions], // 配列のコピーを返す
     canCreateAlbum: hasPermission('album.create'),
     canInvite: hasPermission('invite.create'),
@@ -250,16 +260,6 @@ export const usePermissions = () => {
     isViewer: userRole === 'viewer',
   }), [userRole, permissions, hasPermission]);
 
-  // ロールラベル取得（関数を外部に移動して最適化）
-  const getRoleLabel = useCallback((role: Role): string => {
-    const labels: Record<Role, string> = {
-      admin: '管理者',
-      editor: '編集者',
-      viewer: '閲覧者',
-    };
-    return labels[role];
-  }, []);
-
   // デバッグ用：権限一覧表示（開発時のみ、実行を最適化）
   const debugPermissions = useCallback(() => {
     if (!isDevelopment) return;
@@ -268,7 +268,7 @@ export const usePermissions = () => {
     console.log('User Role:', userRole);
     console.log('User ID:', userId);
     console.log('Available Permissions:', permissions);
-    console.table(getPermissionInfo);
+    console.table(getPermissionInfo());
     console.groupEnd();
   }, [isDevelopment, userRole, userId, permissions, getPermissionInfo]);
 
@@ -295,7 +295,7 @@ export const usePermissions = () => {
     
     // UI用情報
     getPermissionInfo,
-    getRoleLabel,
+    getRoleLabel: useCallback(getRoleLabel, []), // 外部関数をwrap
     
     // デバッグ（開発時のみ）
     debugPermissions,

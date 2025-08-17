@@ -1,5 +1,5 @@
-// src/hooks/useAuth.ts
-import { useState, useEffect } from 'react';
+// src/hooks/useAuth.ts - 完成版
+import { useState, useEffect, useCallback } from 'react';
 import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { useEnvironment } from './useEnvironment';
@@ -7,7 +7,9 @@ import type { Profile } from '../types/core';
 
 // デバッグログ関数
 const debugLog = (message: string, data?: any) => {
-  console.log(`[useAuth] ${message}`, data);
+  if (import.meta.env.DEV) {
+    console.log(`[useAuth] ${message}`, data);
+  }
 };
 
 export const useAuth = () => {
@@ -20,11 +22,10 @@ export const useAuth = () => {
   // 環境情報をHookで取得
   const { isDemo } = useEnvironment();
 
-  // プロフィール変更の監視
+  // プロフィール変更の監視（デモモード用）
   useEffect(() => {
     if (!isDemo) return;
 
-    // ローカルストレージの変更を監視
     const handleStorageChange = () => {
       try {
         const demoProfile = localStorage.getItem('demoProfile');
@@ -38,7 +39,7 @@ export const useAuth = () => {
       }
     };
 
-    // storage イベントリスナーを追加（他のタブでの変更を検知）
+    // storage イベントリスナー（他のタブでの変更を検知）
     window.addEventListener('storage', handleStorageChange);
     
     // 定期的にローカルストレージをチェック（同一タブ内での変更検知）
@@ -64,12 +65,29 @@ export const useAuth = () => {
           const demoAuth = localStorage.getItem('demoAuth');
           const demoProfile = localStorage.getItem('demoProfile');
           
-          debugLog('ローカルストレージ確認', { demoAuth, hasProfile: !!demoProfile });
+          debugLog('ローカルストレージ確認', { 
+            hasDemoAuth: !!demoAuth, 
+            hasProfile: !!demoProfile,
+            demoAuth,
+            demoProfile: demoProfile ? JSON.parse(demoProfile) : null
+          });
           
           if (demoAuth === 'authenticated' && demoProfile) {
             try {
               const parsedProfile = JSON.parse(demoProfile);
-              debugLog('プロフィール解析成功', parsedProfile);
+              debugLog('プロフィール解析結果', parsedProfile);
+              
+              // ロールが正しく設定されているかチェック
+              if (!parsedProfile.role || parsedProfile.role === 'viewer') {
+                debugLog('ロールが正しくない、管理者に修正', { 
+                  currentRole: parsedProfile.role 
+                });
+                
+                // 管理者ロールに強制修正
+                parsedProfile.role = 'admin';
+                parsedProfile.updated_at = new Date().toISOString();
+                localStorage.setItem('demoProfile', JSON.stringify(parsedProfile));
+              }
               
               if (mounted) {
                 const demoUser = {
@@ -81,8 +99,11 @@ export const useAuth = () => {
                   phone: '',
                   confirmed_at: new Date().toISOString(),
                   last_sign_in_at: new Date().toISOString(),
-                  app_metadata: {},
-                  user_metadata: {},
+                  app_metadata: { role: parsedProfile.role },
+                  user_metadata: { 
+                    role: parsedProfile.role,
+                    name: parsedProfile.name 
+                  },
                   identities: [],
                   created_at: new Date().toISOString(),
                   updated_at: new Date().toISOString()
@@ -90,12 +111,53 @@ export const useAuth = () => {
                 
                 setProfile(parsedProfile);
                 setUser(demoUser);
-                debugLog('認証状態設定完了', { user: demoUser, profile: parsedProfile });
+                
+                debugLog('認証状態設定完了', { 
+                  user: demoUser, 
+                  profile: parsedProfile,
+                  finalRole: parsedProfile.role
+                });
               }
             } catch (error) {
               debugLog('プロフィール解析エラー', error);
-              localStorage.removeItem('demoAuth');
-              localStorage.removeItem('demoProfile');
+              
+              // エラー時は新しい管理者プロフィールを作成
+              const newProfile: Profile = {
+                id: 'demo-user-1',
+                name: 'デモユーザー',
+                email: 'test@example.com',
+                avatar_url: null,
+                role: 'admin',
+                settings: {},
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              };
+              
+              localStorage.setItem('demoAuth', 'authenticated');
+              localStorage.setItem('demoProfile', JSON.stringify(newProfile));
+              
+              if (mounted) {
+                const demoUser = {
+                  id: newProfile.id,
+                  email: newProfile.email,
+                  aud: 'authenticated',
+                  role: 'authenticated',
+                  email_confirmed_at: new Date().toISOString(),
+                  phone: '',
+                  confirmed_at: new Date().toISOString(),
+                  last_sign_in_at: new Date().toISOString(),
+                  app_metadata: { role: 'admin' },
+                  user_metadata: { role: 'admin', name: newProfile.name },
+                  identities: [],
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                } as User;
+                
+                setProfile(newProfile);
+                setUser(demoUser);
+                
+                debugLog('新規プロフィール作成完了', { user: demoUser, profile: newProfile });
+              }
             }
           } else {
             debugLog('未認証状態');
@@ -103,7 +165,7 @@ export const useAuth = () => {
           
           if (mounted) {
             setLoading(false);
-            debugLog('初期化完了');
+            debugLog('デモ初期化完了');
           }
         } else {
           // 実際のSupabase認証処理
@@ -144,7 +206,7 @@ export const useAuth = () => {
       clearTimeout(timer);
       debugLog('useAuthクリーンアップ');
     };
-  }, [isDemo]); // isDemo が変更されたときに再実行
+  }, [isDemo]);
 
   // Supabase認証状態変更の監視
   useEffect(() => {
@@ -171,6 +233,7 @@ export const useAuth = () => {
     };
   }, [isDemo]);
 
+  // プロフィール取得（Supabase用）
   const fetchProfile = async (userId: string) => {
     try {
       debugLog('プロフィール取得開始', userId);
@@ -198,6 +261,7 @@ export const useAuth = () => {
     }
   };
 
+  // デフォルトプロフィール作成（Supabase用）
   const createDefaultProfile = async (userId: string) => {
     try {
       debugLog('デフォルトプロフィール作成開始', userId);
@@ -222,6 +286,7 @@ export const useAuth = () => {
     }
   };
 
+  // ログイン関数
   const signInWithEmail = async (email: string, password: string) => {
     debugLog('ログイン試行', { email, isDemo });
     
@@ -233,14 +298,15 @@ export const useAuth = () => {
           name: 'デモユーザー',
           email: 'test@example.com',
           avatar_url: null,
-          role: 'admin',
+          role: 'admin', // 確実に管理者権限
           settings: {},
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
         
-        debugLog('デモログイン成功', demoProfile);
+        debugLog('デモログイン - プロフィール作成', demoProfile);
         
+        // ローカルストレージに保存
         localStorage.setItem('demoAuth', 'authenticated');
         localStorage.setItem('demoProfile', JSON.stringify(demoProfile));
         
@@ -253,15 +319,23 @@ export const useAuth = () => {
           phone: '',
           confirmed_at: new Date().toISOString(),
           last_sign_in_at: new Date().toISOString(),
-          app_metadata: {},
-          user_metadata: {},
+          app_metadata: { role: 'admin' },
+          user_metadata: { role: 'admin', name: demoProfile.name },
           identities: [],
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         } as User;
         
+        // 状態を更新
         setProfile(demoProfile);
         setUser(demoUser);
+        
+        debugLog('デモログイン成功', { 
+          profile: demoProfile, 
+          user: demoUser,
+          profileRole: demoProfile.role,
+          userRole: demoUser.user_metadata?.role
+        });
         
         return {
           data: {
@@ -276,6 +350,7 @@ export const useAuth = () => {
       }
     }
 
+    // 実際のSupabaseログイン処理
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -286,6 +361,7 @@ export const useAuth = () => {
     return data;
   };
 
+  // サインアップ関数
   const signUpWithEmail = async (email: string, password: string, name: string) => {
     if (isDemo) {
       throw new Error('デモモードではサインアップできません');
@@ -316,6 +392,7 @@ export const useAuth = () => {
     return data;
   };
 
+  // ログアウト関数
   const signOut = async () => {
     debugLog('ログアウト開始');
     
@@ -333,7 +410,8 @@ export const useAuth = () => {
     debugLog('Supabaseログアウト完了');
   };
 
-  const updateProfile = async (updates: Partial<Profile>) => {
+  // プロフィール更新関数
+  const updateProfile = useCallback(async (updates: Partial<Profile>) => {
     if (!user && !isDemo) throw new Error('ユーザーがログインしていません');
 
     if (isDemo) {
@@ -352,10 +430,34 @@ export const useAuth = () => {
         updated_at: new Date().toISOString()
       };
 
-      debugLog('プロフィール更新', updatedProfile);
+      debugLog('プロフィール更新（デモ）', { 
+        before: currentProfile, 
+        updates, 
+        after: updatedProfile 
+      });
       
       localStorage.setItem('demoProfile', JSON.stringify(updatedProfile));
       setProfile(updatedProfile);
+      
+      // userオブジェクトのメタデータも更新
+      if (user) {
+        const updatedUser = {
+          ...user,
+          user_metadata: {
+            ...user.user_metadata,
+            role: updatedProfile.role,
+            name: updatedProfile.name
+          },
+          app_metadata: {
+            ...user.app_metadata,
+            role: updatedProfile.role
+          }
+        };
+        setUser(updatedUser);
+        
+        debugLog('ユーザーメタデータ更新完了', updatedUser);
+      }
+      
       return updatedProfile;
     }
 
@@ -371,18 +473,22 @@ export const useAuth = () => {
     if (error) throw error;
     setProfile(data);
     return data;
-  };
+  }, [user, profile, isDemo]);
 
   // デバッグ用の状態ログ出力
   useEffect(() => {
-    debugLog('状態変更', { 
-      hasUser: !!user, 
-      hasProfile: !!profile, 
-      loading,
-      userId: user?.id,
-      profileName: profile?.name,
-      profileRole: profile?.role
-    });
+    if (import.meta.env.DEV) {
+      debugLog('状態変更', { 
+        hasUser: !!user, 
+        hasProfile: !!profile, 
+        loading,
+        userId: user?.id,
+        profileName: profile?.name,
+        profileRole: profile?.role,
+        userMetaRole: user?.user_metadata?.role,
+        appMetaRole: user?.app_metadata?.role
+      });
+    }
   }, [user, profile, loading]);
 
   return {

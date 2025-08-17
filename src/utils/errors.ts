@@ -186,7 +186,7 @@ export const setupGlobalErrorHandling = (): void => {
     errorHelpers.unexpected(event.error);
   });
 };
-
+/*
 // 開発時のテスト用（自動で削除される）
 if (import.meta.env.DEV) {
   (window as any).testErrors = {
@@ -201,3 +201,4 @@ if (import.meta.env.DEV) {
   
   console.log('🛠️ 開発モード: window.testErrors でエラーテストが可能です');
 }
+*/

@@ -1,5 +1,7 @@
 // src/utils/errorHandling.ts
-// シンプルで実用的なエラーハンドリングシステム
+// TypeScript対応の安全なエラーハンドリングシステム
+
+import React from 'react';
 
 // エラーレベル
 export type ErrorLevel = 'info' | 'warning' | 'error' | 'critical';
@@ -90,6 +92,8 @@ class SimpleErrorHandler {
   }
 
   private handleByLevel(error: AppError): void {
+    if (typeof window === 'undefined') return;
+
     switch (error.level) {
       case 'critical':
         // クリティカルエラーはページリロードを提案
@@ -98,7 +102,7 @@ class SimpleErrorHandler {
         }
         break;
       case 'error':
-        // エラーはアラート表示
+        // エラーはトースト表示
         this.showToast(error.message, 'error');
         break;
       case 'warning':
@@ -112,20 +116,101 @@ class SimpleErrorHandler {
   }
 
   private showToast(message: string, type: 'error' | 'warning'): void {
-    // 簡易トースト実装
+    // サーバーサイドレンダリング対応
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
+    // 既存のトーストをチェック
+    const existingToast = document.querySelector('.app-error-toast');
+    if (existingToast) {
+      existingToast.remove();
+    }
+
+    // 必要なスタイルを追加
+    this.ensureToastStyles();
+
+    // トースト要素を作成
     const toast = document.createElement('div');
-    const bgColor = type === 'error' ? 'bg-red-500' : 'bg-yellow-500';
-    
-    toast.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm text-white ${bgColor}`;
+    toast.className = `app-error-toast ${type}`;
     toast.textContent = message;
+    
+    // クリックで閉じる
+    toast.addEventListener('click', () => this.closeToast(toast));
     
     document.body.appendChild(toast);
     
-    setTimeout(() => {
-      if (toast.parentNode) {
-        toast.parentNode.removeChild(toast);
-      }
-    }, 5000);
+    // 自動で閉じる
+    setTimeout(() => this.closeToast(toast), 5000);
+  }
+
+  private closeToast(toast: HTMLElement): void {
+    if (toast.parentNode) {
+      toast.style.animation = 'slideOut 0.3s ease-in';
+      setTimeout(() => {
+        if (toast.parentNode) {
+          toast.parentNode.removeChild(toast);
+        }
+      }, 300);
+    }
+  }
+
+  private ensureToastStyles(): void {
+    if (typeof document === 'undefined') return;
+    
+    const styleId = 'app-error-toast-styles';
+    if (document.querySelector(`#${styleId}`)) return;
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    
+    // CSS文字列を安全に構築
+    const cssRules = [
+      '.app-error-toast {',
+      '  position: fixed;',
+      '  top: 20px;',
+      '  right: 20px;',
+      '  z-index: 9999;',
+      '  max-width: 300px;',
+      '  padding: 12px 16px;',
+      '  border-radius: 8px;',
+      '  color: white;',
+      '  font-size: 14px;',
+      '  line-height: 1.4;',
+      '  cursor: pointer;',
+      '  box-shadow: 0 4px 12px rgba(0,0,0,0.2);',
+      '  animation: slideIn 0.3s ease-out;',
+      '}',
+      '.app-error-toast.error {',
+      '  background: #EF4444;',
+      '}',
+      '.app-error-toast.warning {',
+      '  background: #F59E0B;',
+      '}',
+      '@keyframes slideIn {',
+      '  from {',
+      '    transform: translateX(100%);',
+      '    opacity: 0;',
+      '  }',
+      '  to {',
+      '    transform: translateX(0);',
+      '    opacity: 1;',
+      '  }',
+      '}',
+      '@keyframes slideOut {',
+      '  from {',
+      '    transform: translateX(0);',
+      '    opacity: 1;',
+      '  }',
+      '  to {',
+      '    transform: translateX(100%);',
+      '    opacity: 0;',
+      '  }',
+      '}'
+    ];
+
+    style.textContent = cssRules.join('\n');
+    document.head.appendChild(style);
   }
 }
 
@@ -176,7 +261,7 @@ export const useErrorHandler = () => {
   return { errors, clearErrors, handleError };
 };
 
-// エラーバウンダリー（React Class Component）
+// エラーバウンダリー用のインターフェース
 interface ErrorBoundaryState {
   hasError: boolean;
   error?: Error;
@@ -187,6 +272,32 @@ interface ErrorBoundaryProps {
   fallback?: React.ComponentType<{ error: Error }>;
 }
 
+// デフォルトのエラーフォールバックコンポーネント
+const DefaultErrorFallback: React.FC<{ error: Error }> = ({ error }) => (
+  React.createElement('div', {
+    className: 'min-h-screen bg-gray-50 flex items-center justify-center p-4'
+  }, 
+    React.createElement('div', {
+      className: 'max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center'
+    },
+      React.createElement('div', {
+        className: 'text-red-500 text-4xl mb-4'
+      }, '⚠️'),
+      React.createElement('h2', {
+        className: 'text-lg font-semibold text-gray-900 mb-2'
+      }, 'エラーが発生しました'),
+      React.createElement('p', {
+        className: 'text-gray-600 mb-4'
+      }, error.message),
+      React.createElement('button', {
+        onClick: () => window.location.reload(),
+        className: 'bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors'
+      }, 'ページを再読み込み')
+    )
+  )
+);
+
+// エラーバウンダリー（React Class Component）
 export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
@@ -197,36 +308,15 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
     errorHandler.handle(error, 'critical');
   }
 
   render() {
     if (this.state.hasError && this.state.error) {
-      if (this.props.fallback) {
-        const FallbackComponent = this.props.fallback;
-        return <FallbackComponent error={this.state.error} />;
-      }
-
-      return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
-            <div className="text-red-500 text-4xl mb-4">⚠️</div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">
-              エラーが発生しました
-            </h2>
-            <p className="text-gray-600 mb-4">
-              {this.state.error.message}
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
-            >
-              ページを再読み込み
-            </button>
-          </div>
-        </div>
-      );
+      const FallbackComponent = this.props.fallback || DefaultErrorFallback;
+      return React.createElement(FallbackComponent, { error: this.state.error });
     }
 
     return this.props.children;
@@ -259,25 +349,158 @@ export const testError = {
   critical: () => handleError.unexpected(new Error('テスト用クリティカルエラー')),
 };
 
-// 開発時のテストボタンを追加
-if (import.meta.env.DEV) {
-  setTimeout(() => {
-    const debugPanel = document.createElement('div');
-    debugPanel.innerHTML = `
-      <div style="position: fixed; bottom: 10px; left: 10px; z-index: 9999; background: #000; color: #fff; padding: 10px; border-radius: 5px; font-size: 12px;">
-        <div>エラーテスト:</div>
-        <button id="test-info" style="margin: 2px; padding: 4px; font-size: 10px;">Info</button>
-        <button id="test-warning" style="margin: 2px; padding: 4px; font-size: 10px;">Warning</button>
-        <button id="test-error" style="margin: 2px; padding: 4px; font-size: 10px;">Error</button>
-        <button id="test-critical" style="margin: 2px; padding: 4px; font-size: 10px;">Critical</button>
-      </div>
-    `;
+// グローバルエラーハンドリングの設定
+export const setupGlobalErrorHandling = (): void => {
+  if (typeof window === 'undefined') return;
+
+  // 未処理のPromise拒否
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled Promise Rejection:', event.reason);
+    const error = event.reason instanceof Error 
+      ? event.reason 
+      : new Error(String(event.reason));
+    handleError.unexpected(error);
+    event.preventDefault();
+  });
+  
+  // 未処理のエラー
+  window.addEventListener('error', (event) => {
+    console.error('Unhandled Error:', event.error);
+    if (event.error instanceof Error) {
+      handleError.unexpected(event.error);
+    }
+  });
+};
+
+// デバッグ機能（安全な実装）
+class DebugPanel {
+  private panelElement: HTMLElement | null = null;
+
+  create(): void {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
     
-    document.body.appendChild(debugPanel);
+    // 既存のパネルを削除
+    this.remove();
+
+    // パネル要素を作成
+    this.panelElement = document.createElement('div');
+    this.panelElement.id = 'app-debug-panel';
     
-    document.getElementById('test-info')?.addEventListener('click', testError.info);
-    document.getElementById('test-warning')?.addEventListener('click', testError.warning);
-    document.getElementById('test-error')?.addEventListener('click', testError.error);
-    document.getElementById('test-critical')?.addEventListener('click', testError.critical);
-  }, 1000);
+    // スタイルを設定
+    this.setStyles();
+    
+    // 内容を設定
+    this.setContent();
+    
+    // イベントリスナーを追加
+    this.attachListeners();
+    
+    document.body.appendChild(this.panelElement);
+  }
+
+  remove(): void {
+    if (this.panelElement && this.panelElement.parentNode) {
+      this.panelElement.parentNode.removeChild(this.panelElement);
+      this.panelElement = null;
+    }
+  }
+
+  private setStyles(): void {
+    if (!this.panelElement) return;
+
+    const styles = {
+      position: 'fixed',
+      bottom: '10px',
+      left: '10px',
+      zIndex: '9999',
+      background: '#000',
+      color: '#fff',
+      padding: '10px',
+      borderRadius: '5px',
+      fontSize: '12px',
+      fontFamily: 'monospace',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+    };
+
+    Object.assign(this.panelElement.style, styles);
+  }
+
+  private setContent(): void {
+    if (!this.panelElement) return;
+
+    // タイトル
+    const title = document.createElement('div');
+    title.textContent = 'エラーテスト:';
+    title.style.marginBottom = '5px';
+    this.panelElement.appendChild(title);
+
+    // ボタンデータ
+    const buttons = [
+      { id: 'test-info', text: 'Info', handler: testError.info },
+      { id: 'test-warning', text: 'Warning', handler: testError.warning },
+      { id: 'test-error', text: 'Error', handler: testError.error },
+      { id: 'test-critical', text: 'Critical', handler: testError.critical },
+      { id: 'close-debug', text: '✕', handler: () => this.remove(), danger: true }
+    ];
+
+    // ボタンを作成
+    buttons.forEach(({ id, text, handler, danger }) => {
+      const button = document.createElement('button');
+      button.id = id;
+      button.textContent = text;
+      
+      const buttonStyles = {
+        margin: '2px',
+        padding: '4px 8px',
+        fontSize: '10px',
+        cursor: 'pointer',
+        border: 'none',
+        borderRadius: '3px',
+        background: danger ? '#ff4444' : '#333',
+        color: '#fff',
+        transition: 'background-color 0.2s'
+      };
+
+      Object.assign(button.style, buttonStyles);
+      
+      // ホバー効果
+      button.addEventListener('mouseenter', () => {
+        button.style.background = danger ? '#ff6666' : '#555';
+      });
+      
+      button.addEventListener('mouseleave', () => {
+        button.style.background = danger ? '#ff4444' : '#333';
+      });
+      
+      button.addEventListener('click', handler);
+      this.panelElement!.appendChild(button);
+    });
+  }
+
+  private attachListeners(): void {
+    // 必要に応じて追加のイベントリスナーを設定
+  }
+}
+
+// デバッグパネルインスタンス
+const debugPanel = new DebugPanel();
+
+// 開発環境でのみデバッグパネルを表示
+if (import.meta.env?.DEV) {
+  if (typeof window !== 'undefined') {
+    // DOMが準備できてから実行
+    const initDebugPanel = () => {
+      setTimeout(() => debugPanel.create(), 1000);
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initDebugPanel);
+    } else {
+      initDebugPanel();
+    }
+    
+    // グローバルオブジェクトにテスト関数を追加
+    (window as any).testErrors = testError;
+    console.log('🛠️ 開発モード: window.testErrors でエラーテストが可能です');
+  }
 }
