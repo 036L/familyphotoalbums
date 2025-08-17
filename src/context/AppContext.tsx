@@ -1,4 +1,4 @@
-// src/context/AppContext.tsx
+// src/context/AppContext.tsx - 修正版
 import React, { createContext, useContext, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useAlbums } from '../hooks/useAlbums';
@@ -43,6 +43,9 @@ interface AppContextType {
   // UI State - 最適化されたUI状態管理
   currentAlbum: Album | null;
   setCurrentAlbum: (album: Album | null) => void;
+  
+  // Debug functions
+  forceRefresh: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -153,23 +156,42 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
   }, [auth.updateProfile, auth.profile, isDemo]);
 
-  // 認証状態変更時のアルバム取得処理（最適化）
+  // 強制リフレッシュ関数（デバッグ用）
+  const forceRefresh = useCallback(() => {
+    debugLog('強制リフレッシュ実行');
+    if (albumsHook.forceReinitialize) {
+      albumsHook.forceReinitialize();
+    }
+  }, [albumsHook.forceReinitialize]);
+
+  // 認証状態変更時のアルバム取得処理（大幅改善）
   useEffect(() => {
+    const shouldTriggerAlbumsInit = () => {
+      // デモモードの場合：常に初期化を試行
+      if (isDemo) {
+        return !albumsHook.initialized;
+      }
+      
+      // 実環境の場合：ユーザーがログインしており、まだ初期化されていない場合
+      return (
+        auth.user && 
+        !auth.loading && 
+        !albumsHook.initialized &&
+        !albumsHook.loading
+      );
+    };
+
     debugLog('認証状態変更エフェクト', {
       hasUser: !!auth.user,
       authLoading: auth.loading,
       albumsInitialized: albumsHook.initialized,
-      albumCount: albumsHook.albums.length
+      albumsLoading: albumsHook.loading,
+      albumCount: albumsHook.albums.length,
+      isDemo,
+      shouldTrigger: shouldTriggerAlbumsInit()
     });
 
-    // 条件を明確にして不要な実行を防ぐ
-    const shouldFetchAlbums = 
-      auth.user && 
-      !auth.loading && 
-      !albumsHook.initialized &&
-      !albumsHook.loading; // 既に読み込み中でない場合のみ
-
-    if (shouldFetchAlbums) {
+    if (shouldTriggerAlbumsInit()) {
       debugLog('アルバム初期化をトリガー');
       
       // 確実に実行するための最小限の遅延
@@ -182,7 +204,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         clearTimeout(timer);
       };
     }
-  }, [auth.user, auth.loading, albumsHook.initialized, albumsHook.loading]);
+  }, [
+    auth.user, 
+    auth.loading, 
+    albumsHook.initialized, 
+    albumsHook.loading,
+    albumsHook.fetchAlbums,
+    isDemo
+  ]);
 
   // デバッグ用：状態変更の監視（開発時のみ）
   useEffect(() => {
@@ -194,10 +223,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         albumsLoading: albumsState.albumsLoading,
         albumsInitialized: albumsState.albumsInitialized,
         currentAlbum: currentAlbum?.title,
-        photoCount: photosState.photos.length
+        photoCount: photosState.photos.length,
+        isDemo
       });
     }
-  }, [authState, albumsState, photosState, currentAlbum]);
+  }, [authState, albumsState, photosState, currentAlbum, isDemo]);
 
   // メモ化されたコンテキスト値
   const contextValue = useMemo(() => ({
@@ -223,6 +253,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     // UI State
     currentAlbum,
     setCurrentAlbum: handleSetCurrentAlbum,
+    
+    // Debug
+    forceRefresh,
   }), [
     authState,
     albumsState,
@@ -239,6 +272,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     photosHook.uploadPhotos,
     photosHook.deletePhoto,
     handleSetCurrentAlbum,
+    forceRefresh,
   ]);
 
   return (

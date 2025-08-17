@@ -1,12 +1,14 @@
-// src/hooks/useAlbums.ts
-import { useState, useEffect } from 'react';
+// src/hooks/useAlbums.ts - 修正版
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useEnvironment } from './useEnvironment';
 import type { Album, AlbumCreateData } from '../types/core';
 
-// デバッグログ関数
+// デバッグログ関数（ガイドライン準拠）
 const debugLog = (message: string, data?: any) => {
-  console.log(`[useAlbums] ${message}`, data);
+  if (import.meta.env.DEV) {
+    console.log(`[useAlbums] ${message}`, data);
+  }
 };
 
 // データベースから取得される生のアルバムデータの型
@@ -25,10 +27,10 @@ interface RawAlbumData {
   photos?: Array<{ count: number }>;
 }
 
-// デモデータを改善（実際の画像URLを使用）
+// デモデータ（より充実した内容に改善）
 const demoAlbums: Album[] = [
   {
-    id: '1',
+    id: 'demo-album-1',
     title: '2024年家族旅行',
     description: '沖縄での楽しい思い出',
     cover_image_url: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=400&fit=crop',
@@ -41,7 +43,7 @@ const demoAlbums: Album[] = [
     creator_name: 'デモユーザー'
   },
   {
-    id: '2',
+    id: 'demo-album-2',
     title: 'お正月2024',
     description: 'みんなでお雑煮を食べました',
     cover_image_url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=400&fit=crop',
@@ -54,7 +56,7 @@ const demoAlbums: Album[] = [
     creator_name: 'デモユーザー'
   },
   {
-    id: '3',
+    id: 'demo-album-3',
     title: '桜の季節',
     description: '近所の公園で花見',
     cover_image_url: 'https://images.unsplash.com/photo-1522383225653-ed111181a951?w=400&h=400&fit=crop',
@@ -67,7 +69,7 @@ const demoAlbums: Album[] = [
     creator_name: 'デモユーザー'
   },
   {
-    id: '4',
+    id: 'demo-album-4',
     title: '夏祭り',
     description: '地域の夏祭りに参加',
     cover_image_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=400&fit=crop',
@@ -80,7 +82,7 @@ const demoAlbums: Album[] = [
     creator_name: 'デモユーザー'
   },
   {
-    id: '5',
+    id: 'demo-album-5',
     title: '秋の紅葉狩り',
     description: '山に紅葉を見に行きました',
     cover_image_url: 'https://images.unsplash.com/photo-1507041957456-9c397ce39c97?w=400&h=400&fit=crop',
@@ -93,7 +95,7 @@ const demoAlbums: Album[] = [
     creator_name: 'デモユーザー'
   },
   {
-    id: '6',
+    id: 'demo-album-6',
     title: '誕生日パーティー',
     description: 'おじいちゃんの80歳のお祝い',
     cover_image_url: 'https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?w=400&h=400&fit=crop',
@@ -173,7 +175,56 @@ export const useAlbums = () => {
     }
   };
 
-  const fetchAlbums = async () => {
+  // デモアルバムの初期化を確実に実行する関数
+  const initializeDemoAlbums = useCallback(() => {
+    debugLog('デモアルバム初期化開始');
+    
+    try {
+      // デフォルトのデモアルバムから開始
+      let allAlbums = [...demoAlbums];
+      
+      // ローカルストレージから追加されたアルバムも読み込み
+      const savedAlbums = localStorage.getItem('demoAlbums');
+      if (savedAlbums) {
+        try {
+          const parsedSavedAlbums = JSON.parse(savedAlbums);
+          if (Array.isArray(parsedSavedAlbums)) {
+            // 保存されたアルバムを先頭に追加（新しい順）
+            allAlbums = [...parsedSavedAlbums, ...demoAlbums];
+            debugLog('保存されたアルバムを統合', { 
+              savedCount: parsedSavedAlbums.length,
+              totalCount: allAlbums.length 
+            });
+          }
+        } catch (parseError) {
+          debugLog('保存されたアルバムの読み込みに失敗', parseError);
+          // エラーの場合はデフォルトアルバムのみ使用
+        }
+      }
+      
+      debugLog('最終アルバム数', allAlbums.length);
+      
+      // 状態を確実に更新
+      setAlbums(allAlbums);
+      setLoading(false);
+      setInitialized(true);
+      setError(null);
+      
+      debugLog('デモアルバム設定完了', { 
+        albumCount: allAlbums.length,
+        albumTitles: allAlbums.map(a => a.title)
+      });
+      
+      return allAlbums;
+    } catch (err) {
+      debugLog('デモアルバム初期化エラー', err);
+      setError('デモアルバムの初期化に失敗しました');
+      setLoading(false);
+      return [];
+    }
+  }, []);
+
+  const fetchAlbums = useCallback(async () => {
     try {
       debugLog('アルバム取得開始');
       setLoading(true);
@@ -182,34 +233,12 @@ export const useAlbums = () => {
       if (isDemo) {
         debugLog('デモモードでアルバム取得');
         
-        // ローカルストレージから追加されたアルバムも読み込み
-        let allAlbums = [...demoAlbums];
-        
-        try {
-          const savedAlbums = localStorage.getItem('demoAlbums');
-          if (savedAlbums) {
-            const parsedSavedAlbums = JSON.parse(savedAlbums);
-            if (Array.isArray(parsedSavedAlbums)) {
-              allAlbums = [...parsedSavedAlbums, ...demoAlbums];
-              debugLog('保存されたアルバムを統合', { savedCount: parsedSavedAlbums.length });
-            }
-          }
-        } catch (e) {
-          debugLog('保存されたアルバムの読み込みに失敗', e);
-        }
-        
-        debugLog('最終アルバム数', allAlbums.length);
-        
-        // 少し遅延を入れて確実に状態を更新
-        setTimeout(() => {
-          setAlbums(allAlbums);
-          setLoading(false);
-          setInitialized(true);
-          debugLog('デモアルバム設定完了', allAlbums);
-        }, 100);
-        return;
+        // デモモードでは同期的に処理
+        const albums = initializeDemoAlbums();
+        return albums;
       }
 
+      // Supabaseからの取得処理
       const { data, error } = await supabase
         .from('albums')
         .select(`
@@ -256,7 +285,7 @@ export const useAlbums = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isDemo, initializeDemoAlbums]);
 
   const createAlbum = async (albumData: AlbumCreateData) => {
     try {
@@ -265,7 +294,7 @@ export const useAlbums = () => {
       if (isDemo) {
         // デモモードでは新しいアルバムをローカルに追加
         const newAlbum: Album = {
-          id: `demo-${Date.now()}`,
+          id: `demo-new-${Date.now()}`,
           ...albumData,
           description: albumData.description || null,
           cover_image_url: null,
@@ -281,7 +310,7 @@ export const useAlbums = () => {
         const newAlbums = [newAlbum, ...albums];
         setAlbums(newAlbums);
         
-        // ローカルストレージに保存（デモアルバムは除外）
+        // ローカルストレージに保存（デフォルトデモアルバムは除外）
         const userCreatedAlbums = newAlbums.filter(album => 
           !demoAlbums.find(demo => demo.id === album.id)
         );
@@ -326,7 +355,7 @@ export const useAlbums = () => {
         );
         setAlbums(updatedAlbums);
         
-        // ローカルストレージも更新
+        // ローカルストレージも更新（デフォルトデモアルバムは除外）
         const userCreatedAlbums = updatedAlbums.filter(album => 
           !demoAlbums.find(demo => demo.id === album.id)
         );
@@ -359,7 +388,7 @@ export const useAlbums = () => {
         const updatedAlbums = albums.filter(album => album.id !== id);
         setAlbums(updatedAlbums);
         
-        // ローカルストレージも更新
+        // ローカルストレージも更新（デフォルトデモアルバムは除外）
         const userCreatedAlbums = updatedAlbums.filter(album => 
           !demoAlbums.find(demo => demo.id === album.id)
         );
@@ -392,34 +421,60 @@ export const useAlbums = () => {
     }
   };
 
+  // 強制的な再初期化関数（デバッグ用）
+  const forceReinitialize = useCallback(() => {
+    debugLog('強制再初期化実行');
+    setInitialized(false);
+    setLoading(true);
+    setError(null);
+    fetchAlbums();
+  }, [fetchAlbums]);
+
+  // 初期化エフェクト（ガイドライン準拠の改善版）
   useEffect(() => {
     let mounted = true;
     
-    debugLog('useAlbumsエフェクト実行');
+    debugLog('useAlbumsエフェクト実行', { 
+      isDemo, 
+      initialized, 
+      loading,
+      albumCount: albums.length 
+    });
     
-    // 少し遅延を入れて確実に実行
-    const timer = setTimeout(() => {
-      if (mounted) {
-        debugLog('アルバム取得開始タイマー実行');
-        fetchAlbums();
-      }
-    }, 50);
+    // 初期化されていない場合のみ実行
+    if (!initialized && mounted) {
+      debugLog('アルバム取得開始タイマー実行');
+      
+      // 確実に実行するための最小限の遅延
+      const timer = setTimeout(() => {
+        if (mounted) {
+          fetchAlbums();
+        }
+      }, 50);
+
+      return () => {
+        clearTimeout(timer);
+        mounted = false;
+      };
+    }
 
     return () => {
       mounted = false;
-      clearTimeout(timer);
       debugLog('useAlbumsクリーンアップ');
     };
-  }, [isDemo]); // isDemo が変更されたときに再実行
+  }, [isDemo, initialized, fetchAlbums]);
 
-  // デバッグ用の状態ログ出力
+  // デバッグ用の状態ログ出力（開発時のみ）
   useEffect(() => {
-    debugLog('アルバム状態変更', { 
-      albumCount: albums.length, 
-      loading, 
-      initialized, 
-      error 
-    });
+    if (import.meta.env.DEV) {
+      debugLog('アルバム状態変更', { 
+        albumCount: albums.length, 
+        loading, 
+        initialized, 
+        error,
+        albumTitles: albums.map(a => a.title).slice(0, 3) // 最初の3つのタイトルのみ
+      });
+    }
   }, [albums, loading, initialized, error]);
 
   return {
@@ -433,5 +488,6 @@ export const useAlbums = () => {
     deleteAlbum,
     updateAlbumCover,
     handlePhotoAdded, // 写真追加時の処理
+    forceReinitialize, // デバッグ用強制再初期化
   };
 };
