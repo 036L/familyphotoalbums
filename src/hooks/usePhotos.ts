@@ -1,15 +1,22 @@
-// src/hooks/usePhotos.ts
-import { useState, useEffect } from 'react';
+// src/hooks/usePhotos.ts - 改善版
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { compressImage, createThumbnail, getImageDimensions } from '../lib/imageCompression';
 import { useEnvironment } from './useEnvironment';
 import type { Photo, UploadProgress } from '../types/core';
 
-// デモデータ
+// デバッグログ関数
+const debugLog = (message: string, data?: any) => {
+  if (import.meta.env.DEV) {
+    console.log(`[usePhotos] ${message}`, data);
+  }
+};
+
+// デモデータ（より充実した内容）
 const demoPhotos: Record<string, Photo[]> = {
-  '1': [ // 2024年家族旅行
+  'demo-album-1': [ // 2024年家族旅行
     {
-      id: 'demo-1',
+      id: 'demo-photo-1',
       filename: 'beach-sunset.jpg',
       original_filename: 'beach-sunset.jpg',
       url: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&h=600&fit=crop',
@@ -18,7 +25,7 @@ const demoPhotos: Record<string, Photo[]> = {
       file_size: 1024000,
       width: 800,
       height: 600,
-      album_id: '1',
+      album_id: 'demo-album-1',
       uploaded_by: 'demo-user-1',
       metadata: {},
       created_at: '2024-01-15T10:00:00Z',
@@ -26,7 +33,7 @@ const demoPhotos: Record<string, Photo[]> = {
       uploader_name: 'デモユーザー'
     },
     {
-      id: 'demo-2',
+      id: 'demo-photo-2',
       filename: 'family-beach.jpg',
       original_filename: 'family-beach.jpg',
       url: 'https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?w=800&h=600&fit=crop',
@@ -35,7 +42,7 @@ const demoPhotos: Record<string, Photo[]> = {
       file_size: 956000,
       width: 800,
       height: 600,
-      album_id: '1',
+      album_id: 'demo-album-1',
       uploaded_by: 'demo-user-1',
       metadata: {},
       created_at: '2024-01-15T12:30:00Z',
@@ -43,7 +50,7 @@ const demoPhotos: Record<string, Photo[]> = {
       uploader_name: 'デモユーザー'
     },
     {
-      id: 'demo-3',
+      id: 'demo-photo-3',
       filename: 'tropical-fish.jpg',
       original_filename: 'tropical-fish.jpg',
       url: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&h=600&fit=crop',
@@ -52,7 +59,7 @@ const demoPhotos: Record<string, Photo[]> = {
       file_size: 780000,
       width: 800,
       height: 600,
-      album_id: '1',
+      album_id: 'demo-album-1',
       uploaded_by: 'demo-user-1',
       metadata: {},
       created_at: '2024-01-16T09:15:00Z',
@@ -60,7 +67,7 @@ const demoPhotos: Record<string, Photo[]> = {
       uploader_name: 'デモユーザー'
     },
     {
-      id: 'demo-4',
+      id: 'demo-photo-4',
       filename: 'hotel-pool.jpg',
       original_filename: 'hotel-pool.jpg',
       url: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&h=600&fit=crop',
@@ -69,7 +76,7 @@ const demoPhotos: Record<string, Photo[]> = {
       file_size: 1200000,
       width: 800,
       height: 600,
-      album_id: '1',
+      album_id: 'demo-album-1',
       uploaded_by: 'demo-user-1',
       metadata: {},
       created_at: '2024-01-16T16:45:00Z',
@@ -77,9 +84,9 @@ const demoPhotos: Record<string, Photo[]> = {
       uploader_name: 'デモユーザー'
     }
   ],
-  '2': [ // お正月2024
+  'demo-album-2': [ // お正月2024
     {
-      id: 'demo-5',
+      id: 'demo-photo-5',
       filename: 'osechi.jpg',
       original_filename: 'osechi.jpg',
       url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&h=600&fit=crop',
@@ -88,7 +95,7 @@ const demoPhotos: Record<string, Photo[]> = {
       file_size: 890000,
       width: 800,
       height: 600,
-      album_id: '2',
+      album_id: 'demo-album-2',
       uploaded_by: 'demo-user-1',
       metadata: {},
       created_at: '2024-01-01T12:00:00Z',
@@ -96,7 +103,7 @@ const demoPhotos: Record<string, Photo[]> = {
       uploader_name: 'デモユーザー'
     },
     {
-      id: 'demo-6',
+      id: 'demo-photo-6',
       filename: 'family-new-year.jpg',
       original_filename: 'family-new-year.jpg',
       url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&h=600&fit=crop',
@@ -105,7 +112,7 @@ const demoPhotos: Record<string, Photo[]> = {
       file_size: 1100000,
       width: 800,
       height: 600,
-      album_id: '2',
+      album_id: 'demo-album-2',
       uploaded_by: 'demo-user-1',
       metadata: {},
       created_at: '2024-01-01T15:30:00Z',
@@ -113,9 +120,9 @@ const demoPhotos: Record<string, Photo[]> = {
       uploader_name: 'デモユーザー'
     }
   ],
-  '3': [ // 桜の季節
+  'demo-album-3': [ // 桜の季節
     {
-      id: 'demo-7',
+      id: 'demo-photo-7',
       filename: 'sakura-tree.jpg',
       original_filename: 'sakura-tree.jpg',
       url: 'https://images.unsplash.com/photo-1522383225653-ed111181a951?w=800&h=600&fit=crop',
@@ -124,7 +131,7 @@ const demoPhotos: Record<string, Photo[]> = {
       file_size: 1050000,
       width: 800,
       height: 600,
-      album_id: '3',
+      album_id: 'demo-album-3',
       uploaded_by: 'demo-user-1',
       metadata: {},
       created_at: '2024-04-05T14:20:00Z',
@@ -132,7 +139,7 @@ const demoPhotos: Record<string, Photo[]> = {
       uploader_name: 'デモユーザー'
     },
     {
-      id: 'demo-8',
+      id: 'demo-photo-8',
       filename: 'hanami-picnic.jpg',
       original_filename: 'hanami-picnic.jpg',
       url: 'https://images.unsplash.com/photo-1490644658840-3f2e3f8c5625?w=800&h=600&fit=crop',
@@ -141,7 +148,7 @@ const demoPhotos: Record<string, Photo[]> = {
       file_size: 920000,
       width: 800,
       height: 600,
-      album_id: '3',
+      album_id: 'demo-album-3',
       uploaded_by: 'demo-user-1',
       metadata: {},
       created_at: '2024-04-05T16:10:00Z',
@@ -161,38 +168,81 @@ export const usePhotos = (albumId?: string) => {
   // 環境情報をHookで取得
   const { isDemo } = useEnvironment();
 
-  const fetchPhotos = async (targetAlbumId?: string) => {
+  const fetchPhotos = useCallback(async (targetAlbumId?: string) => {
+    const currentAlbumId = targetAlbumId || albumId;
+    
+    if (!currentAlbumId) {
+      debugLog('アルバムIDが指定されていません');
+      setPhotos([]);
+      setLoading(false);
+      return;
+    }
+
     try {
+      debugLog('写真取得開始', { albumId: currentAlbumId, isDemo });
       setLoading(true);
       setError(null);
 
       if (isDemo) {
         // デモモードの場合
+        debugLog('デモモードで写真取得', currentAlbumId);
+        
+        // デモアルバムIDの場合とユーザー作成アルバムIDの場合を両方サポート
+        const albumPhotos = demoPhotos[currentAlbumId] || [];
+        
+        // ローカルストレージから追加された写真も確認
+        try {
+          const savedPhotos = localStorage.getItem(`demoPhotos_${currentAlbumId}`);
+          if (savedPhotos) {
+            const parsedPhotos = JSON.parse(savedPhotos);
+            if (Array.isArray(parsedPhotos)) {
+              albumPhotos.push(...parsedPhotos);
+              debugLog('保存された写真を統合', { 
+                savedCount: parsedPhotos.length,
+                totalCount: albumPhotos.length 
+              });
+            }
+          }
+        } catch (e) {
+          debugLog('保存された写真の読み込みに失敗', e);
+        }
+        
         setTimeout(() => {
-          const albumPhotos = demoPhotos[targetAlbumId || albumId || ''] || [];
           setPhotos(albumPhotos);
           setLoading(false);
+          debugLog('デモ写真設定完了', { 
+            albumId: currentAlbumId, 
+            photoCount: albumPhotos.length 
+          });
         }, 300);
         return;
       }
 
+      // 実際のSupabaseからの取得
+      debugLog('Supabaseから写真取得', currentAlbumId);
+      
       let query = supabase
         .from('photos')
         .select(`
           *,
           profiles!photos_uploaded_by_fkey(name)
         `)
+        .eq('album_id', currentAlbumId)
         .order('created_at', { ascending: false });
-
-      if (targetAlbumId || albumId) {
-        query = query.eq('album_id', targetAlbumId || albumId);
-      }
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        debugLog('Supabase写真取得エラー', error);
+        throw error;
+      }
 
-      const photosWithUploaderName = data.map((photo: any) => ({
+      debugLog('Supabase写真取得成功', { 
+        albumId: currentAlbumId, 
+        photoCount: data?.length || 0 
+      });
+
+      const photosWithUploaderName = (data || []).map((photo: any) => ({
         ...photo,
         uploader_name: photo.profiles?.name || '不明',
         uploadedAt: photo.created_at,
@@ -200,12 +250,14 @@ export const usePhotos = (albumId?: string) => {
 
       setPhotos(photosWithUploaderName);
     } catch (err) {
+      debugLog('写真取得エラー', err);
       console.error('写真取得エラー:', err);
       setError('写真の取得に失敗しました');
+      setPhotos([]); // エラー時は空配列を設定
     } finally {
       setLoading(false);
     }
-  };
+  }, [albumId, isDemo]);
 
   const uploadPhotos = async (files: File[], targetAlbumId: string) => {
     if (isDemo) {
@@ -262,6 +314,16 @@ export const usePhotos = (albumId?: string) => {
           uploadedAt: new Date().toISOString(),
           uploader_name: 'デモユーザー'
         };
+
+        // ローカルストレージに保存
+        try {
+          const existingPhotos = localStorage.getItem(`demoPhotos_${targetAlbumId}`);
+          const photosList = existingPhotos ? JSON.parse(existingPhotos) : [];
+          photosList.push(newPhoto);
+          localStorage.setItem(`demoPhotos_${targetAlbumId}`, JSON.stringify(photosList));
+        } catch (e) {
+          console.error('デモ写真の保存に失敗:', e);
+        }
 
         setPhotos(prev => [newPhoto, ...prev]);
       }
@@ -414,6 +476,20 @@ export const usePhotos = (albumId?: string) => {
       if (isDemo) {
         // デモモードではローカルから削除
         setPhotos(prev => prev.filter(p => p.id !== id));
+        
+        // ローカルストレージからも削除
+        if (albumId) {
+          try {
+            const savedPhotos = localStorage.getItem(`demoPhotos_${albumId}`);
+            if (savedPhotos) {
+              const photosList = JSON.parse(savedPhotos);
+              const filteredPhotos = photosList.filter((p: Photo) => p.id !== id);
+              localStorage.setItem(`demoPhotos_${albumId}`, JSON.stringify(filteredPhotos));
+            }
+          } catch (e) {
+            console.error('デモ写真の削除に失敗:', e);
+          }
+        }
         return;
       }
 
@@ -463,11 +539,32 @@ export const usePhotos = (albumId?: string) => {
     }
   };
 
+  // アルバムIDが変更されたときに写真を取得
   useEffect(() => {
+    debugLog('useEffect実行', { albumId, isDemo });
+    
     if (albumId) {
       fetchPhotos();
+    } else {
+      // アルバムIDがない場合は空配列を設定
+      setPhotos([]);
+      setLoading(false);
     }
-  }, [albumId, isDemo]); // isDemo も依存配列に追加
+  }, [albumId, isDemo, fetchPhotos]);
+
+  // デバッグ用の状態ログ出力（開発時のみ）
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      debugLog('写真状態変更', { 
+        albumId, 
+        photoCount: photos.length, 
+        loading, 
+        error,
+        isDemo,
+        photoIds: photos.map(p => p.id).slice(0, 3) // 最初の3つのIDのみ
+      });
+    }
+  }, [albumId, photos, loading, error, isDemo]);
 
   return {
     photos,
