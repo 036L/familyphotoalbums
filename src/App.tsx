@@ -13,6 +13,7 @@ import { Button } from './components/ui/Button';
 import { Camera } from 'lucide-react';
 import { Modal } from './components/ui/Modal';
 import { PermissionGuard } from './components/auth/PermissionGuard';
+import type { Album } from './types/core';
 
 function AppContent() {
   const { 
@@ -21,7 +22,8 @@ function AppContent() {
     setCurrentAlbum, 
     loading, 
     createAlbum, 
-    albumsLoading 
+    albumsLoading,
+    photosLoading 
   } = useApp();
   
   const [showUpload, setShowUpload] = useState(false);
@@ -29,6 +31,19 @@ function AppContent() {
   const [showAccessibilityPanel, setShowAccessibilityPanel] = useState(false);
   const [newAlbumTitle, setNewAlbumTitle] = useState('');
   const [newAlbumDescription, setNewAlbumDescription] = useState('');
+
+  // デバッグログ（開発時のみ）
+  React.useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log('[App] 状態変更:', {
+        isAuthenticated,
+        currentAlbum: currentAlbum?.title,
+        loading,
+        albumsLoading,
+        photosLoading
+      });
+    }
+  }, [isAuthenticated, currentAlbum, loading, albumsLoading, photosLoading]);
 
   // 認証チェック中の表示
   if (loading) {
@@ -69,6 +84,12 @@ function AppContent() {
     }
   };
 
+  // ホームに戻る処理を改善
+  const handleBackToHome = () => {
+    console.log('[App] ホームに戻る');
+    setCurrentAlbum(null);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
       {/* スキップリンク（アクセシビリティ対応） */}
@@ -97,7 +118,7 @@ function AppContent() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentAlbum(null)}
+                  onClick={handleBackToHome}
                   className="flex items-center space-x-2 focus-ring"
                   aria-label="アルバム一覧に戻る"
                 >
@@ -132,7 +153,7 @@ function AppContent() {
                 <AlbumDeleteButton 
                   album={currentAlbum}
                   variant="icon"
-                  onDeleted={() => setCurrentAlbum(null)}
+                  onDeleted={handleBackToHome}
                 />
               </div>
             </div>
@@ -166,7 +187,7 @@ function AppContent() {
               </PermissionGuard>
             </div>
 
-            {/* アルバムグリッド */}
+            {/* アルバムグリッド - AlbumGridコンポーネントを直接使用 */}
             <AlbumGrid />
           </div>
         )}
@@ -175,11 +196,16 @@ function AppContent() {
       {/* アップロードモーダル */}
       <UploadModal 
         isOpen={showUpload} 
-        onClose={() => setShowUpload(false)} 
+        onClose={() => setShowUpload(false)}
+        targetAlbum={currentAlbum}
       />
 
       {/* アルバム作成モーダル */}
-      <Modal isOpen={showCreateAlbum} onClose={() => setShowCreateAlbum(false)}>
+      <Modal 
+        isOpen={showCreateAlbum} 
+        onClose={() => setShowCreateAlbum(false)}
+        aria-label="新しいアルバムを作成"
+      >
         <div className="p-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">新しいアルバムを作成</h2>
           

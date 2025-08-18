@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAlbums } from '../hooks/useAlbums';
 import { usePhotos } from '../hooks/usePhotos';
 import { useEnvironment } from '../hooks/useEnvironment';
-import type { Album } from '../types/core';
+import type { Album, AlbumCreateData, Profile, User, Photo, UploadProgress } from '../types/core';
 
 // デバッグログ関数（開発時のみ有効）
 const debugLog = (message: string, data?: any) => {
@@ -16,26 +16,26 @@ const debugLog = (message: string, data?: any) => {
 interface AppContextType {
   // Auth - メモ化された認証状態
   isAuthenticated: boolean;
-  user: any;
-  profile: any;
+  user: User | null;
+  profile: Profile | null;
   loading: boolean;
   signInWithEmail: (email: string, password: string) => Promise<any>;
   signUpWithEmail: (email: string, password: string, name: string) => Promise<any>;
-  updateProfile: (updates: any) => Promise<any>;
+  updateProfile: (updates: Partial<Profile>) => Promise<Profile>;
   logout: () => void;
   
   // Albums - メモ化されたアルバム状態
   albums: Album[];
   albumsLoading: boolean;
   albumsInitialized: boolean;
-  createAlbum: (data: any) => Promise<any>;
-  updateAlbum: (id: string, updates: any) => Promise<any>;
+  createAlbum: (data: AlbumCreateData) => Promise<Album>;
+  updateAlbum: (id: string, updates: Partial<Album>) => Promise<Album>;
   deleteAlbum: (id: string) => Promise<void>;
   
   // Photos - メモ化された写真状態
-  photos: any[];
+  photos: Photo[];
   photosLoading: boolean;
-  uploadProgress: any[];
+  uploadProgress: UploadProgress[];
   fetchPhotos: (albumId?: string) => Promise<void>;
   uploadPhotos: (files: File[], albumId: string) => Promise<void>;
   deletePhoto: (id: string) => Promise<void>;
@@ -118,10 +118,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     if (album) {
       photosHook.fetchPhotos(album.id);
     }
-  }, [photosHook.fetchPhotos]);
+  }, [photosHook]);
 
   // 最適化されたプロフィール更新処理
-  const updateProfile = useCallback(async (updates: any) => {
+  const updateProfile = useCallback(async (updates: Partial<Profile>) => {
     try {
       debugLog('プロフィール更新開始', updates);
       
@@ -132,7 +132,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           name: 'デモユーザー',
           email: 'test@example.com',
           avatar_url: null,
-          role: 'admin'
+          role: 'admin' as const
         };
         
         const updatedProfile = {
@@ -162,7 +162,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     if (albumsHook.forceReinitialize) {
       albumsHook.forceReinitialize();
     }
-  }, [albumsHook.forceReinitialize]);
+  }, [albumsHook]);
 
   // 認証状態の変更とアルバム初期化の同期（大幅改善）
   useEffect(() => {
@@ -219,7 +219,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     auth.user,
     albumsHook.initialized,
     albumsHook.loading,
-    albumsHook.fetchAlbums,
+    albumsHook,
     isDemo
   ]);
 

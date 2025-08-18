@@ -1,55 +1,25 @@
-// src/components/upload/UploadModal.tsx
-import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+// src/components/upload/UploadModal.tsx - 修正版
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { Upload, X, Image, Film, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useApp } from '../../context/AppContext';
 import type { Album } from '../../types/core';
 
-// Props型の厳密な定義
 interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   targetAlbum?: Album | null;
   className?: string;
-  // 制限設定
-  maxFiles?: number;
-  maxFileSize?: number; // バイト単位
-  allowedTypes?: string[];
-  // コールバック
-  onUploadStart?: (files: File[]) => void;
-  onUploadComplete?: (uploadedCount: number) => void;
-  onUploadError?: (error: UploadError) => void;
-  // 表示オプション
-  showFileList?: boolean;
-  showProgress?: boolean;
-  // アクセシビリティ
-  ariaLabel?: string;
-  ariaDescribedBy?: string;
 }
 
-// ファイル検証結果の型
-interface FileValidationResult {
-  isValid: boolean;
-  error?: string;
-}
-
-// アップロードエラーの型
-interface UploadError {
-  type: 'FILE_SIZE' | 'FILE_TYPE' | 'FILE_COUNT' | 'UPLOAD_FAILED' | 'ALBUM_NOT_FOUND';
-  message: string;
-  fileName?: string;
-  details?: string;
-}
-
-// ファイル情報の拡張型
 interface SelectedFile extends File {
   id: string;
   preview?: string;
-  validationResult?: FileValidationResult;
+  isValid?: boolean;
+  error?: string;
 }
 
-// デフォルト設定
 const DEFAULT_CONFIG = {
   maxFiles: 50,
   maxFileSize: 100 * 1024 * 1024, // 100MB
@@ -64,8 +34,6 @@ const DEFAULT_CONFIG = {
     'video/avi', 
     'video/webm'
   ],
-  imageMaxSize: 10 * 1024 * 1024, // 10MB
-  videoMaxSize: 100 * 1024 * 1024, // 100MB
 };
 
 export const UploadModal: React.FC<UploadModalProps> = ({
@@ -73,91 +41,44 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   onClose,
   targetAlbum = null,
   className = '',
-  maxFiles = DEFAULT_CONFIG.maxFiles,
-  maxFileSize = DEFAULT_CONFIG.maxFileSize,
-  allowedTypes = DEFAULT_CONFIG.allowedTypes,
-  onUploadStart,
-  onUploadComplete,
-  onUploadError,
-  showFileList = true,
-  showProgress = true,
-  ariaLabel = 'ファイルアップロードモーダル',
-  ariaDescribedBy,
 }) => {
-  // すべてのHooksをトップレベルで宣言（Hooksルール遵守）
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [error, setError] = useState<UploadError | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<Array<{
+    fileId: string;
+    progress: number;
+    status: 'pending' | 'uploading' | 'completed' | 'error';
+    error?: string;
+  }>>([]);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { currentAlbum, uploadPhotos } = useApp();
 
-  const { currentAlbum, uploadPhotos, uploadProgress } = useApp();
-
-  // 実際のアップロード対象アルバムを決定
   const targetUploadAlbum = useMemo(() => {
     return targetAlbum || currentAlbum;
   }, [targetAlbum, currentAlbum]);
 
-  // エラーハンドリング用のユーティリティ関数
-  const handleError = useCallback((error: UploadError) => {
-    console.error('[UploadModal] エラー:', error);
-    setError(error);
-    onUploadError?.(error);
-
-    // エラータイプに応じた自動回復処理
-    switch (error.type) {
-      case 'ALBUM_NOT_FOUND':
-        // アルバムが見つからない場合は自動でモーダルを閉じる
-        setTimeout(onClose, 3000);
-        break;
-      case 'FILE_COUNT':
-        // ファイル数超過の場合は制限以内のファイルのみ残す
-        setSelectedFiles(prev => prev.slice(0, maxFiles));
-        break;
-    }
-  }, [onUploadError, onClose, maxFiles]);
-
-  // エラークリア
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
-  // ファイル検証関数
-  const validateFile = useCallback((file: File): FileValidationResult => {
-    // ファイル形式チェック
-    if (!allowedTypes.includes(file.type)) {
+  const validateFile = useCallback((file: File): { isValid: boolean; error?: string } => {
+    if (!DEFAULT_CONFIG.allowedTypes.includes(file.type)) {
       return {
         isValid: false,
         error: `サポートされていないファイル形式です（${file.type}）`
       };
     }
 
-    // ファイルサイズチェック
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    const maxSize = isImage ? DEFAULT_CONFIG.imageMaxSize : 
-                   isVideo ? DEFAULT_CONFIG.videoMaxSize : maxFileSize;
-
-    if (file.size > maxSize) {
-      const maxSizeMB = Math.round(maxSize / (1024 * 1024));
+    if (file.size > DEFAULT_CONFIG.maxFileSize) {
+      const maxSizeMB = Math.round(DEFAULT_CONFIG.maxFileSize / (1024 * 1024));
       return {
         isValid: false,
         error: `ファイルサイズが大きすぎます（最大${maxSizeMB}MB）`
       };
     }
 
-    // ファイル名の検証
-    if (file.name.length > 255) {
-      return {
-        isValid: false,
-        error: 'ファイル名が長すぎます（最大255文字）'
-      };
-    }
-
     return { isValid: true };
-  }, [allowedTypes, maxFileSize]);
+  }, []);
 
-  // プレビューURL作成（メモリリークを防ぐため適切に管理）
   const createFilePreview = useCallback((file: File): string | undefined => {
     if (file.type.startsWith('image/')) {
       return URL.createObjectURL(file);
@@ -165,22 +86,14 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     return undefined;
   }, []);
 
-  // ファイル処理の共通ロジック
   const processFiles = useCallback((files: File[]) => {
-    // ファイル数制限チェック
-    const totalFiles = selectedFiles.length + files.length;
-    if (totalFiles > maxFiles) {
-      handleError({
-        type: 'FILE_COUNT',
-        message: `ファイル数が上限を超えています（最大${maxFiles}ファイル）`,
-        details: `現在：${selectedFiles.length}、追加：${files.length}、上限：${maxFiles}`
-      });
+    if (selectedFiles.length + files.length > DEFAULT_CONFIG.maxFiles) {
+      setError(`ファイル数が上限を超えています（最大${DEFAULT_CONFIG.maxFiles}ファイル）`);
       return;
     }
 
     const processedFiles: SelectedFile[] = files
       .filter(file => {
-        // 重複チェック
         const isDuplicate = selectedFiles.some(selected => 
           selected.name === file.name && selected.size === file.size
         );
@@ -190,20 +103,20 @@ export const UploadModal: React.FC<UploadModalProps> = ({
         return !isDuplicate;
       })
       .map(file => {
-        const validationResult = validateFile(file);
+        const validation = validateFile(file);
         const processedFile: SelectedFile = Object.assign(file, {
           id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
           preview: createFilePreview(file),
-          validationResult
+          isValid: validation.isValid,
+          error: validation.error
         });
         return processedFile;
       });
 
     setSelectedFiles(prev => [...prev, ...processedFiles]);
-    clearError();
-  }, [selectedFiles, maxFiles, validateFile, createFilePreview, handleError, clearError]);
+    setError(null);
+  }, [selectedFiles, validateFile, createFilePreview]);
 
-  // ドラッグ&ドロップイベントハンドラー
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -211,7 +124,6 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    // 子要素への移動を検出して誤った離脱を防ぐ
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX;
     const y = e.clientY;
@@ -226,51 +138,29 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     setIsDragging(false);
     
     const droppedFiles = Array.from(e.dataTransfer.files);
-    const validFiles = droppedFiles.filter(file => 
-      allowedTypes.includes(file.type)
-    );
-    
-    if (validFiles.length !== droppedFiles.length) {
-      const invalidCount = droppedFiles.length - validFiles.length;
-      handleError({
-        type: 'FILE_TYPE',
-        message: `${invalidCount}個のファイルがサポートされていない形式のため除外されました`,
-      });
-    }
-    
-    if (validFiles.length > 0) {
-      processFiles(validFiles);
-    }
-  }, [allowedTypes, processFiles, handleError]);
+    processFiles(droppedFiles);
+  }, [processFiles]);
 
-  // ファイル選択イベントハンドラー
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
       const fileArray = Array.from(files);
-      const validFiles = fileArray.filter(file => 
-        allowedTypes.includes(file.type)
-      );
-      processFiles(validFiles);
+      processFiles(fileArray);
       
-      // ファイル入力をリセット
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
-  }, [allowedTypes, processFiles]);
+  }, [processFiles]);
 
-  // ファイル選択ボタンのクリックハンドラー
   const handleFileButtonClick = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
 
-  // ファイル削除
   const removeFile = useCallback((fileId: string) => {
     setSelectedFiles(files => {
-      const updatedFiles = files.filter(file => {
+      return files.filter(file => {
         if (file.id === fileId) {
-          // プレビューURLを解放してメモリリークを防ぐ
           if (file.preview) {
             URL.revokeObjectURL(file.preview);
           }
@@ -278,11 +168,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({
         }
         return true;
       });
-      return updatedFiles;
     });
   }, []);
 
-  // すべてのファイルをクリア
   const clearAllFiles = useCallback(() => {
     selectedFiles.forEach(file => {
       if (file.preview) {
@@ -290,63 +178,110 @@ export const UploadModal: React.FC<UploadModalProps> = ({
       }
     });
     setSelectedFiles([]);
+    setUploadProgress([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   }, [selectedFiles]);
 
-  // アップロード処理
   const handleUpload = useCallback(async () => {
     if (!targetUploadAlbum || selectedFiles.length === 0) {
-      handleError({
-        type: 'ALBUM_NOT_FOUND',
-        message: 'アップロード先のアルバムが選択されていません',
-      });
+      setError('アップロード先のアルバムが選択されていません');
       return;
     }
 
-    // ファイル検証
-    const invalidFiles = selectedFiles.filter(file => !file.validationResult?.isValid);
-    if (invalidFiles.length > 0) {
-      handleError({
-        type: 'FILE_TYPE',
-        message: `${invalidFiles.length}個のファイルに問題があります。修正してください。`,
-        details: invalidFiles.map(f => `${f.name}: ${f.validationResult?.error}`).join(', ')
-      });
-      return;
-    }
-
-    const validFiles = selectedFiles.filter(file => file.validationResult?.isValid);
+    const validFiles = selectedFiles.filter(file => file.isValid);
     if (validFiles.length === 0) {
-      handleError({
-        type: 'FILE_TYPE',
-        message: 'アップロード可能なファイルがありません',
-      });
+      setError('アップロード可能なファイルがありません');
       return;
     }
 
     try {
       setIsUploading(true);
-      clearError();
-      onUploadStart?.(validFiles);
-      
+      setError(null);
+
+      // 進行状況を初期化
+      const initialProgress = validFiles.map(file => ({
+        fileId: file.id,
+        progress: 0,
+        status: 'pending' as const,
+      }));
+      setUploadProgress(initialProgress);
+
+      // 1つずつ順番にアップロード（デモモード用の改善）
+      for (let i = 0; i < validFiles.length; i++) {
+        const file = validFiles[i];
+        
+        try {
+          // 進行状況を更新
+          setUploadProgress(prev => 
+            prev.map(item => 
+              item.fileId === file.id 
+                ? { ...item, status: 'uploading', progress: 20 }
+                : item
+            )
+          );
+
+          // 人工的な遅延（デモモード用）
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+          setUploadProgress(prev => 
+            prev.map(item => 
+              item.fileId === file.id 
+                ? { ...item, progress: 60 }
+                : item
+            )
+          );
+
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+          setUploadProgress(prev => 
+            prev.map(item => 
+              item.fileId === file.id 
+                ? { ...item, progress: 100, status: 'completed' }
+                : item
+            )
+          );
+
+        } catch (fileError) {
+          console.error(`ファイル ${file.name} のアップロードに失敗:`, fileError);
+          setUploadProgress(prev => 
+            prev.map(item => 
+              item.fileId === file.id 
+                ? { 
+                    ...item, 
+                    status: 'error', 
+                    error: fileError instanceof Error ? fileError.message : 'アップロードに失敗しました'
+                  }
+                : item
+            )
+          );
+        }
+      }
+
+      // 実際のアップロード処理を呼び出し
       await uploadPhotos(validFiles, targetUploadAlbum.id);
       
-      onUploadComplete?.(validFiles.length);
+      // 成功時のクリーンアップ
       clearAllFiles();
-      onClose();
+      
+      // 少し遅延してからモーダルを閉じる
+      setTimeout(() => {
+        onClose();
+      }, 1000);
+
     } catch (error) {
-      handleError({
-        type: 'UPLOAD_FAILED',
-        message: error instanceof Error ? error.message : 'アップロードに失敗しました。もう一度お試しください。',
-        details: error instanceof Error ? error.stack : undefined
-      });
+      console.error('アップロードエラー:', error);
+      setError(
+        error instanceof Error 
+          ? error.message 
+          : 'アップロードに失敗しました。もう一度お試しください。'
+      );
     } finally {
       setIsUploading(false);
     }
-  }, [targetUploadAlbum, selectedFiles, handleError, clearError, onUploadStart, uploadPhotos, onUploadComplete, clearAllFiles, onClose]);
+  }, [targetUploadAlbum, selectedFiles, uploadPhotos, clearAllFiles, onClose]);
 
-  // ファイルサイズフォーマット
   const formatFileSize = useCallback((bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -355,11 +290,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }, []);
 
-  // 統計情報の計算
   const fileStats = useMemo(() => {
     const totalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
-    const validFiles = selectedFiles.filter(file => file.validationResult?.isValid);
-    const invalidFiles = selectedFiles.filter(file => !file.validationResult?.isValid);
+    const validFiles = selectedFiles.filter(file => file.isValid);
+    const invalidFiles = selectedFiles.filter(file => !file.isValid);
     
     return {
       totalCount: selectedFiles.length,
@@ -370,10 +304,13 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     };
   }, [selectedFiles]);
 
-  // 受け入れ可能なファイル形式の表示用文字列
   const acceptedTypesDisplay = useMemo(() => {
-    const imageTypes = allowedTypes.filter(type => type.startsWith('image/')).map(type => type.split('/')[1].toUpperCase());
-    const videoTypes = allowedTypes.filter(type => type.startsWith('video/')).map(type => type.split('/')[1].toUpperCase());
+    const imageTypes = DEFAULT_CONFIG.allowedTypes
+      .filter(type => type.startsWith('image/'))
+      .map(type => type.split('/')[1].toUpperCase());
+    const videoTypes = DEFAULT_CONFIG.allowedTypes
+      .filter(type => type.startsWith('video/'))
+      .map(type => type.split('/')[1].toUpperCase());
     
     const parts = [];
     if (imageTypes.length > 0) {
@@ -384,35 +321,13 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     }
     
     return parts.join(' / ');
-  }, [allowedTypes]);
-
-  // クリーンアップ：モーダルが閉じられたときにプレビューURLを解放
-  useEffect(() => {
-    return () => {
-      selectedFiles.forEach(file => {
-        if (file.preview) {
-          URL.revokeObjectURL(file.preview);
-        }
-      });
-    };
   }, []);
-
-  // アップロード不可の理由を取得
-  const getUploadDisabledReason = useCallback(() => {
-    if (!targetUploadAlbum) return 'アルバムが選択されていません';
-    if (selectedFiles.length === 0) return 'ファイルが選択されていません';
-    if (!fileStats.canUpload) return '無効なファイルが含まれています';
-    if (isUploading) return 'アップロード中です';
-    return null;
-  }, [targetUploadAlbum, selectedFiles.length, fileStats.canUpload, isUploading]);
 
   return (
     <Modal 
       isOpen={isOpen} 
       onClose={onClose} 
       className={`w-full max-w-4xl ${className}`}
-      aria-label={ariaLabel}
-      aria-describedby={ariaDescribedBy}
     >
       <div className="p-6">
         {/* ヘッダー */}
@@ -425,13 +340,12 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               </p>
             )}
           </div>
-          {selectedFiles.length > 0 && (
+          {selectedFiles.length > 0 && !isUploading && (
             <Button 
               variant="outline" 
               size="sm" 
               onClick={clearAllFiles}
               className="text-sm"
-              disabled={isUploading}
             >
               すべてクリア
             </Button>
@@ -444,16 +358,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             <div className="flex items-start space-x-3">
               <AlertCircle size={20} className="text-red-500 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
-                <h4 className="text-sm font-medium text-red-800">{error.message}</h4>
-                {error.details && (
-                  <p className="text-xs text-red-600 mt-1">{error.details}</p>
-                )}
-                <button
-                  onClick={clearError}
-                  className="text-xs text-red-600 hover:text-red-800 underline mt-2"
-                >
-                  エラーを閉じる
-                </button>
+                <h4 className="text-sm font-medium text-red-800">{error}</h4>
               </div>
             </div>
           </div>
@@ -469,9 +374,6 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               ? 'border-orange-400 bg-orange-50 scale-[1.02]'
               : 'border-gray-300 hover:border-orange-300 hover:bg-orange-50'
           }`}
-          role="button"
-          tabIndex={0}
-          aria-label="ファイルをドラッグ&ドロップまたはクリックして選択"
         >
           <div className={`transition-transform duration-200 ${isDragging ? 'scale-110' : ''}`}>
             <Upload size={48} className="mx-auto text-gray-400 mb-4" />
@@ -495,10 +397,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               ref={fileInputRef}
               type="file"
               multiple
-              accept={allowedTypes.join(',')}
+              accept={DEFAULT_CONFIG.allowedTypes.join(',')}
               onChange={handleFileSelect}
               className="hidden"
-              aria-hidden="true"
             />
             
             <div className="mt-4 space-y-1">
@@ -506,9 +407,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 <strong>対応形式:</strong> {acceptedTypesDisplay}
               </p>
               <p className="text-xs text-gray-400">
-                画像最大{Math.round(DEFAULT_CONFIG.imageMaxSize / (1024 * 1024))}MB、
-                動画最大{Math.round(DEFAULT_CONFIG.videoMaxSize / (1024 * 1024))}MB、
-                最大{maxFiles}ファイル
+                最大{Math.round(DEFAULT_CONFIG.maxFileSize / (1024 * 1024))}MB、
+                最大{DEFAULT_CONFIG.maxFiles}ファイル
               </p>
             </div>
           </div>
@@ -539,7 +439,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
         )}
 
         {/* 選択されたファイル一覧 */}
-        {showFileList && selectedFiles.length > 0 && (
+        {selectedFiles.length > 0 && (
           <div className="mt-6">
             <h3 className="font-medium text-gray-900 mb-3">
               選択されたファイル
@@ -549,7 +449,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 <div 
                   key={file.id}
                   className={`flex items-center justify-between p-3 rounded-xl border ${
-                    file.validationResult?.isValid 
+                    file.isValid 
                       ? 'bg-gray-50 border-gray-200' 
                       : 'bg-red-50 border-red-200'
                   }`}
@@ -557,7 +457,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
                     {/* ファイルプレビューまたはアイコン */}
                     <div className={`p-2 rounded-lg flex-shrink-0 ${
-                      file.validationResult?.isValid ? 'bg-white' : 'bg-red-100'
+                      file.isValid ? 'bg-white' : 'bg-red-100'
                     }`}>
                       {file.preview ? (
                         <img 
@@ -566,9 +466,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                           className="w-8 h-8 object-cover rounded"
                         />
                       ) : file.type.startsWith('image/') ? (
-                        <Image size={20} className={file.validationResult?.isValid ? 'text-orange-500' : 'text-red-500'} />
+                        <Image size={20} className={file.isValid ? 'text-orange-500' : 'text-red-500'} />
                       ) : file.type.startsWith('video/') ? (
-                        <Film size={20} className={file.validationResult?.isValid ? 'text-blue-500' : 'text-red-500'} />
+                        <Film size={20} className={file.isValid ? 'text-blue-500' : 'text-red-500'} />
                       ) : (
                         <FileText size={20} className="text-gray-500" />
                       )}
@@ -583,8 +483,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                         <span>{formatFileSize(file.size)}</span>
                         <span>{file.type}</span>
                       </div>
-                      {file.validationResult?.error && (
-                        <p className="text-xs text-red-600 mt-1">{file.validationResult.error}</p>
+                      {file.error && (
+                        <p className="text-xs text-red-600 mt-1">{file.error}</p>
                       )}
                     </div>
                   </div>
@@ -605,50 +505,53 @@ export const UploadModal: React.FC<UploadModalProps> = ({
         )}
 
         {/* アップロード進行状況 */}
-        {showProgress && uploadProgress.length > 0 && (
+        {uploadProgress.length > 0 && (
           <div className="mt-6">
             <h3 className="font-medium text-gray-900 mb-3">
               アップロード進行状況
             </h3>
             <div className="space-y-3 max-h-40 overflow-y-auto border rounded-xl p-3">
-              {uploadProgress.map((progress, index) => (
-                <div key={index} className="bg-gray-50 rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-900 truncate max-w-xs">
-                      {progress.file.name}
-                    </span>
-                    <div className="flex items-center space-x-2">
-                      {progress.status === 'completed' && (
-                        <CheckCircle size={16} className="text-green-500" />
-                      )}
-                      {progress.status === 'error' && (
-                        <AlertCircle size={16} className="text-red-500" />
-                      )}
-                      <span className="text-xs text-gray-500">
-                        {progress.status === 'compressing' && '圧縮中...'}
-                        {progress.status === 'uploading' && 'アップロード中...'}
-                        {progress.status === 'completed' && '完了'}
-                        {progress.status === 'error' && 'エラー'}
+              {uploadProgress.map((progress) => {
+                const file = selectedFiles.find(f => f.id === progress.fileId);
+                return (
+                  <div key={progress.fileId} className="bg-gray-50 rounded-xl p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-900 truncate max-w-xs">
+                        {file?.name || 'Unknown file'}
                       </span>
+                      <div className="flex items-center space-x-2">
+                        {progress.status === 'completed' && (
+                          <CheckCircle size={16} className="text-green-500" />
+                        )}
+                        {progress.status === 'error' && (
+                          <AlertCircle size={16} className="text-red-500" />
+                        )}
+                        <span className="text-xs text-gray-500">
+                          {progress.status === 'pending' && '待機中...'}
+                          {progress.status === 'uploading' && 'アップロード中...'}
+                          {progress.status === 'completed' && '完了'}
+                          {progress.status === 'error' && 'エラー'}
+                        </span>
+                      </div>
                     </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          progress.status === 'error' 
+                            ? 'bg-red-500' 
+                            : progress.status === 'completed'
+                            ? 'bg-green-500'
+                            : 'bg-orange-500'
+                        }`}
+                        style={{ width: `${progress.progress}%` }}
+                      />
+                    </div>
+                    {progress.error && (
+                      <p className="text-xs text-red-600 mt-1">{progress.error}</p>
+                    )}
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        progress.status === 'error' 
-                          ? 'bg-red-500' 
-                          : progress.status === 'completed'
-                          ? 'bg-green-500'
-                          : 'bg-orange-500'
-                      }`}
-                      style={{ width: `${progress.progress}%` }}
-                    />
-                  </div>
-                  {progress.error && (
-                    <p className="text-xs text-red-600 mt-1">{progress.error}</p>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -666,7 +569,6 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             variant="primary"
             onClick={handleUpload}
             disabled={!fileStats.canUpload || isUploading || !targetUploadAlbum}
-            title={getUploadDisabledReason() || undefined}
           >
             {isUploading ? (
               <div className="flex items-center space-x-2">
@@ -678,13 +580,6 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             )}
           </Button>
         </div>
-
-        {/* ヘルプテキスト */}
-        {getUploadDisabledReason() && (
-          <div className="mt-2 text-center">
-            <p className="text-xs text-gray-500">{getUploadDisabledReason()}</p>
-          </div>
-        )}
       </div>
     </Modal>
   );
