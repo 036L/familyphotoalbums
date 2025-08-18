@@ -1,16 +1,38 @@
-// src/context/AppContext.tsx - 修正版
-import React, { createContext, useContext, ReactNode, useEffect, useCallback, useMemo } from 'react';
+// src/context/AppContext.tsx - エラー修正版
+import React, { createContext, useContext, ReactNode, useEffect, useCallback, useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useAlbums } from '../hooks/useAlbums';
 import { usePhotos } from '../hooks/usePhotos';
 import { useEnvironment } from '../hooks/useEnvironment';
 import type { Album, AlbumCreateData, Profile, User, Photo, UploadProgress } from '../types/core';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 // デバッグログ関数（開発時のみ有効）
 const debugLog = (message: string, data?: any) => {
   if (import.meta.env.DEV) {
     console.log(`[AppContext] ${message}`, data);
   }
+};
+
+// Supabase Userを独自のUser型に変換する関数
+const convertSupabaseUser = (supabaseUser: SupabaseUser | null): User | null => {
+  if (!supabaseUser) return null;
+  
+  return {
+    id: supabaseUser.id,
+    email: supabaseUser.email || '', // undefinedの場合は空文字に変換
+    aud: supabaseUser.aud || 'authenticated',
+    role: supabaseUser.role || 'authenticated',
+    email_confirmed_at: supabaseUser.email_confirmed_at || '',
+    phone: supabaseUser.phone || '',
+    confirmed_at: supabaseUser.confirmed_at || '',
+    last_sign_in_at: supabaseUser.last_sign_in_at || '',
+    app_metadata: supabaseUser.app_metadata || {},
+    user_metadata: supabaseUser.user_metadata || {},
+    identities: supabaseUser.identities || [],
+    created_at: supabaseUser.created_at || '',
+    updated_at: supabaseUser.updated_at || '',
+  };
 };
 
 interface AppContextType {
@@ -68,12 +90,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const albumsHook = useAlbums();
   const photosHook = usePhotos();
   const { isDemo } = useEnvironment();
-  const [currentAlbum, setCurrentAlbum] = React.useState<Album | null>(null);
+  
+  // ローカルUIステート
+  const [currentAlbum, setCurrentAlbum] = useState<Album | null>(null);
 
   // メモ化された認証状態
   const authState = useMemo(() => ({
     isAuthenticated: !!auth.user,
-    user: auth.user,
+    user: convertSupabaseUser(auth.user), // 型変換を適用
     profile: auth.profile,
     loading: auth.loading,
   }), [auth.user, auth.profile, auth.loading]);
@@ -116,6 +140,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     debugLog('現在のアルバム変更', album?.title);
     setCurrentAlbum(album);
     if (album) {
+      // photosHookのfetchPhotosメソッドを直接呼び出し
       photosHook.fetchPhotos(album.id);
     }
   }, [photosHook]);
@@ -164,7 +189,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
   }, [albumsHook]);
 
-  // 認証状態の変更とアルバム初期化の同期（大幅改善）
+  // 認証状態の変更とアルバム初期化の同期（修正版）
   useEffect(() => {
     // 認証が完了してからアルバム取得を開始
     const shouldInitializeAlbums = () => {
@@ -207,12 +232,15 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       const timer = setTimeout(() => {
         debugLog('アルバム取得実行');
         albumsHook.fetchAlbums();
-      }, 50); // 遅延を短縮
+      }, 50);
       
       return () => {
         clearTimeout(timer);
       };
     }
+
+    // すべてのパスで関数またはundefinedを返す
+    return undefined;
   }, [
     auth.loading,
     auth.initialized,

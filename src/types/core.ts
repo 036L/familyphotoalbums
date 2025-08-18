@@ -1,4 +1,4 @@
-// src/types/core.ts
+// src/types/core.ts - User型の修正版
 // 家族アルバムアプリケーション - 全型定義統一ファイル
 
 // =========================
@@ -7,7 +7,7 @@
 
 export interface User {
     id: string;
-    email: string;
+    email: string; // Supabaseの email?: string との互換性のため必須フィールドとして維持
     aud: string;
     role: string;
     email_confirmed_at: string;
@@ -19,9 +19,26 @@ export interface User {
     identities: any[];
     created_at: string;
     updated_at: string;
-  }
+}
+
+// Supabase Userとの互換性のための代替型（必要に応じて使用）
+export interface FlexibleUser {
+    id: string;
+    email?: string; // undefinedを許可
+    aud?: string;
+    role?: string;
+    email_confirmed_at?: string;
+    phone?: string;
+    confirmed_at?: string;
+    last_sign_in_at?: string;
+    app_metadata?: Record<string, any>;
+    user_metadata?: Record<string, any>;
+    identities?: any[];
+    created_at?: string;
+    updated_at?: string;
+}
   
-  export interface Profile {
+export interface Profile {
     id: string;
     name: string;
     email?: string;
@@ -30,13 +47,13 @@ export interface User {
     settings?: Record<string, any>;
     created_at?: string;
     updated_at?: string;
-  }
+}
   
-  // =========================
-  // アルバム関連
-  // =========================
+// =========================
+// アルバム関連
+// =========================
   
-  export interface Album {
+export interface Album {
     id: string;
     title: string;
     description: string | null;
@@ -50,16 +67,16 @@ export interface User {
     creator_name?: string;
     // 互換性フィールド
     createdAt: string;
-  }
+}
   
-  export type AlbumCreateData = Pick<Album, 'title' | 'description' | 'is_public'>;
-  export type AlbumUpdateData = Partial<AlbumCreateData>;
+export type AlbumCreateData = Pick<Album, 'title' | 'description' | 'is_public'>;
+export type AlbumUpdateData = Partial<AlbumCreateData>;
   
-  // =========================
-  // 写真関連
-  // =========================
+// =========================
+// 写真関連
+// =========================
   
-  export interface Photo {
+export interface Photo {
     id: string;
     filename: string;
     original_filename: string;
@@ -77,20 +94,20 @@ export interface User {
     uploader_name?: string;
     // 互換性フィールド
     uploadedAt?: string;
-  }
+}
   
-  export interface UploadProgress {
+export interface UploadProgress {
     file: File;
     progress: number;
     status: 'compressing' | 'uploading' | 'completed' | 'error';
     error?: string;
-  }
+}
   
-  // =========================
-  // コメント関連
-  // =========================
+// =========================
+// コメント関連
+// =========================
   
-  export interface Comment {
+export interface Comment {
     id: string;
     content: string;
     photo_id: string;
@@ -104,33 +121,33 @@ export interface User {
     replies?: Comment[];
     likes_count?: number;
     is_liked?: boolean;
-  }
+}
   
-  // =========================
-  // タグ関連
-  // =========================
+// =========================
+// タグ関連
+// =========================
   
-  export interface PhotoTag {
+export interface PhotoTag {
     id: string;
     name: string;
     color: string;
     created_by: string;
     created_at: string;
     usage_count?: number;
-  }
+}
   
-  export interface PhotoTagAssignment {
+export interface PhotoTagAssignment {
     photo_id: string;
     tag_id: string;
     assigned_by: string;
     assigned_at: string;
-  }
+}
   
-  // =========================
-  // 権限関連
-  // =========================
+// =========================
+// 権限関連
+// =========================
   
-  export type Permission = 
+export type Permission = 
     // アルバム関連
     | 'album.create'
     | 'album.edit'
@@ -155,63 +172,63 @@ export interface User {
     // 管理者権限
     | 'admin.all';
   
-  export type Role = 'admin' | 'editor' | 'viewer';
+export type Role = 'admin' | 'editor' | 'viewer';
   
-  export interface ResourceOwnership {
+export interface ResourceOwnership {
     createdBy?: string;
     uploadedBy?: string;
     userId?: string;
-  }
+}
   
-  // =========================
-  // アクセシビリティ関連
-  // =========================
+// =========================
+// アクセシビリティ関連
+// =========================
   
-  export interface AccessibilitySettings {
+export interface AccessibilitySettings {
     fontSize: 'small' | 'medium' | 'large' | 'extra-large';
     highContrast: boolean;
     darkMode: boolean;
     reducedMotion: boolean;
     announcements: boolean;
     keyboardNavigation: boolean;
-  }
+}
   
-  // =========================
-  // 通知関連
-  // =========================
+// =========================
+// 通知関連
+// =========================
   
-  export interface PushSubscription {
+export interface PushSubscription {
     endpoint: string;
     keys: {
       p256dh: string;
       auth: string;
     };
-  }
+}
   
-  export interface NotificationPayload {
+export interface NotificationPayload {
     title: string;
     body: string;
     icon?: string;
     badge?: string;
     tag?: string;
     data?: any;
-  }
+}
   
-  // =========================
-  // ソート・フィルタリング関連
-  // =========================
+// =========================
+// ソート・フィルタリング関連
+// =========================
   
-  export interface SortCriteria {
+export interface SortCriteria {
     field: 'date' | 'name' | 'size' | 'type' | 'location';
     order: 'asc' | 'desc';
-  }
+}
   
-  export interface GroupCriteria {
+export interface GroupCriteria {
     by: 'date' | 'month' | 'year' | 'location' | 'camera' | 'tags' | 'none';
     showCount?: boolean;
-  }
+}
   
-  export interface FilterCriteria {
+export interface FilterCriteria {
     dateRange?: {
       start: string;
       end: string;
@@ -224,48 +241,48 @@ export interface User {
     tags?: string[];
     location?: string;
     camera?: string;
-  }
+}
   
-  export interface PhotoGroup {
+export interface PhotoGroup {
     key: string;
     label: string;
     photos: Photo[];
     count: number;
     metadata?: Record<string, any>;
-  }
+}
   
-  // =========================
-  // UI関連
-  // =========================
+// =========================
+// UI関連
+// =========================
   
-  export interface ButtonProps {
+export interface ButtonProps {
     variant?: 'primary' | 'secondary' | 'outline';
     size?: 'sm' | 'md' | 'lg';
     disabled?: boolean;
     loading?: boolean;
     className?: string;
     children: React.ReactNode;
-  }
+}
   
-  export interface ModalProps {
+export interface ModalProps {
     isOpen: boolean;
     onClose: () => void;
     children: React.ReactNode;
     className?: string;
-  }
+}
   
-  export interface InputProps {
+export interface InputProps {
     label?: string;
     error?: string;
     className?: string;
     required?: boolean;
-  }
+}
   
-  // =========================
-  // データベース関連
-  // =========================
+// =========================
+// データベース関連
+// =========================
   
-  export interface Database {
+export interface Database {
     public: {
       Tables: {
         profiles: {
@@ -290,23 +307,23 @@ export interface User {
         };
       };
     };
-  }
+}
   
-  // =========================
-  // 環境・設定関連
-  // =========================
+// =========================
+// 環境・設定関連
+// =========================
   
-  export interface EnvironmentInfo {
+export interface EnvironmentInfo {
     isDemo: boolean;
     isDevelopment: boolean;
     isProduction: boolean;
     supabaseUrl?: string;
     supabaseAnonKey?: string;
-  }
+}
   
-  export interface CompressionOptions {
+export interface CompressionOptions {
     maxSizeMB?: number;
     maxWidthOrHeight?: number;
     useWebWorker?: boolean;
     quality?: number;
-  }
+}
