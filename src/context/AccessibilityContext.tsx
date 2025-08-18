@@ -1,4 +1,4 @@
-// src/context/AccessibilityContext.tsx
+// src/context/AccessibilityContext.tsx - 改善版
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import type { AccessibilitySettings } from '../types/core';
 
@@ -88,25 +88,127 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
     return announcerElement;
   }, []);
 
-  // CSSクラスを適用する処理をメモ化
+  // CSSスタイルの動的適用（Tailwindクラスを上書き）
   const applySettings = useCallback((settingsToApply: AccessibilitySettings) => {
     const root = document.documentElement;
     
-    // フォントサイズの適用
-    root.classList.remove('text-small', 'text-medium', 'text-large', 'text-extra-large');
-    root.classList.add(`text-${settingsToApply.fontSize}`);
-    
-    // 高コントラストの適用
-    root.classList.toggle('high-contrast', settingsToApply.highContrast);
-    
-    // ダークモードの適用
-    root.classList.toggle('dark', settingsToApply.darkMode);
-    
-    // モーション軽減の適用
-    root.classList.toggle('reduced-motion', settingsToApply.reducedMotion);
+    // 既存のスタイル要素を削除
+    const existingStyle = document.getElementById('accessibility-styles');
+    if (existingStyle) {
+      existingStyle.remove();
+    }
 
-    // キーボードナビゲーションの適用
+    // 新しいスタイル要素を作成
+    const style = document.createElement('style');
+    style.id = 'accessibility-styles';
+    
+    let css = '';
+
+    // フォントサイズの動的CSS生成
+    const fontSizeMap = {
+      small: { base: '14px', sm: '12px', lg: '16px', xl: '18px', '2xl': '20px', '3xl': '24px' },
+      medium: { base: '16px', sm: '14px', lg: '18px', xl: '20px', '2xl': '24px', '3xl': '30px' },
+      large: { base: '18px', sm: '16px', lg: '20px', xl: '24px', '2xl': '28px', '3xl': '36px' },
+      'extra-large': { base: '20px', sm: '18px', lg: '24px', xl: '28px', '2xl': '32px', '3xl': '42px' }
+    };
+
+    const fontSizes = fontSizeMap[settingsToApply.fontSize];
+    css += `
+      .text-xs { font-size: ${fontSizes.sm} !important; }
+      .text-sm { font-size: ${fontSizes.sm} !important; }
+      .text-base { font-size: ${fontSizes.base} !important; }
+      .text-lg { font-size: ${fontSizes.lg} !important; }
+      .text-xl { font-size: ${fontSizes.xl} !important; }
+      .text-2xl { font-size: ${fontSizes['2xl']} !important; }
+      .text-3xl { font-size: ${fontSizes['3xl']} !important; }
+      body { font-size: ${fontSizes.base} !important; }
+    `;
+
+    // ハイコントラストモード
+    if (settingsToApply.highContrast) {
+      css += `
+        body { 
+          background-color: #000000 !important; 
+          color: #ffffff !important; 
+        }
+        .bg-white { background-color: #000000 !important; }
+        .bg-gray-50, .bg-gray-100 { background-color: #1a1a1a !important; }
+        .text-gray-900, .text-gray-800, .text-gray-700, .text-gray-600 { 
+          color: #ffffff !important; 
+        }
+        .text-gray-500, .text-gray-400 { color: #cccccc !important; }
+        .border-gray-200, .border-gray-300, .border-gray-100 { 
+          border-color: #ffffff !important; 
+        }
+        .bg-orange-50, .bg-orange-100 { 
+          background-color: #1a1a1a !important; 
+          border: 2px solid #ffff00 !important; 
+        }
+        .text-orange-600, .text-orange-700, .text-orange-500 { 
+          color: #ffff00 !important; 
+        }
+        .shadow-lg, .shadow-md, .shadow-xl { 
+          box-shadow: 0 0 0 2px #ffffff !important; 
+        }
+      `;
+    }
+
+    // ダークモード
+    if (settingsToApply.darkMode && !settingsToApply.highContrast) {
+      css += `
+        body { 
+          background-color: #121212 !important; 
+          color: #ffffff !important; 
+        }
+        .bg-white { background-color: #1e1e1e !important; }
+        .bg-gray-50 { background-color: #2d2d2d !important; }
+        .bg-gray-100 { background-color: #2d2d2d !important; }
+        .text-gray-900 { color: #ffffff !important; }
+        .text-gray-600, .text-gray-700, .text-gray-800 { color: #b3b3b3 !important; }
+        .text-gray-500, .text-gray-400 { color: #8c8c8c !important; }
+        .border-gray-200, .border-gray-300, .border-gray-100 { 
+          border-color: #404040 !important; 
+        }
+        .bg-orange-50 { background-color: rgba(255, 107, 53, 0.1) !important; }
+      `;
+    }
+
+    // モーション軽減
+    if (settingsToApply.reducedMotion) {
+      css += `
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+        .animate-pulse, .animate-spin { animation: none !important; }
+        .hover\\:scale-105:hover, .hover\\:scale-\\[1\\.02\\]:hover { 
+          transform: none !important; 
+        }
+      `;
+    }
+
+    // キーボードナビゲーション
+    if (settingsToApply.keyboardNavigation) {
+      css += `
+        .keyboard-user *:focus {
+          outline: 3px solid #2563eb !important;
+          outline-offset: 2px !important;
+        }
+      `;
+    }
+
+    style.textContent = css;
+    document.head.appendChild(style);
+
+    // bodyクラスの設定
+    root.classList.toggle('high-contrast', settingsToApply.highContrast);
+    root.classList.toggle('dark', settingsToApply.darkMode);
+    root.classList.toggle('reduced-motion', settingsToApply.reducedMotion);
     root.classList.toggle('keyboard-navigation', settingsToApply.keyboardNavigation);
+
+    console.log('アクセシビリティスタイル適用:', settingsToApply);
   }, []);
 
   // 初期化処理
@@ -130,7 +232,7 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
     };
   }, [loadSettings, checkSystemPreferences, createAnnouncer, applySettings]);
 
-  // 設定更新処理（最適化）
+  // 設定更新処理
   const updateSettings = useCallback((newSettings: Partial<AccessibilitySettings>) => {
     setSettings(prev => {
       const updatedSettings = { ...prev, ...newSettings };
@@ -149,14 +251,14 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
     });
   }, [applySettings]);
 
-  // 音声アナウンス機能（最適化）
+  // 音声アナウンス機能
   const announceMessage = useCallback((message: string, priority: 'polite' | 'assertive' = 'polite') => {
     if (!settings.announcements || !announcer) return;
     
     announcer.setAttribute('aria-live', priority);
     announcer.textContent = '';
     
-    // わずかな遅延でメッセージを設定（スクリーンリーダーが確実に読み上げるため）
+    // わずかな遅延でメッセージを設定
     const setMessageTimer = setTimeout(() => {
       announcer.textContent = message;
     }, 100);
@@ -191,7 +293,7 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
     return settings.reducedMotion ? 'motion-reduced' : '';
   }, [settings.reducedMotion]);
 
-  // キーボードナビゲーションの監視（最適化）
+  // キーボードナビゲーションの監視
   useEffect(() => {
     if (!settings.keyboardNavigation) return;
 
@@ -213,38 +315,6 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
       document.removeEventListener('mousedown', handleMouseDown);
     };
   }, [settings.keyboardNavigation]);
-
-  // ページ変更時のアナウンス（最適化）
-  useEffect(() => {
-    if (!settings.announcements) return;
-
-    const handleLocationChange = () => {
-      const title = document.title || 'ページが変更されました';
-      announceMessage(`${title}に移動しました`);
-    };
-
-    // History API の監視
-    const originalPushState = window.history.pushState;
-    const originalReplaceState = window.history.replaceState;
-
-    window.history.pushState = function(...args) {
-      originalPushState.apply(this, args);
-      handleLocationChange();
-    };
-
-    window.history.replaceState = function(...args) {
-      originalReplaceState.apply(this, args);
-      handleLocationChange();
-    };
-
-    window.addEventListener('popstate', handleLocationChange);
-
-    return () => {
-      window.history.pushState = originalPushState;
-      window.history.replaceState = originalReplaceState;
-      window.removeEventListener('popstate', handleLocationChange);
-    };
-  }, [settings.announcements, announceMessage]);
 
   // メモ化されたコンテキスト値
   const contextValue = useMemo(() => ({

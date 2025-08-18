@@ -1,16 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   Accessibility, 
   Type, 
-  Eye, 
-  Volume2, 
-  Keyboard, 
-  Moon, 
-  Sun, 
   Palette,
   Settings,
   X,
-  Check
+  Check,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { Button } from '../ui/Button';
@@ -25,32 +22,31 @@ export const AccessibilityPanel: React.FC<AccessibilityPanelProps> = ({
   onClose
 }) => {
   const { settings, updateSettings, announceMessage } = useAccessibility();
-  const [activeSection, setActiveSection] = useState<'visual' | 'audio' | 'interaction'>('visual');
 
   if (!isOpen) return null;
 
-  const handleFontSizeChange = (size: 'small' | 'medium' | 'large' | 'extra-large') => {
+  const handleFontSizeChange = (size: 'small' | 'medium' | 'large' | 'extra-large'): void => {
     updateSettings({ fontSize: size });
     announceMessage(`文字サイズを${getFontSizeLabel(size)}に変更しました`);
   };
 
-  const handleToggleSetting = (setting: keyof typeof settings, label: string) => {
+  const handleToggleSetting = (setting: keyof typeof settings, label: string): void => {
     const newValue = !settings[setting];
     updateSettings({ [setting]: newValue });
     announceMessage(`${label}を${newValue ? '有効' : '無効'}にしました`);
   };
 
   const getFontSizeLabel = (size: string): string => {
-    const labelMap = {
+    const labelMap: Record<string, string> = {
       small: '小',
       medium: '中',
       large: '大',
       'extra-large': '特大'
     };
-    return labelMap[size as keyof typeof labelMap] || '中';
+    return labelMap[size] || '中';
   };
 
-  const resetToDefaults = () => {
+  const resetToDefaults = (): void => {
     updateSettings({
       fontSize: 'medium',
       highContrast: false,
@@ -92,213 +88,124 @@ export const AccessibilityPanel: React.FC<AccessibilityPanelProps> = ({
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-xl transition-colors focus-ring"
             aria-label="アクセシビリティパネルを閉じる"
+            type="button"
           >
             <X size={20} className="text-gray-500" />
           </button>
         </div>
 
-        {/* タブ */}
-        <div className="flex border-b border-gray-200">
-          {[
-            { id: 'visual', label: '視覚', icon: Eye },
-            { id: 'audio', label: '音声', icon: Volume2 },
-            { id: 'interaction', label: '操作', icon: Keyboard },
-          ].map(tab => {
-            const IconComponent = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveSection(tab.id as any)}
-                className={`flex-1 flex items-center justify-center space-x-2 px-4 py-3 text-sm font-medium transition-colors focus-ring ${
-                  activeSection === tab.id
-                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
-                aria-pressed={activeSection === tab.id}
-              >
-                <IconComponent size={16} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
         {/* コンテンツエリア */}
         <div className="flex-1 overflow-y-auto p-4">
-          <p id="accessibility-description" className="text-sm text-gray-600 mb-4">
+          <p id="accessibility-description" className="text-sm text-gray-600 mb-6">
             アプリケーションをより使いやすくするための設定を調整できます
           </p>
 
-          {/* 視覚設定 */}
-          {activeSection === 'visual' && (
-            <div className="space-y-6">
-              {/* フォントサイズ */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  <Type size={16} className="inline mr-2" />
-                  文字サイズ
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { value: 'small', label: '小', size: 12 },
-                    { value: 'medium', label: '中', size: 16 },
-                    { value: 'large', label: '大', size: 20 },
-                    { value: 'extra-large', label: '特大', size: 24 },
-                  ].map(option => (
-                    <button
-                      key={option.value}
-                      onClick={() => handleFontSizeChange(option.value as any)}
-                      className={`p-3 rounded-xl border-2 transition-all focus-ring ${
-                        settings.fontSize === option.value
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+          <div className="space-y-6">
+            {/* フォントサイズ */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                <Type size={16} className="inline mr-2" />
+                文字サイズ
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { value: 'small', label: '小', demo: 'Aa' },
+                  { value: 'medium', label: '中', demo: 'Aa' },
+                  { value: 'large', label: '大', demo: 'Aa' },
+                  { value: 'extra-large', label: '特大', demo: 'Aa' },
+                ] as const).map(option => (
+                  <button
+                    key={option.value}
+                    onClick={() => handleFontSizeChange(option.value)}
+                    className={`p-3 rounded-xl border-2 transition-all focus-ring flex flex-col items-center ${
+                      settings.fontSize === option.value
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                    }`}
+                    aria-pressed={settings.fontSize === option.value}
+                    type="button"
+                  >
+                    <span 
+                      className={`font-bold mb-1 ${
+                        option.value === 'small' ? 'text-sm' :
+                        option.value === 'medium' ? 'text-base' :
+                        option.value === 'large' ? 'text-lg' : 'text-xl'
                       }`}
-                      aria-pressed={settings.fontSize === option.value}
                     >
-                      <Type size={option.size} className="mx-auto mb-1" />
-                      <span className="block text-xs">{option.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* テーマ設定 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  <Palette size={16} className="inline mr-2" />
-                  テーマ
-                </label>
-                <div className="space-y-3">
-                  <label className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={settings.highContrast}
-                      onChange={() => handleToggleSetting('highContrast', 'ハイコントラストモード')}
-                      className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <div>
-                      <span className="text-sm font-medium text-gray-900">ハイコントラスト</span>
-                      <p className="text-xs text-gray-600">文字と背景のコントラストを高くします</p>
-                    </div>
-                  </label>
-
-                  <label className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={settings.darkMode}
-                      onChange={() => handleToggleSetting('darkMode', 'ダークモード')}
-                      className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        {settings.darkMode ? <Moon size={16} /> : <Sun size={16} />}
-                        <span className="text-sm font-medium text-gray-900">ダークモード</span>
-                      </div>
-                      <p className="text-xs text-gray-600">目の疲労を軽減する暗いテーマを使用します</p>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              {/* アニメーション設定 */}
-              <div>
-                <label className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings.reducedMotion}
-                    onChange={() => handleToggleSetting('reducedMotion', 'アニメーション軽減')}
-                    className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <div>
-                    <span className="text-sm font-medium text-gray-900">アニメーション軽減</span>
-                    <p className="text-xs text-gray-600">動きによる不快感を軽減します</p>
-                  </div>
-                </label>
+                      {option.demo}
+                    </span>
+                    <span className="text-xs">{option.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
-          )}
 
-          {/* 音声設定 */}
-          {activeSection === 'audio' && (
-            <div className="space-y-6">
-              <div>
+            {/* テーマ設定 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                <Palette size={16} className="inline mr-2" />
+                表示設定
+              </label>
+              <div className="space-y-3">
                 <label className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={settings.announcements}
-                    onChange={() => handleToggleSetting('announcements', '音声アナウンス')}
+                    checked={settings.highContrast}
+                    onChange={() => handleToggleSetting('highContrast', 'ハイコントラストモード')}
                     className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
                   <div>
+                    <span className="text-sm font-medium text-gray-900">ハイコントラスト</span>
+                    <p className="text-xs text-gray-600 mt-1">文字と背景のコントラストを高くします</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.darkMode}
+                    onChange={() => handleToggleSetting('darkMode', 'ダークモード')}
+                    className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <div className="flex-1">
                     <div className="flex items-center space-x-2">
-                      <Volume2 size={16} />
-                      <span className="text-sm font-medium text-gray-900">音声アナウンス</span>
+                      {settings.darkMode ? <Moon size={16} /> : <Sun size={16} />}
+                      <span className="text-sm font-medium text-gray-900">ダークモード</span>
                     </div>
-                    <p className="text-xs text-gray-600">操作や変更をスクリーンリーダーでお知らせします</p>
+                    <p className="text-xs text-gray-600 mt-1">目の疲労を軽減する暗いテーマを使用します</p>
                   </div>
                 </label>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                <h4 className="text-sm font-medium text-blue-900 mb-2">音声読み上げテスト</h4>
-                <p className="text-xs text-blue-700 mb-3">
-                  以下のボタンを押すと、音声アナウンス機能をテストできます
-                </p>
-                <Button
-                  onClick={() => announceMessage('音声アナウンス機能が正常に動作しています', 'assertive')}
-                  size="sm"
-                  className="w-full"
-                >
-                  テスト音声を再生
-                </Button>
               </div>
             </div>
-          )}
 
-          {/* 操作設定 */}
-          {activeSection === 'interaction' && (
-            <div className="space-y-6">
-              <div>
-                <label className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings.keyboardNavigation}
-                    onChange={() => handleToggleSetting('keyboardNavigation', 'キーボードナビゲーション')}
-                    className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <Keyboard size={16} />
-                      <span className="text-sm font-medium text-gray-900">キーボードナビゲーション</span>
-                    </div>
-                    <p className="text-xs text-gray-600">Tabキーでの操作時にフォーカスを分かりやすく表示します</p>
-                  </div>
-                </label>
-              </div>
-
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                <h4 className="text-sm font-medium text-green-900 mb-2">キーボードショートカット</h4>
-                <div className="space-y-2 text-xs text-green-800">
-                  <div className="flex justify-between">
-                    <span>Tab</span>
-                    <span>次の要素に移動</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Shift + Tab</span>
-                    <span>前の要素に移動</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Enter / Space</span>
-                    <span>ボタンを押す</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Escape</span>
-                    <span>モーダルを閉じる</span>
-                  </div>
+            {/* アニメーション設定 */}
+            <div>
+              <label className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.reducedMotion}
+                  onChange={() => handleToggleSetting('reducedMotion', 'アニメーション軽減')}
+                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <div>
+                  <span className="text-sm font-medium text-gray-900">アニメーション軽減</span>
+                  <p className="text-xs text-gray-600 mt-1">動きによる不快感を軽減します</p>
                 </div>
+              </label>
+            </div>
+
+            {/* プレビューエリア */}
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+              <h4 className="text-sm font-medium text-gray-900 mb-2">プレビュー</h4>
+              <div className="space-y-2">
+                <p className="text-gray-800">これは通常のテキストです。</p>
+                <p className="text-sm text-gray-600">これは小さいテキストです。</p>
+                <button className="px-3 py-2 bg-blue-500 text-white rounded-lg text-sm">
+                  ボタンの例
+                </button>
               </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* フッター */}

@@ -1,0 +1,106 @@
+/* アクセシビリティ用の基本スタイル */
+
+/* =========================
+   スキップリンク
+========================= */
+
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: #000;
+  color: #fff;
+  padding: 8px;
+  text-decoration: none;
+  border-radius: 4px;
+  z-index: 1000;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* =========================
+   スクリーンリーダー専用
+========================= */
+
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.sr-only-focusable:focus {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  padding: inherit !important;
+  margin: inherit !important;
+  overflow: visible !important;
+  clip: auto !important;
+  white-space: inherit !important;
+}
+
+/* =========================
+   フォーカスリング
+========================= */
+
+.focus-ring {
+  transition: box-shadow 0.15s ease-in-out;
+}
+
+.focus-ring:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px #3b82f6;
+}
+
+/* キーボードユーザー向けフォーカス表示 */
+.keyboard-user *:focus {
+  outline: 3px solid #2563eb !important;
+  outline-offset: 2px !important;
+}
+
+/* =========================
+   プリファレンス対応
+========================= */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-contrast: high) {
+  :root {
+    filter: contrast(1.5);
+  }
+}
+
+/* =========================
+   印刷用スタイル
+========================= */
+
+@media print {
+  .high-contrast,
+  .dark {
+    background: white !important;
+    color: black !important;
+  }
+  
+  .high-contrast *,
+  .dark * {
+    background: white !important;
+    color: black !important;
+    border-color: black !important;
+  }
+}
