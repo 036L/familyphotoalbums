@@ -128,9 +128,14 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
     if (settingsToApply.highContrast) {
       css += `
         body { 
-          background-color: #000000 !important; 
+          background: #000000 !important; 
           color: #ffffff !important; 
+          min-height: 100vh !important;
         }
+        .bg-gradient-to-br { 
+          background: #000000 !important; 
+        }
+        .from-orange-50, .to-amber-50 { background: transparent !important; }
         .bg-white { background-color: #000000 !important; }
         .bg-gray-50, .bg-gray-100 { background-color: #1a1a1a !important; }
         .text-gray-900, .text-gray-800, .text-gray-700, .text-gray-600 { 
@@ -147,8 +152,12 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
         .text-orange-600, .text-orange-700, .text-orange-500 { 
           color: #ffff00 !important; 
         }
-        .shadow-lg, .shadow-md, .shadow-xl { 
+        .shadow-lg, .shadow-md, .shadow-xl, .shadow-2xl { 
           box-shadow: 0 0 0 2px #ffffff !important; 
+        }
+        .bg-blue-50, .bg-blue-100 { 
+          background-color: #1a1a1a !important; 
+          border: 1px solid #ffff00 !important; 
         }
       `;
     }
@@ -157,9 +166,15 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
     if (settingsToApply.darkMode && !settingsToApply.highContrast) {
       css += `
         body { 
-          background-color: #121212 !important; 
+          background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%) !important; 
           color: #ffffff !important; 
+          min-height: 100vh !important;
         }
+        .bg-gradient-to-br { 
+          background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%) !important; 
+        }
+        .from-orange-50 { background: transparent !important; }
+        .to-amber-50 { background: transparent !important; }
         .bg-white { background-color: #1e1e1e !important; }
         .bg-gray-50 { background-color: #2d2d2d !important; }
         .bg-gray-100 { background-color: #2d2d2d !important; }
@@ -170,6 +185,12 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
           border-color: #404040 !important; 
         }
         .bg-orange-50 { background-color: rgba(255, 107, 53, 0.1) !important; }
+        .bg-orange-100 { background-color: rgba(255, 107, 53, 0.2) !important; }
+        .shadow-lg, .shadow-md, .shadow-xl, .shadow-2xl { 
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important; 
+        }
+        .bg-blue-50 { background-color: rgba(59, 130, 246, 0.1) !important; }
+        .bg-blue-100 { background-color: rgba(59, 130, 246, 0.2) !important; }
       `;
     }
 
@@ -202,11 +223,23 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
     style.textContent = css;
     document.head.appendChild(style);
 
-    // bodyクラスの設定
+    // bodyクラスの設定と追加のスタイル適用
     root.classList.toggle('high-contrast', settingsToApply.highContrast);
     root.classList.toggle('dark', settingsToApply.darkMode);
     root.classList.toggle('reduced-motion', settingsToApply.reducedMotion);
     root.classList.toggle('keyboard-navigation', settingsToApply.keyboardNavigation);
+
+    // 確実に背景を変更するため、直接bodyにスタイルを適用
+    if (settingsToApply.darkMode && !settingsToApply.highContrast) {
+      document.body.style.background = 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)';
+      document.body.style.minHeight = '100vh';
+    } else if (settingsToApply.highContrast) {
+      document.body.style.background = '#000000';
+      document.body.style.minHeight = '100vh';
+    } else {
+      document.body.style.background = '';
+      document.body.style.minHeight = '';
+    }
 
     console.log('アクセシビリティスタイル適用:', settingsToApply);
   }, []);
