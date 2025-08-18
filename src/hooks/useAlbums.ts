@@ -112,7 +112,7 @@ const demoAlbums: Album[] = [
 export const useAlbums = () => {
   // すべてのHooksをトップレベルで宣言（Hooksルール遵守）
   const [albums, setAlbums] = useState<Album[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // 初期値をfalseに変更
   const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
   
@@ -225,6 +225,12 @@ export const useAlbums = () => {
   }, []);
 
   const fetchAlbums = useCallback(async () => {
+    // 既に初期化済みの場合はスキップ
+    if (initialized) {
+      debugLog('既に初期化済みのためスキップ');
+      return albums;
+    }
+
     try {
       debugLog('アルバム取得開始');
       setLoading(true);
@@ -234,8 +240,8 @@ export const useAlbums = () => {
         debugLog('デモモードでアルバム取得');
         
         // デモモードでは同期的に処理
-        const albums = initializeDemoAlbums();
-        return albums;
+        const albumsResult = initializeDemoAlbums();
+        return albumsResult;
       }
 
       // Supabaseからの取得処理
@@ -278,14 +284,16 @@ export const useAlbums = () => {
       setAlbums(albumsWithCounts);
       setInitialized(true);
       debugLog('Supabaseアルバム取得完了', albumsWithCounts);
+      return albumsWithCounts;
     } catch (err) {
       debugLog('アルバム取得エラー', err);
       console.error('アルバム取得エラー:', err);
       setError('アルバムの取得に失敗しました');
+      return [];
     } finally {
       setLoading(false);
     }
-  }, [isDemo, initializeDemoAlbums]);
+  }, [isDemo, initialized, initializeDemoAlbums, albums]);
 
   const createAlbum = async (albumData: AlbumCreateData) => {
     try {
@@ -425,44 +433,14 @@ export const useAlbums = () => {
   const forceReinitialize = useCallback(() => {
     debugLog('強制再初期化実行');
     setInitialized(false);
-    setLoading(true);
+    setLoading(false);
     setError(null);
-    fetchAlbums();
-  }, [fetchAlbums]);
+    setAlbums([]);
+    // fetchAlbums は外部から呼び出される
+  }, []);
 
-  // 初期化エフェクト（ガイドライン準拠の改善版）
-  useEffect(() => {
-    let mounted = true;
-    
-    debugLog('useAlbumsエフェクト実行', { 
-      isDemo, 
-      initialized, 
-      loading,
-      albumCount: albums.length 
-    });
-    
-    // 初期化されていない場合のみ実行
-    if (!initialized && mounted) {
-      debugLog('アルバム取得開始タイマー実行');
-      
-      // 確実に実行するための最小限の遅延
-      const timer = setTimeout(() => {
-        if (mounted) {
-          fetchAlbums();
-        }
-      }, 50);
-
-      return () => {
-        clearTimeout(timer);
-        mounted = false;
-      };
-    }
-
-    return () => {
-      mounted = false;
-      debugLog('useAlbumsクリーンアップ');
-    };
-  }, [isDemo, initialized, fetchAlbums]);
+  // 初期化エフェクトを削除（外部からfetchAlbumsが呼び出される）
+  // useEffectは削除
 
   // デバッグ用の状態ログ出力（開発時のみ）
   useEffect(() => {

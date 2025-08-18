@@ -164,50 +164,60 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
   }, [albumsHook.forceReinitialize]);
 
-  // 認証状態変更時のアルバム取得処理（大幅改善）
+  // 認証状態の変更とアルバム初期化の同期（大幅改善）
   useEffect(() => {
-    const shouldTriggerAlbumsInit = () => {
-      // デモモードの場合：常に初期化を試行
-      if (isDemo) {
-        return !albumsHook.initialized;
+    // 認証が完了してからアルバム取得を開始
+    const shouldInitializeAlbums = () => {
+      // 認証が完了していない場合は待機
+      if (auth.loading || !auth.initialized) {
+        debugLog('認証初期化待機中', {
+          authLoading: auth.loading,
+          authInitialized: auth.initialized
+        });
+        return false;
       }
-      
-      // 実環境の場合：ユーザーがログインしており、まだ初期化されていない場合
-      return (
-        auth.user && 
-        !auth.loading && 
-        !albumsHook.initialized &&
-        !albumsHook.loading
-      );
+
+      // デモモードまたは認証済みユーザーが存在する場合
+      if (isDemo || auth.user) {
+        // アルバムがまだ初期化されていない場合
+        if (!albumsHook.initialized && !albumsHook.loading) {
+          debugLog('アルバム初期化条件を満たした');
+          return true;
+        }
+      }
+
+      return false;
     };
 
-    debugLog('認証状態変更エフェクト', {
-      hasUser: !!auth.user,
+    debugLog('認証・アルバム同期チェック', {
       authLoading: auth.loading,
+      authInitialized: auth.initialized,
+      hasUser: !!auth.user,
       albumsInitialized: albumsHook.initialized,
       albumsLoading: albumsHook.loading,
       albumCount: albumsHook.albums.length,
       isDemo,
-      shouldTrigger: shouldTriggerAlbumsInit()
+      shouldInitialize: shouldInitializeAlbums()
     });
 
-    if (shouldTriggerAlbumsInit()) {
+    if (shouldInitializeAlbums()) {
       debugLog('アルバム初期化をトリガー');
       
-      // 確実に実行するための最小限の遅延
+      // 少し遅延を入れて確実に実行
       const timer = setTimeout(() => {
         debugLog('アルバム取得実行');
         albumsHook.fetchAlbums();
-      }, 100);
+      }, 50); // 遅延を短縮
       
       return () => {
         clearTimeout(timer);
       };
     }
   }, [
-    auth.user, 
-    auth.loading, 
-    albumsHook.initialized, 
+    auth.loading,
+    auth.initialized,
+    auth.user,
+    albumsHook.initialized,
     albumsHook.loading,
     albumsHook.fetchAlbums,
     isDemo
@@ -217,17 +227,30 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   useEffect(() => {
     if (import.meta.env.DEV) {
       debugLog('全体状態更新', {
+        // 認証状態
         isAuthenticated: authState.isAuthenticated,
         authLoading: authState.loading,
+        authInitialized: auth.initialized,
+        
+        // アルバム状態
         albumCount: albumsState.albums.length,
         albumsLoading: albumsState.albumsLoading,
         albumsInitialized: albumsState.albumsInitialized,
+        
+        // その他
         currentAlbum: currentAlbum?.title,
         photoCount: photosState.photos.length,
         isDemo
       });
     }
-  }, [authState, albumsState, photosState, currentAlbum, isDemo]);
+  }, [
+    authState, 
+    auth.initialized, 
+    albumsState, 
+    photosState, 
+    currentAlbum, 
+    isDemo
+  ]);
 
   // メモ化されたコンテキスト値
   const contextValue = useMemo(() => ({

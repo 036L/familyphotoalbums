@@ -1,4 +1,4 @@
-// src/hooks/useAuth.ts - 完成版
+// src/hooks/useAuth.ts - 修正版
 import { useState, useEffect, useCallback } from 'react';
 import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
@@ -18,58 +18,30 @@ export const useAuth = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
   
   // 環境情報をHookで取得
   const { isDemo } = useEnvironment();
 
-  // プロフィール変更の監視（デモモード用）
-  useEffect(() => {
-    if (!isDemo) return;
-
-    const handleStorageChange = () => {
-      try {
-        const demoProfile = localStorage.getItem('demoProfile');
-        if (demoProfile) {
-          const parsedProfile = JSON.parse(demoProfile);
-          debugLog('ローカルストレージ変更検知', parsedProfile);
-          setProfile(parsedProfile);
-        }
-      } catch (error) {
-        debugLog('ローカルストレージ読み込みエラー', error);
-      }
-    };
-
-    // storage イベントリスナー（他のタブでの変更を検知）
-    window.addEventListener('storage', handleStorageChange);
-    
-    // 定期的にローカルストレージをチェック（同一タブ内での変更検知）
-    const interval = setInterval(handleStorageChange, 500);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
-    };
-  }, [isDemo]);
-
-  // 初期化処理
+  // 初期化処理の改善
   useEffect(() => {
     let mounted = true;
     debugLog('useAuth初期化開始', { isDemo });
 
     const initAuth = async () => {
       try {
+        setLoading(true);
+        
         if (isDemo) {
           // デモモードの初期化
-          debugLog('デモモード初期化');
+          debugLog('デモモード認証初期化');
           
           const demoAuth = localStorage.getItem('demoAuth');
           const demoProfile = localStorage.getItem('demoProfile');
           
           debugLog('ローカルストレージ確認', { 
             hasDemoAuth: !!demoAuth, 
-            hasProfile: !!demoProfile,
-            demoAuth,
-            demoProfile: demoProfile ? JSON.parse(demoProfile) : null
+            hasProfile: !!demoProfile 
           });
           
           if (demoAuth === 'authenticated' && demoProfile) {
@@ -79,11 +51,7 @@ export const useAuth = () => {
               
               // ロールが正しく設定されているかチェック
               if (!parsedProfile.role || parsedProfile.role === 'viewer') {
-                debugLog('ロールが正しくない、管理者に修正', { 
-                  currentRole: parsedProfile.role 
-                });
-                
-                // 管理者ロールに強制修正
+                debugLog('ロールを管理者に修正');
                 parsedProfile.role = 'admin';
                 parsedProfile.updated_at = new Date().toISOString();
                 localStorage.setItem('demoProfile', JSON.stringify(parsedProfile));
@@ -114,12 +82,11 @@ export const useAuth = () => {
                 
                 debugLog('認証状態設定完了', { 
                   user: demoUser, 
-                  profile: parsedProfile,
-                  finalRole: parsedProfile.role
+                  profile: parsedProfile
                 });
               }
             } catch (error) {
-              debugLog('プロフィール解析エラー', error);
+              debugLog('プロフィール解析エラー、新規作成', error);
               
               // エラー時は新しい管理者プロフィールを作成
               const newProfile: Profile = {
@@ -161,11 +128,10 @@ export const useAuth = () => {
             }
           } else {
             debugLog('未認証状態');
-          }
-          
-          if (mounted) {
-            setLoading(false);
-            debugLog('デモ初期化完了');
+            if (mounted) {
+              setUser(null);
+              setProfile(null);
+            }
           }
         } else {
           // 実際のSupabase認証処理
@@ -177,7 +143,7 @@ export const useAuth = () => {
             debugLog('Session取得エラー', error);
           }
           
-          debugLog('Session取得結果', { hasSession: !!session, user: session?.user?.id });
+          debugLog('Session取得結果', { hasSession: !!session });
           
           if (mounted) {
             setSession(session);
@@ -185,32 +151,65 @@ export const useAuth = () => {
             
             if (session?.user) {
               await fetchProfile(session.user.id);
-            } else {
-              setLoading(false);
             }
           }
         }
       } catch (error) {
         debugLog('認証初期化エラー', error);
         if (mounted) {
+          setUser(null);
+          setProfile(null);
+        }
+      } finally {
+        if (mounted) {
           setLoading(false);
+          setInitialized(true);
+          debugLog('認証初期化完了', {
+            hasUser: !!user,
+            hasProfile: !!profile,
+            isDemo
+          });
         }
       }
     };
 
-    // 確実にDOMが準備されてから実行
-    const timer = setTimeout(initAuth, 50);
+    // 即座に初期化を開始
+    initAuth();
 
     return () => {
       mounted = false;
-      clearTimeout(timer);
       debugLog('useAuthクリーンアップ');
     };
-  }, [isDemo]);
+  }, [isDemo]); // isDemo の変更時のみ再実行
+
+  // プロフィール変更の監視（デモモード用）- 最適化
+  useEffect(() => {
+    if (!isDemo || !initialized) return;
+
+    const handleStorageChange = () => {
+      try {
+        const demoProfile = localStorage.getItem('demoProfile');
+        if (demoProfile) {
+          const parsedProfile = JSON.parse(demoProfile);
+          debugLog('ローカルストレージ変更検知', parsedProfile);
+          setProfile(parsedProfile);
+        }
+      } catch (error) {
+        debugLog('ローカルストレージ読み込みエラー', error);
+      }
+    };
+
+    // storage イベントリスナー（他のタブでの変更を検知）
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [isDemo, initialized]);
 
   // Supabase認証状態変更の監視
   useEffect(() => {
-    if (isDemo) return; // デモモードでは不要
+    if (isDemo || !initialized) return; // デモモードまたは初期化前は不要
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: AuthChangeEvent, session: Session | null) => {
@@ -223,7 +222,6 @@ export const useAuth = () => {
           await fetchProfile(session.user.id);
         } else {
           setProfile(null);
-          setLoading(false);
         }
       }
     );
@@ -231,7 +229,7 @@ export const useAuth = () => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [isDemo]);
+  }, [isDemo, initialized]);
 
   // プロフィール取得（Supabase用）
   const fetchProfile = async (userId: string) => {
@@ -256,8 +254,6 @@ export const useAuth = () => {
       }
     } catch (error) {
       debugLog('プロフィール取得例外', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -332,9 +328,7 @@ export const useAuth = () => {
         
         debugLog('デモログイン成功', { 
           profile: demoProfile, 
-          user: demoUser,
-          profileRole: demoProfile.role,
-          userRole: demoUser.user_metadata?.role
+          user: demoUser
         });
         
         return {
@@ -482,20 +476,20 @@ export const useAuth = () => {
         hasUser: !!user, 
         hasProfile: !!profile, 
         loading,
+        initialized,
         userId: user?.id,
         profileName: profile?.name,
-        profileRole: profile?.role,
-        userMetaRole: user?.user_metadata?.role,
-        appMetaRole: user?.app_metadata?.role
+        profileRole: profile?.role
       });
     }
-  }, [user, profile, loading]);
+  }, [user, profile, loading, initialized]);
 
   return {
     user,
     profile,
     session,
     loading,
+    initialized, // 初期化完了フラグを追加
     signInWithEmail,
     signUpWithEmail,
     signOut,
