@@ -58,42 +58,18 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   const [showCommentsPanel, setShowCommentsPanel] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
 
-  // コメント数を子コンポーネントから受け取る
-  const handleCommentsChange = useCallback((newComments: any[]) => {
-    setComments(newComments);
-    // Phase 1: コメントがある場合は自動でパネルを表示
-    if (newComments.length > 0 && !showCommentsPanel) {
-      debugLog('コメントが存在するため自動表示', { commentCount: newComments.length });
-      setShowCommentsPanel(true);
-    }
-  }, [showCommentsPanel, debugLog]);
-
-  // Phase 1: 写真が変更された時の初期表示制御
-  useEffect(() => {
-    if (currentPhoto && isOpen) {
-      // 新しい写真が開かれた時はコメント数に関係なく初期表示状態をリセット
-      setShowCommentsPanel(false);
-      setComments([]);
-      debugLog('写真変更によりコメントパネル状態をリセット', { photoId: currentPhoto.id });
-    }
-  }, [currentPhoto?.id, isOpen, debugLog]);
-
-  // エラーハンドリング
-  const handleError = useCallback((errorMessage: string) => {
-    debugLog('エラー発生:', errorMessage);
-    setError(errorMessage);
+  // 現在の写真を取得（photoとcurrentIndexの両方に依存）
+  const currentPhoto = useMemo(() => {
+    if (!photo) return null;
     
-    // 3秒後にエラーをクリア
-    setTimeout(() => setError(null), 3000);
-  }, [debugLog]);
-
-  // Phase 1: コメント数変化の監視（削除）
-  // useEffect(() => {
-  //   if (comments.length > 0 && !showCommentsPanel) {
-  //     debugLog('コメントが存在するため自動表示', { commentCount: comments.length });
-  //     setShowCommentsPanel(true);
-  //   }
-  // }, [comments.length, showCommentsPanel, debugLog]);
+    if (photos.length === 0) return photo;
+    
+    if (currentIndex >= 0 && currentIndex < photos.length) {
+      return photos[currentIndex];
+    }
+    
+    return photo;
+  }, [photo, photos, currentIndex]);
 
   // photoの変更を監視してインデックスを更新
   useEffect(() => {
@@ -111,18 +87,35 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     }
   }, [photo, photos, debugLog]);
 
-  // 現在の写真を取得
-  const currentPhoto = useMemo(() => {
-    if (!photo) return null;
-    
-    if (photos.length === 0) return photo;
-    
-    if (currentIndex >= 0 && currentIndex < photos.length) {
-      return photos[currentIndex];
+  // コメント数を子コンポーネントから受け取る
+  const handleCommentsChange = useCallback((newComments: any[]) => {
+    setComments(newComments);
+    // Phase 1: コメントが存在する場合は自動でパネルを表示
+    if (newComments.length > 0) {
+      debugLog('コメントが存在するため自動表示', { commentCount: newComments.length });
+      setShowCommentsPanel(true);
     }
+  }, [debugLog]);
+
+  // Phase 1: 写真が変更された時の初期表示制御
+  useEffect(() => {
+    if (currentPhoto && isOpen) {
+      // 新しい写真が開かれた時はコメントパネルを非表示にリセット
+      // （コメント読み込み後に自動表示される）
+      setShowCommentsPanel(false);
+      setComments([]);
+      debugLog('写真変更によりコメントパネル状態をリセット', { photoId: currentPhoto.id });
+    }
+  }, [currentPhoto?.id, isOpen, debugLog]);
+
+  // エラーハンドリング
+  const handleError = useCallback((errorMessage: string) => {
+    debugLog('エラー発生:', errorMessage);
+    setError(errorMessage);
     
-    return photo;
-  }, [photo, photos, currentIndex]);
+    // 3秒後にエラーをクリア
+    setTimeout(() => setError(null), 3000);
+  }, [debugLog]);
 
   // ナビゲーション関数
   const goToPrevious = useCallback(() => {
@@ -407,7 +400,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
               </div>
             </div>
 
-            {/* Phase 1: コメントセクション（自動表示・リアルタイム更新） */}
+            {/* Phase 1: コメントセクション（コメント存在時自動表示） */}
             {showComments && showCommentsPanel && (
               <div className="flex-1 overflow-hidden">
                 <CommentSection 
