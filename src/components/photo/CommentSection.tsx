@@ -35,12 +35,13 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     }
   }, []);
 
-  // コメント変更時に親コンポーネントに通知
+  // コメント変更時に親コンポーネントに通知（即座に実行）
   useEffect(() => {
     if (onCommentsChange) {
+      debugLog('コメント変更を親に通知', { commentCount: comments.length });
       onCommentsChange(comments);
     }
-  }, [comments, onCommentsChange]);
+  }, [comments, onCommentsChange, debugLog]);
 
   // Phase 1: 権限チェック（自分のコメントのみ編集・削除可能）
   const canManageComment = useCallback((comment: Comment): boolean => {

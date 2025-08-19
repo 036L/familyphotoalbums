@@ -1,4 +1,4 @@
-// src/components/photo/PhotoModal.tsx
+// src/components/photo/PhotoModal.tsx - Phase 1: コメント表示自動化
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Calendar, User, X } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -61,12 +61,22 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   // コメント数を子コンポーネントから受け取る
   const handleCommentsChange = useCallback((newComments: any[]) => {
     setComments(newComments);
-    // コメントが追加されたら自動でパネルを表示
+    // Phase 1: コメントがある場合は自動でパネルを表示
     if (newComments.length > 0 && !showCommentsPanel) {
       debugLog('コメントが存在するため自動表示', { commentCount: newComments.length });
       setShowCommentsPanel(true);
     }
   }, [showCommentsPanel, debugLog]);
+
+  // Phase 1: 写真が変更された時の初期表示制御
+  useEffect(() => {
+    if (currentPhoto && isOpen) {
+      // 新しい写真が開かれた時はコメント数に関係なく初期表示状態をリセット
+      setShowCommentsPanel(false);
+      setComments([]);
+      debugLog('写真変更によりコメントパネル状態をリセット', { photoId: currentPhoto.id });
+    }
+  }, [currentPhoto?.id, isOpen, debugLog]);
 
   // エラーハンドリング
   const handleError = useCallback((errorMessage: string) => {

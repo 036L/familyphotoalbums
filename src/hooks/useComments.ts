@@ -107,7 +107,7 @@ export const useComments = (photoId?: string) => {
             photoId: currentPhotoId, 
             commentCount: demoComments.length 
           });
-        }, 300);
+        }, 100); // 遅延を短縮して即座に表示
         return;
       }
 
