@@ -1,4 +1,4 @@
-// src/components/photo/PhotoModal.tsx - Phase 1: コメント表示自動化
+// src/components/photo/PhotoModal.tsx - コメント自動表示修正版
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Calendar, User, X } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -44,6 +44,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   // すべてのHooksをトップレベルで宣言（Hooksルール遵守）
   const [currentIndex, setCurrentIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [showCommentsPanel, setShowCommentsPanel] = useState(false);
 
   const { currentAlbum } = useApp();
 
@@ -53,10 +54,6 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
       console.log(`[PhotoModal] ${message}`, data);
     }
   }, []);
-  
-  // Phase 1: コメント数に基づく自動表示ロジック
-  const [showCommentsPanel, setShowCommentsPanel] = useState(false);
-  const [comments, setComments] = useState<any[]>([]);
 
   // 現在の写真を取得（photoとcurrentIndexの両方に依存）
   const currentPhoto = useMemo(() => {
@@ -70,6 +67,9 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     
     return photo;
   }, [photo, photos, currentIndex]);
+
+  // 現在の写真のコメントを直接取得
+  const { comments, loading: commentsLoading } = useComments(currentPhoto?.id);
 
   // photoの変更を監視してインデックスを更新
   useEffect(() => {
@@ -87,26 +87,16 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     }
   }, [photo, photos, debugLog]);
 
-  // コメント数を子コンポーネントから受け取る
-  const handleCommentsChange = useCallback((newComments: any[]) => {
-    setComments(newComments);
-    // Phase 1: コメントが存在する場合は自動でパネルを表示
-    if (newComments.length > 0) {
-      debugLog('コメントが存在するため自動表示', { commentCount: newComments.length });
+  // コメント自動表示ロジック：コメントが存在する場合は自動でパネルを表示
+  useEffect(() => {
+    if (isOpen && currentPhoto && comments.length > 0 && !commentsLoading) {
+      debugLog('コメントが存在するため自動表示', { 
+        photoId: currentPhoto.id,
+        commentCount: comments.length 
+      });
       setShowCommentsPanel(true);
     }
-  }, [debugLog]);
-
-  // Phase 1: 写真が変更された時の初期表示制御
-  useEffect(() => {
-    if (currentPhoto && isOpen) {
-      // 新しい写真が開かれた時はコメントパネルを非表示にリセット
-      // （コメント読み込み後に自動表示される）
-      setShowCommentsPanel(false);
-      setComments([]);
-      debugLog('写真変更によりコメントパネル状態をリセット', { photoId: currentPhoto.id });
-    }
-  }, [currentPhoto?.id, isOpen, debugLog]);
+  }, [isOpen, currentPhoto?.id, comments.length, commentsLoading, debugLog]);
 
   // エラーハンドリング
   const handleError = useCallback((errorMessage: string) => {
@@ -239,7 +229,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     }
   }, []);
 
-  // Phase 1: コメントボタンの改善（数を括弧内に表示）
+  // コメントボタンの表示（コメント数を正確に反映）
   const renderCommentButton = useCallback(() => {
     if (!showComments) return null;
 
@@ -254,12 +244,13 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
         className="flex items-center space-x-2 focus-ring"
         onClick={() => setShowCommentsPanel(!showCommentsPanel)}
         aria-label={showCommentsPanel ? 'コメントを隠す' : 'コメントを表示'}
+        disabled={commentsLoading}
       >
         <MessageCircle size={16} />
-        <span>{commentText}</span>
+        <span>{commentsLoading ? '読み込み中...' : commentText}</span>
       </Button>
     );
-  }, [showComments, showCommentsPanel, comments.length]);
+  }, [showComments, showCommentsPanel, comments.length, commentsLoading]);
 
   // メインレンダリング
   if (!isOpen || !currentPhoto) {
@@ -385,7 +376,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
                     <span>いいね</span>
                   </Button>
                   
-                  {/* Phase 1: 改善されたコメントボタン */}
+                  {/* 修正版：改善されたコメントボタン */}
                   {renderCommentButton()}
                 </div>
                 
@@ -400,12 +391,11 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
               </div>
             </div>
 
-            {/* Phase 1: コメントセクション（コメント存在時自動表示） */}
+            {/* コメントセクション（自動表示または手動表示） */}
             {showComments && showCommentsPanel && (
               <div className="flex-1 overflow-hidden">
                 <CommentSection 
-                  photoId={currentPhoto.id} 
-                  onCommentsChange={handleCommentsChange}
+                  photoId={currentPhoto.id}
                 />
               </div>
             )}

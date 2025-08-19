@@ -35,15 +35,6 @@ export const AlbumGrid: React.FC = () => {
             <ImageIcon className="w-8 h-8 text-white" />
           </div>
           <p className="text-gray-600 mb-4">アルバムを読み込んでいます...</p>
-          
-          {/* デバッグ情報（開発時のみ） */}
-          {import.meta.env.DEV && (
-            <div className="text-xs text-gray-500 space-y-1">
-              <div>初期化済み: {albumsInitialized ? 'はい' : 'いいえ'}</div>
-              <div>読み込み中: {albumsLoading ? 'はい' : 'いいえ'}</div>
-              <div>アルバム数: {albums.length}</div>
-            </div>
-          )}
         </div>
         
         {/* スケルトンローダー */}
@@ -160,29 +151,6 @@ export const AlbumGrid: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* デバッグ情報（開発時のみ） */}
-      {import.meta.env.DEV && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-          <div className="font-medium text-blue-900 mb-1">デバッグ情報:</div>
-          <div className="text-blue-700 space-y-1">
-            <div>アルバム数: {albums.length}</div>
-            <div>初期化済み: {albumsInitialized ? 'はい' : 'いいえ'}</div>
-            <div>読み込み中: {albumsLoading ? 'はい' : 'いいえ'}</div>
-            {forceRefresh && (
-              <Button
-                onClick={forceRefresh}
-                variant="outline"
-                size="sm"
-                className="mt-2"
-              >
-                <RefreshCw size={14} className="mr-1" />
-                強制リフレッシュ
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* アルバムグリッド */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {albums.map((album) => {
