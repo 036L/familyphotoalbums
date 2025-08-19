@@ -1,4 +1,4 @@
-// src/components/photo/PhotoModal.tsx - Phase 1: コメント表示自動化
+// src/components/photo/PhotoModal.tsx
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Calendar, User, X } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -46,22 +46,27 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const { currentAlbum } = useApp();
-  
-  // コメント情報を取得
-  const { comments } = useComments(photo?.id);
-  
-  // Phase 1: コメント数に基づく自動表示ロジック
-  const [showCommentsPanel, setShowCommentsPanel] = useState(() => {
-    // 初期状態でコメントがある場合は自動表示
-    return comments.length > 0;
-  });
 
-  // デバッグログ
+  // デバッグログ（最初に宣言）
   const debugLog = useCallback((message: string, data?: any) => {
     if (import.meta.env.DEV) {
       console.log(`[PhotoModal] ${message}`, data);
     }
   }, []);
+  
+  // Phase 1: コメント数に基づく自動表示ロジック
+  const [showCommentsPanel, setShowCommentsPanel] = useState(false);
+  const [comments, setComments] = useState<any[]>([]);
+
+  // コメント数を子コンポーネントから受け取る
+  const handleCommentsChange = useCallback((newComments: any[]) => {
+    setComments(newComments);
+    // コメントが追加されたら自動でパネルを表示
+    if (newComments.length > 0 && !showCommentsPanel) {
+      debugLog('コメントが存在するため自動表示', { commentCount: newComments.length });
+      setShowCommentsPanel(true);
+    }
+  }, [showCommentsPanel, debugLog]);
 
   // エラーハンドリング
   const handleError = useCallback((errorMessage: string) => {
@@ -72,13 +77,13 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     setTimeout(() => setError(null), 3000);
   }, [debugLog]);
 
-  // Phase 1: コメント数変化の監視
-  useEffect(() => {
-    if (comments.length > 0 && !showCommentsPanel) {
-      debugLog('コメントが存在するため自動表示', { commentCount: comments.length });
-      setShowCommentsPanel(true);
-    }
-  }, [comments.length, showCommentsPanel, debugLog]);
+  // Phase 1: コメント数変化の監視（削除）
+  // useEffect(() => {
+  //   if (comments.length > 0 && !showCommentsPanel) {
+  //     debugLog('コメントが存在するため自動表示', { commentCount: comments.length });
+  //     setShowCommentsPanel(true);
+  //   }
+  // }, [comments.length, showCommentsPanel, debugLog]);
 
   // photoの変更を監視してインデックスを更新
   useEffect(() => {
@@ -161,11 +166,28 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     }
   }, [photos, currentIndex, onPhotoDeleted, onPhotoChange, handleClose, debugLog]);
 
-  // キーボードナビゲーション
+  // キーボードナビゲーション（入力中は無効化）
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // 入力要素にフォーカスがある場合はキーボードショートカットを無効化
+      const activeElement = document.activeElement;
+      const isInputFocused = activeElement && (
+        activeElement.tagName === 'INPUT' ||
+        activeElement.tagName === 'TEXTAREA' ||
+        activeElement.getAttribute('contenteditable') === 'true'
+      );
+
+      if (isInputFocused) {
+        // 入力中はESCキーのみ有効
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          handleClose();
+        }
+        return;
+      }
+
       debugLog('キー押下:', event.key);
       
       switch (event.key) {
@@ -214,25 +236,24 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     }
   }, []);
 
-  // Phase 1: コメントボタンの改善（バッジ付き）
+  // Phase 1: コメントボタンの改善（数を括弧内に表示）
   const renderCommentButton = useCallback(() => {
     if (!showComments) return null;
+
+    const commentText = comments.length > 0 
+      ? `コメント（${comments.length > 99 ? '99+' : comments.length}）`
+      : 'コメント';
 
     return (
       <Button 
         variant={showCommentsPanel ? 'primary' : 'outline'} 
         size="sm" 
-        className="flex items-center space-x-2 relative focus-ring"
+        className="flex items-center space-x-2 focus-ring"
         onClick={() => setShowCommentsPanel(!showCommentsPanel)}
         aria-label={showCommentsPanel ? 'コメントを隠す' : 'コメントを表示'}
       >
         <MessageCircle size={16} />
-        <span>コメント</span>
-        {comments.length > 0 && (
-          <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center min-w-[20px]">
-            {comments.length > 99 ? '99+' : comments.length}
-          </span>
-        )}
+        <span>{commentText}</span>
       </Button>
     );
   }, [showComments, showCommentsPanel, comments.length]);
@@ -376,10 +397,13 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
               </div>
             </div>
 
-            {/* Phase 1: コメントセクション（自動表示） */}
+            {/* Phase 1: コメントセクション（自動表示・リアルタイム更新） */}
             {showComments && showCommentsPanel && (
               <div className="flex-1 overflow-hidden">
-                <CommentSection photoId={currentPhoto.id} />
+                <CommentSection 
+                  photoId={currentPhoto.id} 
+                  onCommentsChange={handleCommentsChange}
+                />
               </div>
             )}
           </div>

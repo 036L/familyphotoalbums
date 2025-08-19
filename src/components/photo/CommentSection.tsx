@@ -9,9 +9,10 @@ import type { Comment } from '../../types/core';
 
 interface CommentSectionProps {
   photoId: string;
+  onCommentsChange?: (comments: Comment[]) => void;
 }
 
-export const CommentSection: React.FC<CommentSectionProps> = ({ photoId }) => {
+export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onCommentsChange }) => {
   // すべてのHooksをトップレベルで宣言（Hooksルール遵守）
   const [newComment, setNewComment] = useState('');
   const [editingComment, setEditingComment] = useState<{
@@ -33,6 +34,13 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId }) => {
       console.log(`[CommentSection] ${message}`, data);
     }
   }, []);
+
+  // コメント変更時に親コンポーネントに通知
+  useEffect(() => {
+    if (onCommentsChange) {
+      onCommentsChange(comments);
+    }
+  }, [comments, onCommentsChange]);
 
   // Phase 1: 権限チェック（自分のコメントのみ編集・削除可能）
   const canManageComment = useCallback((comment: Comment): boolean => {
