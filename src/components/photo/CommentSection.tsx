@@ -1,4 +1,4 @@
-// src/components/photo/CommentSection.tsx - Phase 2: いいね機能実装版
+// src/components/photo/CommentSection.tsx - Phase 2: 完全版
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Send, Mic, Heart, MoreHorizontal, Edit, Trash2, Check, X } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -30,8 +30,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     addComment, 
     updateComment, 
     deleteComment,
-    toggleLike,
-    likesState,
+    toggleLike = () => Promise.resolve(), // デフォルト値を提供
+    likesState = {},
     isLikingComment
   } = useComments(photoId);
   
@@ -45,7 +45,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     }
   }, []);
 
-  // コメント変更時に親コンポーネントに通知（即座に実行）
+  // コメント変更時に親コンポーネントに通知
   useEffect(() => {
     if (onCommentsChange) {
       debugLog('コメント変更を親に通知', { commentCount: comments.length });
@@ -79,6 +79,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     } catch (error) {
       debugLog('コメント投稿エラー', error);
       console.error('コメント投稿エラー:', error);
+      alert('コメントの投稿に失敗しました。もう一度お試しください。');
     }
   };
 
@@ -106,7 +107,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
 
   // 編集保存
   const saveEdit = async () => {
-    if (!editingComment) return;
+    if (!editingComment || !editingComment.content.trim()) return;
     
     try {
       debugLog('編集保存開始', editingComment);
@@ -116,6 +117,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     } catch (error) {
       debugLog('編集保存エラー', error);
       console.error('編集に失敗:', error);
+      alert('コメントの編集に失敗しました。もう一度お試しください。');
     }
   };
 
@@ -141,6 +143,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
       } catch (error) {
         debugLog('コメント削除エラー', error);
         console.error('コメント削除エラー:', error);
+        alert('コメントの削除に失敗しました。もう一度お試しください。');
       }
     }
   };
@@ -155,13 +158,21 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
         return; // 重複実行を防止
       }
 
-      await toggleLike(commentId);
-      debugLog('いいね処理完了', commentId);
+      // toggleLike関数が存在するかチェック
+      if (typeof toggleLike === 'function') {
+        await toggleLike(commentId);
+        debugLog('いいね処理完了', commentId);
+      } else {
+        debugLog('toggleLike関数が利用できません');
+        console.warn('いいね機能は現在利用できません');
+      }
     } catch (error) {
       debugLog('いいね処理エラー', error);
       console.error('いいね処理エラー:', error);
-      // エラーメッセージをユーザーに表示
-      alert('いいねの処理に失敗しました。もう一度お試しください。');
+      // エラーの詳細をログに出力
+      if (error instanceof Error) {
+        console.error('エラー詳細:', error.message, error.stack);
+      }
     }
   };
 
@@ -179,20 +190,25 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
 
   // 日付フォーマット
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    
-    if (hours < 1) {
-      return 'たった今';
-    } else if (hours < 24) {
-      return `${hours}時間前`;
-    } else {
-      return date.toLocaleDateString('ja-JP', {
-        month: 'short',
-        day: 'numeric'
-      });
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diff = now.getTime() - date.getTime();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      
+      if (hours < 1) {
+        return 'たった今';
+      } else if (hours < 24) {
+        return `${hours}時間前`;
+      } else {
+        return date.toLocaleDateString('ja-JP', {
+          month: 'short',
+          day: 'numeric'
+        });
+      }
+    } catch (error) {
+      console.error('日付フォーマットエラー:', error);
+      return '不明';
     }
   };
 
@@ -263,13 +279,18 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
                   src={comment.user_avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop'}
                   alt={comment.user_name}
                   className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                  onError={(e) => {
+                    // 画像読み込みエラー時のフォールバック
+                    const target = e.target as HTMLImageElement;
+                    target.src = 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop';
+                  }}
                 />
                 <div className="flex-1 min-w-0">
                   <div className="bg-gray-50 rounded-2xl px-4 py-3 relative group">
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center space-x-2">
                         <span className="font-medium text-sm text-gray-900 truncate">
-                          {comment.user_name}
+                          {comment.user_name || '不明'}
                         </span>
                         <span className="text-xs text-gray-500 flex-shrink-0">
                           {formatDate(comment.created_at)}
@@ -312,23 +333,29 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
                           className="w-full p-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300"
                           rows={2}
                           placeholder="コメントを編集..."
+                          maxLength={500}
                         />
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={saveEdit}
-                            className="inline-flex items-center space-x-1 px-2 py-1 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors"
-                            disabled={!editingComment.content.trim()}
-                          >
-                            <Check size={12} />
-                            <span>保存</span>
-                          </button>
-                          <button
-                            onClick={cancelEdit}
-                            className="inline-flex items-center space-x-1 px-2 py-1 bg-gray-500 text-white text-xs rounded-md hover:bg-gray-600 transition-colors"
-                          >
-                            <X size={12} />
-                            <span>キャンセル</span>
-                          </button>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={saveEdit}
+                              className="inline-flex items-center space-x-1 px-2 py-1 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50"
+                              disabled={!editingComment.content.trim()}
+                            >
+                              <Check size={12} />
+                              <span>保存</span>
+                            </button>
+                            <button
+                              onClick={cancelEdit}
+                              className="inline-flex items-center space-x-1 px-2 py-1 bg-gray-500 text-white text-xs rounded-md hover:bg-gray-600 transition-colors"
+                            >
+                              <X size={12} />
+                              <span>キャンセル</span>
+                            </button>
+                          </div>
+                          <span className={`text-xs ${editingComment.content.length > 450 ? 'text-orange-500 font-medium' : 'text-gray-400'}`}>
+                            {editingComment.content.length}/500
+                          </span>
                         </div>
                       </div>
                     ) : (
@@ -343,7 +370,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
                     <button
                       onClick={() => handleLike(comment.id)}
                       className={getLikeButtonClass(comment.id, likeState.isLiked)}
-                      disabled={isLikingComment === comment.id}
+                      disabled={isLikingComment === comment.id || !toggleLike}
                       aria-label={likeState.isLiked ? 'いいねを取り消す' : 'いいね'}
                       title={likeState.isLiked ? 'いいねを取り消す' : 'いいね'}
                     >
@@ -385,6 +412,11 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
                 rows={1}
                 style={{ minHeight: '44px', maxHeight: '120px' }}
                 onKeyDown={(e) => {
+                  // 日本語入力中（IME使用中）は無視
+                  if (e.nativeEvent.isComposing || e.keyCode === 229) {
+                    return;
+                  }
+                  
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     handleSubmit(e);
