@@ -1,4 +1,4 @@
-// src/hooks/useComments.ts - Phase 2: いいね機能実装版
+// src/hooks/useComments.ts - 修正版（Hooksルール準拠 + 完全ないいね機能）
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useEnvironment } from './useEnvironment';
@@ -12,7 +12,7 @@ const debugLog = (message: string, data?: any) => {
   }
 };
 
-// Phase 2: いいね状態の型定義
+// いいね状態の型定義
 interface LikeState {
   count: number;
   isLiked: boolean;
@@ -24,7 +24,7 @@ export const useComments = (photoId?: string) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Phase 2: いいね機能の状態管理
+  // いいね機能の状態管理
   const [likesState, setLikesState] = useState<Record<string, LikeState>>({});
   const [isLikingComment, setIsLikingComment] = useState<string | null>(null);
   
@@ -32,7 +32,7 @@ export const useComments = (photoId?: string) => {
   const { isDemo } = useEnvironment();
   const { user, profile } = useApp();
 
-  // Phase 2: デモコメントデータの改善（いいね情報を含む）
+  // デモコメントデータの改善（いいね情報を含む）
   const getDemoComments = useCallback((targetPhotoId: string): Comment[] => {
     const demoComments: Comment[] = [
       {
@@ -93,7 +93,7 @@ export const useComments = (photoId?: string) => {
     return demoComments;
   }, []);
 
-  // Phase 2: デモ用いいね状態の初期化
+  // デモ用いいね状態の初期化
   const initializeDemoLikes = useCallback((comments: Comment[]) => {
     const initialLikes: Record<string, LikeState> = {};
     
@@ -139,16 +139,13 @@ export const useComments = (photoId?: string) => {
         // デモモードでのコメント取得
         const demoComments = getDemoComments(currentPhotoId);
         
-        setTimeout(() => {
-          setComments(demoComments);
-          // Phase 2: いいね状態も初期化
-          initializeDemoLikes(demoComments);
-          setLoading(false);
-          debugLog('デモコメント取得完了', { 
-            photoId: currentPhotoId, 
-            commentCount: demoComments.length 
-          });
-        }, 100);
+        setComments(demoComments);
+        initializeDemoLikes(demoComments);
+        setLoading(false);
+        debugLog('デモコメント取得完了', { 
+          photoId: currentPhotoId, 
+          commentCount: demoComments.length 
+        });
         return;
       }
 
@@ -176,7 +173,7 @@ export const useComments = (photoId?: string) => {
 
       setComments(commentsWithUserInfo);
       
-      // Phase 2: いいね状態を初期化
+      // いいね状態を初期化
       const initialLikes: Record<string, LikeState> = {};
       commentsWithUserInfo.forEach((comment: Comment) => {
         initialLikes[comment.id] = {
@@ -228,7 +225,7 @@ export const useComments = (photoId?: string) => {
         // 楽観的更新
         setComments(prev => [...prev, newComment]);
         
-        // Phase 2: 新しいコメントのいいね状態を初期化
+        // 新しいコメントのいいね状態を初期化
         setLikesState(prev => ({
           ...prev,
           [newComment.id]: { count: 0, isLiked: false }
@@ -280,7 +277,7 @@ export const useComments = (photoId?: string) => {
       // 楽観的更新
       setComments(prev => [...prev, newComment]);
       
-      // Phase 2: 新しいコメントのいいね状態を初期化
+      // 新しいコメントのいいね状態を初期化
       setLikesState(prev => ({
         ...prev,
         [newComment.id]: { count: 0, isLiked: false }
@@ -376,7 +373,7 @@ export const useComments = (photoId?: string) => {
         const filteredComments = comments.filter(comment => comment.id !== id);
         setComments(filteredComments);
         
-        // Phase 2: いいね状態も削除
+        // いいね状態も削除
         setLikesState(prev => {
           const newState = { ...prev };
           delete newState[id];
@@ -415,7 +412,7 @@ export const useComments = (photoId?: string) => {
       // 楽観的更新
       setComments(prev => prev.filter(comment => comment.id !== id));
       
-      // Phase 2: いいね状態も削除
+      // いいね状態も削除
       setLikesState(prev => {
         const newState = { ...prev };
         delete newState[id];
@@ -430,7 +427,7 @@ export const useComments = (photoId?: string) => {
     }
   }, [isDemo, comments, photoId]);
 
-  // Phase 2: いいね機能のメイン処理
+  // いいね機能のメイン処理
   const toggleLike = useCallback(async (commentId: string) => {
     try {
       debugLog('いいね処理開始', { commentId, isDemo });
@@ -556,7 +553,7 @@ export const useComments = (photoId?: string) => {
     addComment,
     updateComment,
     deleteComment,
-    // Phase 2: いいね機能を追加
+    // いいね機能
     toggleLike,
     likesState,
     isLikingComment,

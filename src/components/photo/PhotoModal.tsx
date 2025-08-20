@@ -1,4 +1,4 @@
-// src/components/photo/PhotoModal.tsx - Phase 2: コメント自動表示とボタン改善版
+// src/components/photo/PhotoModal.tsx - 修正版（写真いいね機能 + 安定したコメント表示）
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Calendar, User, X } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -6,6 +6,7 @@ import { CommentSection } from './CommentSection';
 import { PhotoDeleteButton } from './PhotoDeleteButton';
 import { useApp } from '../../context/AppContext';
 import { useComments } from '../../hooks/useComments';
+import { useEnvironment } from '../../hooks/useEnvironment';
 import type { Photo, Comment } from '../../types/core';
 
 // Props型の厳密な定義
@@ -27,6 +28,12 @@ interface PhotoModalProps {
   ariaDescribedBy?: string;
 }
 
+// 写真いいね状態の型定義
+interface PhotoLikeState {
+  count: number;
+  isLiked: boolean;
+}
+
 export const PhotoModal: React.FC<PhotoModalProps> = ({
   photo,
   isOpen,
@@ -45,8 +52,13 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showCommentsPanel, setShowCommentsPanel] = useState(false);
+  
+  // 写真いいね機能の状態
+  const [photoLikes, setPhotoLikes] = useState<Record<string, PhotoLikeState>>({});
+  const [isLikingPhoto, setIsLikingPhoto] = useState<string | null>(null);
 
   const { currentAlbum } = useApp();
+  const { isDemo } = useEnvironment();
 
   // デバッグログ（最初に宣言）
   const debugLog = useCallback((message: string, data?: any) => {
@@ -68,8 +80,104 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     return photo;
   }, [photo, photos, currentIndex]);
 
-  // Phase 2: 現在の写真のコメントを直接取得（自動表示判定のため）
+  // 現在の写真のコメントを直接取得（自動表示判定のため）
   const { comments, loading: commentsLoading } = useComments(currentPhoto?.id);
+
+  // 写真いいね状態の初期化
+  const initializePhotoLikes = useCallback((photo: Photo) => {
+    if (!photo) return;
+
+    if (isDemo) {
+      // デモモードでローカルストレージから読み込み
+      try {
+        const savedLikes = localStorage.getItem(`photoLikes_${photo.id}`);
+        if (savedLikes) {
+          const likeState = JSON.parse(savedLikes);
+          setPhotoLikes(prev => ({
+            ...prev,
+            [photo.id]: likeState
+          }));
+        } else {
+          // デフォルト値
+          setPhotoLikes(prev => ({
+            ...prev,
+            [photo.id]: { count: Math.floor(Math.random() * 20), isLiked: false }
+          }));
+        }
+      } catch (error) {
+        debugLog('写真いいね状態読み込みエラー', error);
+      }
+    } else {
+      // 実際のSupabaseから取得（将来の実装）
+      setPhotoLikes(prev => ({
+        ...prev,
+        [photo.id]: { count: 0, isLiked: false }
+      }));
+    }
+  }, [isDemo, debugLog]);
+
+  // 写真いいね機能
+  const togglePhotoLike = useCallback(async (photoId: string) => {
+    try {
+      debugLog('写真いいね処理開始', { photoId, isDemo });
+      
+      if (isLikingPhoto === photoId) {
+        debugLog('既に写真いいね処理中', photoId);
+        return;
+      }
+      
+      setIsLikingPhoto(photoId);
+      
+      const currentState = photoLikes[photoId] || { count: 0, isLiked: false };
+      const newIsLiked = !currentState.isLiked;
+      const newCount = newIsLiked ? currentState.count + 1 : Math.max(0, currentState.count - 1);
+
+      // 楽観的更新
+      setPhotoLikes(prev => ({
+        ...prev,
+        [photoId]: {
+          count: newCount,
+          isLiked: newIsLiked
+        }
+      }));
+
+      debugLog('写真いいね楽観的更新', { photoId, newCount, newIsLiked });
+
+      if (isDemo) {
+        // デモモードではローカルストレージに保存
+        try {
+          localStorage.setItem(`photoLikes_${photoId}`, JSON.stringify({
+            count: newCount,
+            isLiked: newIsLiked
+          }));
+          debugLog('写真いいね状態保存完了', { photoId, newCount, newIsLiked });
+        } catch (error) {
+          debugLog('写真いいね保存エラー', error);
+          // エラー時はロールバック
+          setPhotoLikes(prev => ({
+            ...prev,
+            [photoId]: currentState
+          }));
+          throw new Error('写真いいねの保存に失敗しました');
+        }
+      } else {
+        // 実際のSupabase処理（将来の実装）
+        debugLog('写真いいねSupabase処理完了', { photoId, newIsLiked });
+      }
+    } catch (error) {
+      debugLog('写真いいね処理エラー', error);
+      console.error('写真いいね処理エラー:', error);
+      
+      // エラー時はロールバック
+      const originalState = photoLikes[photoId] || { count: 0, isLiked: false };
+      setPhotoLikes(prev => ({
+        ...prev,
+        [photoId]: originalState
+      }));
+    } finally {
+      setIsLikingPhoto(null);
+    }
+  }, [isDemo, photoLikes, isLikingPhoto, debugLog]);
 
   // photoの変更を監視してインデックスを更新
   useEffect(() => {
@@ -87,7 +195,14 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     }
   }, [photo, photos, debugLog]);
 
-  // Phase 2: コメント自動表示ロジック - コメントが存在する場合は自動でパネルを表示
+  // 現在の写真が変更されたときの処理
+  useEffect(() => {
+    if (currentPhoto) {
+      initializePhotoLikes(currentPhoto);
+    }
+  }, [currentPhoto, initializePhotoLikes]);
+
+  // コメント自動表示ロジック - コメントが存在する場合は自動でパネルを表示
   useEffect(() => {
     if (isOpen && currentPhoto && comments.length > 0 && !commentsLoading) {
       debugLog('コメントが存在するため自動表示', { 
@@ -135,7 +250,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   // モーダルを閉じる処理
   const handleClose = useCallback(() => {
     debugLog('モーダルを閉じる');
-    setShowCommentsPanel(false);
+    // コメントパネルの状態はリセットしない（改善点）
     setError(null);
     onClose();
   }, [onClose, debugLog]);
@@ -229,7 +344,45 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     }
   }, []);
 
-  // Phase 2: 改善されたコメントボタン - コメント数を正確に反映し、バッジ表示
+  // 写真いいねボタンのレンダリング
+  const renderPhotoLikeButton = useCallback(() => {
+    if (!currentPhoto) return null;
+
+    const likeState = photoLikes[currentPhoto.id] || { count: 0, isLiked: false };
+    const isLoading = isLikingPhoto === currentPhoto.id;
+
+    return (
+      <Button 
+        variant="outline" 
+        size="sm" 
+        className={`flex items-center space-x-2 transition-all duration-200 ${
+          likeState.isLiked 
+            ? 'text-red-500 border-red-300 bg-red-50 hover:bg-red-100' 
+            : 'text-gray-500 hover:text-red-500 hover:border-red-300'
+        }`}
+        onClick={() => togglePhotoLike(currentPhoto.id)}
+        disabled={isLoading}
+        aria-label={likeState.isLiked ? '写真のいいねを取り消す' : '写真にいいね'}
+        title={likeState.isLiked ? 'いいねを取り消す' : 'いいね'}
+      >
+        <Heart 
+          size={16} 
+          fill={likeState.isLiked ? 'currentColor' : 'none'}
+          className={`transition-transform duration-200 ${
+            isLoading ? 'scale-110 animate-pulse' : 'hover:scale-110'
+          }`}
+        />
+        <span className="font-medium">
+          {likeState.count > 999 ? '999+' : likeState.count}
+        </span>
+        {isLoading && (
+          <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+        )}
+      </Button>
+    );
+  }, [currentPhoto, photoLikes, isLikingPhoto, togglePhotoLike]);
+
+  // 改善されたコメントボタン - コメント数を正確に反映し、バッジ表示
   const renderCommentButton = useCallback(() => {
     if (!showComments) return null;
 
@@ -246,7 +399,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
         <span>
           {commentsLoading ? '読み込み中...' : 'コメント'}
         </span>
-        {/* Phase 2: コメント数バッジ - 0より大きい場合のみ表示 */}
+        {/* コメント数バッジ - 0より大きい場合のみ表示 */}
         {comments.length > 0 && (
           <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
             {comments.length > 99 ? '99+' : comments.length}
@@ -256,7 +409,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     );
   }, [showComments, showCommentsPanel, comments.length, commentsLoading]);
 
-  // Phase 2: コメント変更通知のハンドラー（CommentSectionから呼び出される）
+  // コメント変更通知のハンドラー（CommentSectionから呼び出される）
   const handleCommentsChange = useCallback((updatedComments: Comment[]) => {
     debugLog('コメント数変更通知:', { 
       photoId: currentPhoto?.id,
@@ -384,17 +537,10 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
 
               <div className="flex items-center justify-between mt-4">
                 <div className="flex items-center space-x-4">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex items-center space-x-2 focus-ring"
-                    aria-label="いいね"
-                  >
-                    <Heart size={16} />
-                    <span>いいね</span>
-                  </Button>
+                  {/* 写真いいねボタン */}
+                  {renderPhotoLikeButton()}
                   
-                  {/* Phase 2: 改善されたコメントボタン */}
+                  {/* 改善されたコメントボタン */}
                   {renderCommentButton()}
                 </div>
                 
@@ -409,7 +555,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
               </div>
             </div>
 
-            {/* Phase 2: コメントセクション（自動表示または手動表示） */}
+            {/* コメントセクション（自動表示または手動表示） */}
             {showComments && showCommentsPanel && (
               <div className="flex-1 overflow-hidden">
                 <CommentSection 
