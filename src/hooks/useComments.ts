@@ -1,4 +1,4 @@
-// src/hooks/useComments.ts - Phase 1 改善版
+// src/hooks/useComments.ts - Phase 2: いいね機能実装版
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useEnvironment } from './useEnvironment';
@@ -12,17 +12,27 @@ const debugLog = (message: string, data?: any) => {
   }
 };
 
+// Phase 2: いいね状態の型定義
+interface LikeState {
+  count: number;
+  isLiked: boolean;
+}
+
 export const useComments = (photoId?: string) => {
   // すべてのHooksをトップレベルで宣言（Hooksルール遵守）
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // Phase 2: いいね機能の状態管理
+  const [likesState, setLikesState] = useState<Record<string, LikeState>>({});
+  const [isLikingComment, setIsLikingComment] = useState<string | null>(null);
+  
   // 環境情報をHookで取得
   const { isDemo } = useEnvironment();
   const { user, profile } = useApp();
 
-  // Phase 1: デモコメントデータの改善
+  // Phase 2: デモコメントデータの改善（いいね情報を含む）
   const getDemoComments = useCallback((targetPhotoId: string): Comment[] => {
     const demoComments: Comment[] = [
       {
@@ -83,6 +93,35 @@ export const useComments = (photoId?: string) => {
     return demoComments;
   }, []);
 
+  // Phase 2: デモ用いいね状態の初期化
+  const initializeDemoLikes = useCallback((comments: Comment[]) => {
+    const initialLikes: Record<string, LikeState> = {};
+    
+    comments.forEach(comment => {
+      // ローカルストレージから保存されたいいね状態を確認
+      try {
+        const savedLikes = localStorage.getItem(`commentLikes_${comment.id}`);
+        if (savedLikes) {
+          initialLikes[comment.id] = JSON.parse(savedLikes);
+        } else {
+          initialLikes[comment.id] = {
+            count: comment.likes_count || 0,
+            isLiked: comment.is_liked || false
+          };
+        }
+      } catch (error) {
+        // エラー時はデフォルト値を使用
+        initialLikes[comment.id] = {
+          count: comment.likes_count || 0,
+          isLiked: comment.is_liked || false
+        };
+      }
+    });
+    
+    setLikesState(initialLikes);
+    debugLog('デモいいね状態初期化', initialLikes);
+  }, []);
+
   const fetchComments = useCallback(async (targetPhotoId?: string) => {
     const currentPhotoId = targetPhotoId || photoId;
     
@@ -102,12 +141,14 @@ export const useComments = (photoId?: string) => {
         
         setTimeout(() => {
           setComments(demoComments);
+          // Phase 2: いいね状態も初期化
+          initializeDemoLikes(demoComments);
           setLoading(false);
           debugLog('デモコメント取得完了', { 
             photoId: currentPhotoId, 
             commentCount: demoComments.length 
           });
-        }, 100); // 遅延を短縮して即座に表示
+        }, 100);
         return;
       }
 
@@ -116,7 +157,9 @@ export const useComments = (photoId?: string) => {
         .from('comments')
         .select(`
           *,
-          profiles!comments_user_id_fkey(name, avatar_url)
+          profiles!comments_user_id_fkey(name, avatar_url),
+          comment_likes(count),
+          comment_likes!inner(user_id)
         `)
         .eq('photo_id', currentPhotoId)
         .order('created_at', { ascending: true });
@@ -127,9 +170,22 @@ export const useComments = (photoId?: string) => {
         ...comment,
         user_name: comment.profiles?.name || '不明',
         user_avatar: comment.profiles?.avatar_url || null,
+        likes_count: comment.comment_likes?.[0]?.count || 0,
+        is_liked: comment.comment_likes?.some((like: any) => like.user_id === user?.id) || false,
       }));
 
       setComments(commentsWithUserInfo);
+      
+      // Phase 2: いいね状態を初期化
+      const initialLikes: Record<string, LikeState> = {};
+      commentsWithUserInfo.forEach((comment: Comment) => {
+        initialLikes[comment.id] = {
+          count: comment.likes_count || 0,
+          isLiked: comment.is_liked || false
+        };
+      });
+      setLikesState(initialLikes);
+      
       debugLog('Supabaseコメント取得完了', { 
         photoId: currentPhotoId, 
         commentCount: commentsWithUserInfo.length 
@@ -141,9 +197,8 @@ export const useComments = (photoId?: string) => {
     } finally {
       setLoading(false);
     }
-  }, [photoId, isDemo, getDemoComments]);
+  }, [photoId, isDemo, getDemoComments, initializeDemoLikes, user?.id]);
 
-  // Phase 1: コメント追加処理の改善
   const addComment = useCallback(async (content: string, targetPhotoId?: string, parentId?: string) => {
     const currentPhotoId = targetPhotoId || photoId;
     
@@ -170,8 +225,14 @@ export const useComments = (photoId?: string) => {
           is_liked: false,
         };
 
-        // Phase 1: 楽観的更新
+        // 楽観的更新
         setComments(prev => [...prev, newComment]);
+        
+        // Phase 2: 新しいコメントのいいね状態を初期化
+        setLikesState(prev => ({
+          ...prev,
+          [newComment.id]: { count: 0, isLiked: false }
+        }));
         
         // ローカルストレージに保存
         try {
@@ -212,10 +273,19 @@ export const useComments = (photoId?: string) => {
         ...data,
         user_name: data.profiles?.name || '不明',
         user_avatar: data.profiles?.avatar_url || null,
+        likes_count: 0,
+        is_liked: false,
       };
 
-      // Phase 1: 楽観的更新
+      // 楽観的更新
       setComments(prev => [...prev, newComment]);
+      
+      // Phase 2: 新しいコメントのいいね状態を初期化
+      setLikesState(prev => ({
+        ...prev,
+        [newComment.id]: { count: 0, isLiked: false }
+      }));
+      
       debugLog('Supabaseコメント追加完了', newComment);
       return newComment;
     } catch (err) {
@@ -225,13 +295,12 @@ export const useComments = (photoId?: string) => {
     }
   }, [photoId, isDemo, profile, user]);
 
-  // Phase 1: コメント更新処理の改善
   const updateComment = useCallback(async (id: string, content: string) => {
     try {
       debugLog('コメント更新開始', { id, content });
 
       if (isDemo) {
-        // Phase 1: 楽観的更新（デモモード）
+        // 楽観的更新（デモモード）
         const updatedComments = comments.map(comment =>
           comment.id === id
             ? { ...comment, content, updated_at: new Date().toISOString() }
@@ -282,7 +351,7 @@ export const useComments = (photoId?: string) => {
         user_avatar: data.profiles?.avatar_url || null,
       };
 
-      // Phase 1: 楽観的更新
+      // 楽観的更新
       setComments(prev => 
         prev.map(comment => 
           comment.id === id ? updatedComment : comment
@@ -298,15 +367,21 @@ export const useComments = (photoId?: string) => {
     }
   }, [isDemo, comments, photoId]);
 
-  // Phase 1: コメント削除処理の改善
   const deleteComment = useCallback(async (id: string) => {
     try {
       debugLog('コメント削除開始', id);
 
       if (isDemo) {
-        // Phase 1: 楽観的更新（デモモード）
+        // 楽観的更新（デモモード）
         const filteredComments = comments.filter(comment => comment.id !== id);
         setComments(filteredComments);
+        
+        // Phase 2: いいね状態も削除
+        setLikesState(prev => {
+          const newState = { ...prev };
+          delete newState[id];
+          return newState;
+        });
         
         // ローカルストレージからも削除
         try {
@@ -320,6 +395,8 @@ export const useComments = (photoId?: string) => {
               localStorage.setItem(savedCommentsKey, JSON.stringify(filteredList));
             }
           }
+          // いいね状態も削除
+          localStorage.removeItem(`commentLikes_${id}`);
         } catch (error) {
           debugLog('ローカルストレージ削除エラー', error);
         }
@@ -335,8 +412,16 @@ export const useComments = (photoId?: string) => {
 
       if (error) throw error;
 
-      // Phase 1: 楽観的更新
+      // 楽観的更新
       setComments(prev => prev.filter(comment => comment.id !== id));
+      
+      // Phase 2: いいね状態も削除
+      setLikesState(prev => {
+        const newState = { ...prev };
+        delete newState[id];
+        return newState;
+      });
+      
       debugLog('Supabaseコメント削除完了', id);
     } catch (err) {
       debugLog('コメント削除エラー', err);
@@ -344,6 +429,96 @@ export const useComments = (photoId?: string) => {
       throw new Error('コメントの削除に失敗しました');
     }
   }, [isDemo, comments, photoId]);
+
+  // Phase 2: いいね機能のメイン処理
+  const toggleLike = useCallback(async (commentId: string) => {
+    try {
+      debugLog('いいね処理開始', { commentId, isDemo });
+      
+      // 重複実行を防止
+      if (isLikingComment === commentId) {
+        debugLog('既にいいね処理中', commentId);
+        return;
+      }
+      
+      setIsLikingComment(commentId);
+      
+      const currentState = likesState[commentId] || { count: 0, isLiked: false };
+      const newIsLiked = !currentState.isLiked;
+      const newCount = newIsLiked ? currentState.count + 1 : Math.max(0, currentState.count - 1);
+
+      // 楽観的更新
+      setLikesState(prev => ({
+        ...prev,
+        [commentId]: {
+          count: newCount,
+          isLiked: newIsLiked
+        }
+      }));
+
+      debugLog('いいね楽観的更新', { commentId, newCount, newIsLiked });
+
+      if (isDemo) {
+        // デモモードではローカルストレージに保存
+        try {
+          localStorage.setItem(`commentLikes_${commentId}`, JSON.stringify({
+            count: newCount,
+            isLiked: newIsLiked
+          }));
+          debugLog('デモいいね状態保存完了', { commentId, newCount, newIsLiked });
+        } catch (error) {
+          debugLog('デモいいね保存エラー', error);
+          // エラー時はロールバック
+          setLikesState(prev => ({
+            ...prev,
+            [commentId]: currentState
+          }));
+          throw new Error('いいねの保存に失敗しました');
+        }
+      } else {
+        // 実際のSupabase処理
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (!currentUser) throw new Error('ログインが必要です');
+
+        if (newIsLiked) {
+          // いいねを追加
+          const { error } = await supabase
+            .from('comment_likes')
+            .insert({
+              comment_id: commentId,
+              user_id: currentUser.id
+            });
+          
+          if (error) throw error;
+        } else {
+          // いいねを削除
+          const { error } = await supabase
+            .from('comment_likes')
+            .delete()
+            .eq('comment_id', commentId)
+            .eq('user_id', currentUser.id);
+          
+          if (error) throw error;
+        }
+        
+        debugLog('Supabaseいいね処理完了', { commentId, newIsLiked });
+      }
+    } catch (error) {
+      debugLog('いいね処理エラー', error);
+      console.error('いいね処理エラー:', error);
+      
+      // エラー時はロールバック
+      const originalState = likesState[commentId] || { count: 0, isLiked: false };
+      setLikesState(prev => ({
+        ...prev,
+        [commentId]: originalState
+      }));
+      
+      throw error;
+    } finally {
+      setIsLikingComment(null);
+    }
+  }, [isDemo, likesState, isLikingComment, user?.id]);
 
   // 写真IDが変更されたときにコメントを取得
   useEffect(() => {
@@ -353,6 +528,7 @@ export const useComments = (photoId?: string) => {
     } else {
       // 写真IDがない場合はコメントをクリア
       setComments([]);
+      setLikesState({});
       setError(null);
     }
   }, [photoId, fetchComments]);
@@ -365,11 +541,12 @@ export const useComments = (photoId?: string) => {
         commentCount: comments.length, 
         loading, 
         error,
+        likesStateCount: Object.keys(likesState).length,
         isDemo,
         commentIds: comments.map(c => c.id).slice(0, 3) // 最初の3つのIDのみ
       });
     }
-  }, [photoId, comments, loading, error, isDemo]);
+  }, [photoId, comments, loading, error, likesState, isDemo]);
 
   return {
     comments,
@@ -379,5 +556,9 @@ export const useComments = (photoId?: string) => {
     addComment,
     updateComment,
     deleteComment,
+    // Phase 2: いいね機能を追加
+    toggleLike,
+    likesState,
+    isLikingComment,
   };
 };
