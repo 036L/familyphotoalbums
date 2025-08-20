@@ -1,4 +1,4 @@
-// src/components/photo/CommentSection.tsx - Phase 1 改善版
+// src/components/photo/CommentSection.tsx - Phase 2: いいね機能実装版
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Send, Mic, Heart, MoreHorizontal, Edit, Trash2, Check, X } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -19,12 +19,22 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     id: string;
     content: string;
   } | null>(null);
-  const [isLikingComment, setIsLikingComment] = useState<string | null>(null);
   
   const commentsSectionRef = useRef<HTMLDivElement>(null);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   
-  const { comments, loading, addComment, updateComment, deleteComment } = useComments(photoId);
+  // Phase 2: 拡張されたuseCommentsを使用（いいね機能付き）
+  const { 
+    comments, 
+    loading, 
+    addComment, 
+    updateComment, 
+    deleteComment,
+    toggleLike,
+    likesState,
+    isLikingComment
+  } = useComments(photoId);
+  
   const { user, profile } = useApp();
   const { canDeleteResource, canEditResource } = usePermissions();
 
@@ -43,7 +53,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     }
   }, [comments, onCommentsChange, debugLog]);
 
-  // Phase 1: 権限チェック（自分のコメントのみ編集・削除可能）
+  // Phase 2: 権限チェック（自分のコメントのみ編集・削除可能）
   const canManageComment = useCallback((comment: Comment): boolean => {
     const currentUserId = user?.id || profile?.id;
     return comment.user_id === currentUserId || profile?.role === 'admin';
@@ -59,7 +69,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
       await addComment(newComment, photoId);
       setNewComment('');
       
-      // Phase 1: 新しいコメント投稿後の自動スクロール
+      // 新しいコメント投稿後の自動スクロール
       setTimeout(() => {
         if (commentsSectionRef.current) {
           commentsSectionRef.current.scrollTop = commentsSectionRef.current.scrollHeight;
@@ -72,7 +82,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     }
   };
 
-  // Phase 1: 編集開始
+  // 編集開始
   const startEditing = useCallback((comment: Comment) => {
     if (!canManageComment(comment)) {
       debugLog('編集権限なし', comment.id);
@@ -94,7 +104,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     }, 50);
   }, [canManageComment, debugLog]);
 
-  // Phase 1: 編集保存
+  // 編集保存
   const saveEdit = async () => {
     if (!editingComment) return;
     
@@ -109,13 +119,13 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     }
   };
 
-  // Phase 1: 編集キャンセル
+  // 編集キャンセル
   const cancelEdit = useCallback(() => {
     setEditingComment(null);
     debugLog('編集キャンセル');
   }, [debugLog]);
 
-  // Phase 1: コメント削除
+  // コメント削除
   const handleDeleteComment = async (commentId: string) => {
     const comment = comments.find(c => c.id === commentId);
     if (!comment || !canManageComment(comment)) {
@@ -135,19 +145,27 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     }
   };
 
-  // Phase 1: いいね機能（準備）
+  // Phase 2: いいね機能のメイン処理
   const handleLike = async (commentId: string) => {
-    // Phase 2 で実装予定
-    debugLog('いいね機能（Phase 2 で実装予定）', commentId);
-    setIsLikingComment(commentId);
-    
-    // デモ用の簡単なアニメーション
-    setTimeout(() => {
-      setIsLikingComment(null);
-    }, 300);
+    try {
+      debugLog('いいね処理開始', { commentId, isLiking: isLikingComment === commentId });
+      
+      if (isLikingComment === commentId) {
+        debugLog('既にいいね処理中', commentId);
+        return; // 重複実行を防止
+      }
+
+      await toggleLike(commentId);
+      debugLog('いいね処理完了', commentId);
+    } catch (error) {
+      debugLog('いいね処理エラー', error);
+      console.error('いいね処理エラー:', error);
+      // エラーメッセージをユーザーに表示
+      alert('いいねの処理に失敗しました。もう一度お試しください。');
+    }
   };
 
-  // Phase 1: ESCキーでキャンセル
+  // ESCキーでキャンセル
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && editingComment) {
@@ -176,6 +194,25 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
         day: 'numeric'
       });
     }
+  };
+
+  // Phase 2: いいね数の表示フォーマット
+  const formatLikeCount = (count: number): string => {
+    if (count === 0) return '0';
+    if (count < 1000) return count.toString();
+    if (count < 1000000) return `${Math.floor(count / 100) / 10}k`;
+    return `${Math.floor(count / 100000) / 10}M`;
+  };
+
+  // Phase 2: いいねボタンのアニメーション用クラス
+  const getLikeButtonClass = (commentId: string, isLiked: boolean): string => {
+    const baseClass = "flex items-center space-x-1 text-xs transition-all duration-200";
+    const loadingClass = isLikingComment === commentId ? "animate-pulse" : "";
+    const colorClass = isLiked 
+      ? "text-red-500 hover:text-red-600" 
+      : "text-gray-500 hover:text-red-500";
+    
+    return `${baseClass} ${loadingClass} ${colorClass}`;
   };
 
   return (
@@ -213,110 +250,125 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
             <p className="text-sm text-gray-400 mt-1">最初のコメントを投稿してみましょう</p>
           </div>
         ) : (
-          comments.map((comment) => (
-            <div key={comment.id} className="flex space-x-3">
-              <img
-                src={comment.user_avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop'}
-                alt={comment.user_name}
-                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="bg-gray-50 rounded-2xl px-4 py-3 relative group">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium text-sm text-gray-900 truncate">
-                        {comment.user_name}
-                      </span>
-                      <span className="text-xs text-gray-500 flex-shrink-0">
-                        {formatDate(comment.created_at)}
-                      </span>
+          comments.map((comment) => {
+            // Phase 2: いいね状態の取得（フォールバック付き）
+            const likeState = likesState[comment.id] || { 
+              count: comment.likes_count || 0, 
+              isLiked: comment.is_liked || false 
+            };
+            
+            return (
+              <div key={comment.id} className="flex space-x-3">
+                <img
+                  src={comment.user_avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop'}
+                  alt={comment.user_name}
+                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="bg-gray-50 rounded-2xl px-4 py-3 relative group">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium text-sm text-gray-900 truncate">
+                          {comment.user_name}
+                        </span>
+                        <span className="text-xs text-gray-500 flex-shrink-0">
+                          {formatDate(comment.created_at)}
+                        </span>
+                      </div>
+                      
+                      {/* 編集・削除ボタン（権限チェック付き） */}
+                      {canManageComment(comment) && (
+                        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => startEditing(comment)}
+                            className="p-1 hover:bg-gray-200 rounded-full transition-colors"
+                            title="編集"
+                            aria-label="コメントを編集"
+                          >
+                            <Edit size={12} className="text-gray-500" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteComment(comment.id)}
+                            className="p-1 hover:bg-red-100 rounded-full transition-colors"
+                            title="削除"
+                            aria-label="コメントを削除"
+                          >
+                            <Trash2 size={12} className="text-red-500" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                     
-                    {/* Phase 1: 編集・削除ボタン（権限チェック付き） */}
-                    {canManageComment(comment) && (
-                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => startEditing(comment)}
-                          className="p-1 hover:bg-gray-200 rounded-full transition-colors"
-                          title="編集"
-                          aria-label="コメントを編集"
-                        >
-                          <Edit size={12} className="text-gray-500" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteComment(comment.id)}
-                          className="p-1 hover:bg-red-100 rounded-full transition-colors"
-                          title="削除"
-                          aria-label="コメントを削除"
-                        >
-                          <Trash2 size={12} className="text-red-500" />
-                        </button>
+                    {/* 編集モード */}
+                    {editingComment && editingComment.id === comment.id ? (
+                      <div className="space-y-2">
+                        <textarea
+                          ref={editInputRef}
+                          value={editingComment.content}
+                          onChange={(e) => setEditingComment({
+                            ...editingComment,
+                            content: e.target.value
+                          })}
+                          className="w-full p-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300"
+                          rows={2}
+                          placeholder="コメントを編集..."
+                        />
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={saveEdit}
+                            className="inline-flex items-center space-x-1 px-2 py-1 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors"
+                            disabled={!editingComment.content.trim()}
+                          >
+                            <Check size={12} />
+                            <span>保存</span>
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            className="inline-flex items-center space-x-1 px-2 py-1 bg-gray-500 text-white text-xs rounded-md hover:bg-gray-600 transition-colors"
+                          >
+                            <X size={12} />
+                            <span>キャンセル</span>
+                          </button>
+                        </div>
                       </div>
+                    ) : (
+                      <p className="text-gray-800 text-sm leading-relaxed break-words">
+                        {comment.content}
+                      </p>
                     )}
                   </div>
                   
-                  {/* Phase 1: 編集モード */}
-                  {editingComment && editingComment.id === comment.id ? (
-                    <div className="space-y-2">
-                      <textarea
-                        ref={editInputRef}
-                        value={editingComment.content}
-                        onChange={(e) => setEditingComment({
-                          ...editingComment,
-                          content: e.target.value
-                        })}
-                        className="w-full p-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300"
-                        rows={2}
-                        placeholder="コメントを編集..."
+                  {/* Phase 2: 改善されたいいねボタン */}
+                  <div className="flex items-center space-x-4 mt-2 ml-4">
+                    <button
+                      onClick={() => handleLike(comment.id)}
+                      className={getLikeButtonClass(comment.id, likeState.isLiked)}
+                      disabled={isLikingComment === comment.id}
+                      aria-label={likeState.isLiked ? 'いいねを取り消す' : 'いいね'}
+                      title={likeState.isLiked ? 'いいねを取り消す' : 'いいね'}
+                    >
+                      <Heart 
+                        size={14} 
+                        fill={likeState.isLiked ? 'currentColor' : 'none'}
+                        className={`transition-transform duration-200 ${
+                          isLikingComment === comment.id 
+                            ? 'scale-110' 
+                            : 'hover:scale-110'
+                        }`}
                       />
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={saveEdit}
-                          className="inline-flex items-center space-x-1 px-2 py-1 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors"
-                          disabled={!editingComment.content.trim()}
-                        >
-                          <Check size={12} />
-                          <span>保存</span>
-                        </button>
-                        <button
-                          onClick={cancelEdit}
-                          className="inline-flex items-center space-x-1 px-2 py-1 bg-gray-500 text-white text-xs rounded-md hover:bg-gray-600 transition-colors"
-                        >
-                          <X size={12} />
-                          <span>キャンセル</span>
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-gray-800 text-sm leading-relaxed break-words">
-                      {comment.content}
-                    </p>
-                  )}
-                </div>
-                
-                {/* Phase 1: アクションボタン（いいね） */}
-                <div className="flex items-center space-x-4 mt-2 ml-4">
-                  <button
-                    onClick={() => handleLike(comment.id)}
-                    className={`flex items-center space-x-1 text-xs transition-colors ${
-                      comment.is_liked 
-                        ? 'text-red-500 hover:text-red-600' 
-                        : 'text-gray-500 hover:text-red-500'
-                    }`}
-                    disabled={isLikingComment === comment.id}
-                    aria-label={comment.is_liked ? 'いいねを取り消す' : 'いいね'}
-                  >
-                    <Heart 
-                      size={14} 
-                      fill={comment.is_liked ? 'currentColor' : 'none'}
-                      className={isLikingComment === comment.id ? 'animate-pulse' : ''}
-                    />
-                    <span>{comment.likes_count || 0}</span>
-                  </button>
+                      <span className="font-medium">
+                        {formatLikeCount(likeState.count)}
+                      </span>
+                      {/* Phase 2: ローディング中の視覚的フィードバック */}
+                      {isLikingComment === comment.id && (
+                        <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin ml-1" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -338,6 +390,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
                     handleSubmit(e);
                   }
                 }}
+                maxLength={500}
               />
               <button
                 type="button"
@@ -366,7 +419,9 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
           {/* ヒント */}
           <div className="flex items-center justify-between text-xs text-gray-500">
             <span>Enterで投稿、Shift+Enterで改行</span>
-            <span>{newComment.length}/500</span>
+            <span className={newComment.length > 450 ? 'text-orange-500 font-medium' : ''}>
+              {newComment.length}/500
+            </span>
           </div>
         </form>
       </div>
