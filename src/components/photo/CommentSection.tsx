@@ -327,8 +327,16 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     }
   };
 
+  // Phase 2: 実際のいいね状態を取得（楽観的更新を優先）
+  const getEffectiveLikeState = useCallback((commentId: string) => {
+    // 楽観的更新を優先し、次にuseCommentsのlikesState、最後にデフォルト値
+    return optimisticUpdates.likes[commentId] || 
+           likesState[commentId] || 
+           { count: 0, isLiked: false };
+  }, [optimisticUpdates.likes, likesState]);
+
   // Phase 2: 改善されたいいね機能のメイン処理
-  const handleLike = async (commentId: string) => {
+  const handleLike = useCallback(async (commentId: string) => {
     try {
       debugLog('いいね処理開始', { commentId, isLiking: isLikingComment === commentId });
       
@@ -336,17 +344,18 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
         debugLog('既にいいね処理中', commentId);
         return; // 重複実行を防止
       }
-
+  
       if (!toggleLike) {
         debugLog('toggleLike関数が利用できません');
         errorHelpers.operationFailed('save', 'いいね機能は現在利用できません');
         return;
       }
-
-      const currentState = likesState[commentId] || { count: 0, isLiked: false };
+  
+      // 現在の状態を取得（楽観的更新を考慮）
+      const currentState = getEffectiveLikeState(commentId);
       const newIsLiked = !currentState.isLiked;
       const newCount = newIsLiked ? currentState.count + 1 : Math.max(0, currentState.count - 1);
-
+  
       // 楽観的更新
       setOptimisticUpdates(prev => ({
         ...prev,
@@ -355,10 +364,13 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
           [commentId]: { count: newCount, isLiked: newIsLiked }
         }
       }));
-
+  
+      debugLog('いいね楽観的更新', { commentId, newCount, newIsLiked });
+  
+      // useCommentsのtoggleLike関数を呼び出し
       await toggleLike(commentId);
       
-      // 永続化
+      // 永続化（デモモード用）
       persistCommentState(photoId, {
         likes: {
           ...optimisticUpdates.likes,
@@ -369,7 +381,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
       debugLog('いいね処理完了', commentId);
     } catch (error) {
       // エラー時：楽観的更新をロールバック
-      const originalState = likesState[commentId] || { count: 0, isLiked: false };
+      const originalState = getEffectiveLikeState(commentId);
       setOptimisticUpdates(prev => ({
         ...prev,
         likes: {
@@ -380,7 +392,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
       
       handleError(error, 'いいね', { commentId });
     }
-  };
+  }, [isLikingComment, toggleLike, getEffectiveLikeState, optimisticUpdates.likes, photoId, persistCommentState, debugLog, handleError]);
 
   // Phase 2: リトライ機能
   const retryAction = useCallback(async () => {
@@ -465,10 +477,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     return `${Math.floor(count / 100000) / 10}M`;
   };
 
-  // Phase 2: 実際のいいね状態を取得（楽観的更新を優先）
-  const getEffectiveLikeState = (commentId: string) => {
-    return optimisticUpdates.likes[commentId] || likesState[commentId] || { count: 0, isLiked: false };
-  };
 
   // Phase 2: 実際のコメント一覧を取得（楽観的更新を優先）
   const getEffectiveComments = () => {
@@ -667,39 +675,39 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
                   
                   {/* Phase 2: 改善されたいいねボタン */}
                   {!isTemporary && (
-                    <div className="flex items-center space-x-4 mt-2 ml-4">
-                      <button
+                  <div className="flex items-center space-x-4 mt-2 ml-4">
+                    <button
                         onClick={() => handleLike(comment.id)}
                         className={`flex items-center space-x-1 text-xs transition-all duration-200 ${
-                          likeState.isLiked 
-                            ? 'text-red-500 hover:text-red-600' 
-                            : 'text-gray-500 hover:text-red-500'
+                        getEffectiveLikeState(comment.id).isLiked 
+                          ? 'text-red-500 hover:text-red-600' 
+                          : 'text-gray-500 hover:text-red-500'
                         }`}
-                        disabled={isLikingComment === comment.id}
-                        aria-label={likeState.isLiked ? 'いいねを取り消す' : 'いいね'}
-                        title={likeState.isLiked ? 'いいねを取り消す' : 'いいね'}
-                      >
-                        <Heart 
-                          size={14} 
-                          fill={likeState.isLiked ? 'currentColor' : 'none'}
-                          className={`transition-transform duration-200 ${
-                            isLikingComment === comment.id 
-                              ? 'scale-110 animate-pulse' 
-                              : 'hover:scale-110'
+                      disabled={isLikingComment === comment.id}
+                      aria-label={getEffectiveLikeState(comment.id).isLiked ? 'いいねを取り消す' : 'いいね'}
+                      title={getEffectiveLikeState(comment.id).isLiked ? 'いいねを取り消す' : 'いいね'}
+                    >
+                    <Heart 
+                        size={14} 
+                        fill={getEffectiveLikeState(comment.id).isLiked ? 'currentColor' : 'none'}
+                        className={`transition-transform duration-200 ${
+                          isLikingComment === comment.id 
+                          ? 'scale-110 animate-pulse' 
+                          : 'hover:scale-110'
                           }`}
-                        />
-                        <span className="font-medium">
-                          {formatLikeCount(likeState.count)}
-                        </span>
-                        {/* ローディング中の視覚的フィードバック */}
-                        {isLikingComment === comment.id && (
-                          <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin ml-1" />
-                        )}
-                      </button>
+                    />
+                    <span className="font-medium">
+                      {formatLikeCount(getEffectiveLikeState(comment.id).count)}
+                    </span>
+                  {/* ローディング中の視覚的フィードバック */}
+                  {isLikingComment === comment.id && (
+                    <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin ml-1" />
+                      )}
+                    </button>
                     </div>
-                  )}
+                    )}
+                    </div>
                 </div>
-              </div>
             );
           })
         )}

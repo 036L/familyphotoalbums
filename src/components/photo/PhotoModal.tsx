@@ -204,14 +204,17 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
 
   // コメント自動表示ロジック - コメントが存在する場合は自動でパネルを表示
   useEffect(() => {
-    if (isOpen && currentPhoto && comments.length > 0 && !commentsLoading) {
-      debugLog('コメントが存在するため自動表示', { 
-        photoId: currentPhoto.id,
-        commentCount: comments.length 
-      });
-      setShowCommentsPanel(true);
+    if (isOpen && currentPhoto && showComments) {
+      // コメントが存在し、まだロードされていない場合は取得を待つ
+      if (!commentsLoading && comments.length > 0 && !showCommentsPanel) {
+        debugLog('コメントが存在するため自動表示', { 
+          photoId: currentPhoto.id,
+          commentCount: comments.length 
+        });
+        setShowCommentsPanel(true);
+      }
     }
-  }, [isOpen, currentPhoto?.id, comments.length, commentsLoading, debugLog]);
+  }, [isOpen, currentPhoto?.id, comments.length, commentsLoading, showComments, showCommentsPanel, debugLog]);
 
   // エラーハンドリング
   const handleError = useCallback((errorMessage: string) => {
@@ -385,7 +388,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   // 改善されたコメントボタン - コメント数を正確に反映し、バッジ表示
   const renderCommentButton = useCallback(() => {
     if (!showComments) return null;
-
+  
     return (
       <Button 
         variant={showCommentsPanel ? 'primary' : 'outline'} 
@@ -400,8 +403,8 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
           {commentsLoading ? '読み込み中...' : 'コメント'}
         </span>
         {/* コメント数バッジ - 0より大きい場合のみ表示 */}
-        {comments.length > 0 && (
-          <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+        {!commentsLoading && comments.length > 0 && (
+          <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs rounded-full min-w-5 h-5 flex items-center justify-center px-1">
             {comments.length > 99 ? '99+' : comments.length}
           </span>
         )}
