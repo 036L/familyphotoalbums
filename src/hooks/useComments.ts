@@ -98,24 +98,21 @@ export const useComments = (photoId?: string) => {
     const initialLikes: Record<string, LikeState> = {};
     
     comments.forEach(comment => {
-      // ローカルストレージから保存されたいいね状態を確認
       try {
         const savedLikes = localStorage.getItem(`commentLikes_${comment.id}`);
         if (savedLikes) {
           const parsedLikes = JSON.parse(savedLikes);
           initialLikes[comment.id] = {
-            count: parsedLikes.count || 0,
+            count: parsedLikes.count || comment.likes_count || 0,
             isLiked: parsedLikes.isLiked || false
           };
         } else {
-          // 保存されていない場合はコメントのデフォルト値を使用
           initialLikes[comment.id] = {
             count: comment.likes_count || 0,
             isLiked: comment.is_liked || false
           };
         }
       } catch (error) {
-        // エラー時はコメントのデフォルト値を使用
         debugLog('いいね状態読み込みエラー', { commentId: comment.id, error });
         initialLikes[comment.id] = {
           count: comment.likes_count || 0,
@@ -125,7 +122,10 @@ export const useComments = (photoId?: string) => {
     });
     
     setLikesState(prev => ({ ...prev, ...initialLikes }));
-    debugLog('デモいいね状態初期化', { commentCount: comments.length, likesCount: Object.keys(initialLikes).length });
+    debugLog('デモいいね状態初期化完了', { 
+      commentCount: comments.length, 
+      likesCount: Object.keys(initialLikes).length 
+    });
   }, [debugLog]);
 
   const fetchComments = useCallback(async (targetPhotoId?: string) => {

@@ -334,11 +334,23 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
 
   // Phase 2: 実際のいいね状態を取得（楽観的更新を優先）
   const getEffectiveLikeState = useCallback((commentId: string) => {
-    // 楽観的更新を優先し、次にuseCommentsのlikesState、最後にデフォルト値
-    return optimisticUpdates.likes[commentId] || 
-           likesState[commentId] || 
-           { count: 0, isLiked: false };
-  }, [optimisticUpdates.likes, likesState]);
+    // 楽観的更新を最優先
+    if (optimisticUpdates.likes[commentId]) {
+      return optimisticUpdates.likes[commentId];
+    }
+    
+    // useCommentsのlikesStateを次に確認
+    if (likesState && likesState[commentId]) {
+      return likesState[commentId];
+    }
+    
+    // コメント自体からデフォルト値を取得
+    const comment = comments.find(c => c.id === commentId);
+    return {
+      count: comment?.likes_count || 0,
+      isLiked: comment?.is_liked || false
+    };
+  }, [optimisticUpdates.likes, likesState, comments]);
 
   // Phase 2: 改善されたいいね機能のメイン処理
   const handleLike = useCallback(async (commentId: string) => {
@@ -347,7 +359,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
       
       if (isLikingComment === commentId) {
         debugLog('既にいいね処理中', commentId);
-        return; // 重複実行を防止
+        return;
       }
   
       if (!toggleLike) {
@@ -356,7 +368,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
         return;
       }
   
-      // 現在の状態を取得（楽観的更新を考慮）
+      // 現在の状態を正確に取得
       const currentState = getEffectiveLikeState(commentId);
       const newIsLiked = !currentState.isLiked;
       const newCount = newIsLiked ? currentState.count + 1 : Math.max(0, currentState.count - 1);
@@ -378,7 +390,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
       // 永続化（デモモード用）
       persistCommentState(photoId, {
         likes: {
-          ...optimisticUpdates.likes,
           [commentId]: { count: newCount, isLiked: newIsLiked }
         }
       });
@@ -397,7 +408,16 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
       
       handleError(error, 'いいね', { commentId });
     }
-  }, [isLikingComment, toggleLike, getEffectiveLikeState, optimisticUpdates.likes, photoId, persistCommentState, debugLog, handleError]);
+  }, [
+    isLikingComment, 
+    toggleLike, 
+    getEffectiveLikeState, 
+    optimisticUpdates.likes, 
+    photoId, 
+    persistCommentState, 
+    debugLog, 
+    handleError
+  ]);
 
   // Phase 2: リトライ機能
   const retryAction = useCallback(async () => {
