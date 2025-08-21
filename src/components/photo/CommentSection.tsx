@@ -74,6 +74,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
 
   // Phase 2: 永続化の改善 - ローカルストレージへの安全な保存
   const persistCommentState = useCallback((photoId: string, updates: any) => {
+    if (!photoId) return;
+    
     try {
       const storageKey = `commentState_${photoId}`;
       const currentState = localStorage.getItem(storageKey);
@@ -95,6 +97,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
 
   // Phase 2: ローカル状態からの復元
   const restoreCommentState = useCallback((photoId: string) => {
+    if (!photoId) return null;
+    
     try {
       const storageKey = `commentState_${photoId}`;
       const savedState = localStorage.getItem(storageKey);
@@ -148,7 +152,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim()) return;
-
+  
     const commentContent = newComment.trim();
     const tempId = `temp-${Date.now()}`;
     
@@ -169,15 +173,16 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
         likes_count: 0,
         is_liked: false,
       };
-
+  
+      // コメント一覧に即座に追加（重要：useCommentsの状態ではなくローカル状態）
       setOptimisticUpdates(prev => ({
         ...prev,
         comments: [...prev.comments, optimisticComment]
       }));
-
+  
       setNewComment(''); // 即座に入力をクリア
       
-      // 実際の投稿処理
+      // 実際のコメント投稿処理
       const realComment = await addComment(commentContent, photoId);
       
       // 成功時：楽観的更新を実際のデータで置き換え
@@ -186,7 +191,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
         comments: prev.comments.filter(c => c.id !== tempId)
       }));
       
-      // 永続化
+      // 永続化（ローカルストレージにも保存）
       persistCommentState(photoId, {
         lastComment: realComment,
         commentCount: comments.length + 1
@@ -479,13 +484,18 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
 
 
   // Phase 2: 実際のコメント一覧を取得（楽観的更新を優先）
-  const getEffectiveComments = () => {
+  const getEffectiveComments = useCallback(() => {
     const baseComments = comments || [];
     const optimisticComments = optimisticUpdates.comments || [];
     
-    // 楽観的更新のコメントを追加
-    return [...baseComments, ...optimisticComments];
-  };
+    // 楽観的更新のコメントを追加（時系列順にソート）
+    const allComments = [...baseComments, ...optimisticComments];
+    
+    // 作成日時でソート
+    return allComments.sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+  }, [comments, optimisticUpdates.comments]);
 
   const effectiveComments = getEffectiveComments();
 
