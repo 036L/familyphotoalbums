@@ -26,6 +26,13 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     likes: Record<string, { count: number; isLiked: boolean }>;
     comments: Comment[];
   }>({ likes: {}, comments: [] });
+  // いいね機能の状態管理
+const [likesState, setLikesState] = useState<Record<string, LikeState>>({});
+const [isLikingComment, setIsLikingComment] = useState<string | null>(null);
+
+// Phase 4: アニメーション効果の状態管理
+const [likeAnimation, setLikeAnimation] = useState<string | null>(null);
+const [heartFloatAnimation, setHeartFloatAnimation] = useState<string | null>(null);
   
   const commentsSectionRef = useRef<HTMLDivElement>(null);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
@@ -438,72 +445,84 @@ const handleDeleteComment = async (commentId: string) => {
     };
   }, [optimisticUpdates.likes, likesState, comments]);
 
-  // Phase 2: 改善されたいいね機能のメイン処理
-  const handleLike = useCallback(async (commentId: string) => {
-    try {
-      debugLog('いいね処理開始', { commentId, isLiking: isLikingComment === commentId });
-      
-      if (isLikingComment === commentId) {
-        debugLog('既にいいね処理中', commentId);
-        return;
-      }
-  
-      if (!toggleLike) {
-        debugLog('toggleLike関数が利用できません');
-        errorHelpers.operationFailed('save', 'いいね機能は現在利用できません');
-        return;
-      }
-  
-      // 現在の状態を正確に取得
-      const currentState = getEffectiveLikeState(commentId);
-      const newIsLiked = !currentState.isLiked;
-      const newCount = newIsLiked ? currentState.count + 1 : Math.max(0, currentState.count - 1);
-  
-      // 楽観的更新
-      setOptimisticUpdates(prev => ({
-        ...prev,
-        likes: {
-          ...prev.likes,
-          [commentId]: { count: newCount, isLiked: newIsLiked }
-        }
-      }));
-  
-      debugLog('いいね楽観的更新', { commentId, newCount, newIsLiked });
-  
-      // useCommentsのtoggleLike関数を呼び出し
-      await toggleLike(commentId);
-      
-      // 永続化（デモモード用）
-      persistCommentState(photoId, {
-        likes: {
-          [commentId]: { count: newCount, isLiked: newIsLiked }
-        }
-      });
-      
-      debugLog('いいね処理完了', commentId);
-    } catch (error) {
-      // エラー時：楽観的更新をロールバック
-      const originalState = getEffectiveLikeState(commentId);
-      setOptimisticUpdates(prev => ({
-        ...prev,
-        likes: {
-          ...prev.likes,
-          [commentId]: originalState
-        }
-      }));
-      
-      handleError(error, 'いいね', { commentId });
+  // Phase 4: アニメーション効果付きいいね機能
+const handleLike = useCallback(async (commentId: string) => {
+  try {
+    debugLog('いいね処理開始', { commentId, isLiking: isLikingComment === commentId });
+    
+    if (isLikingComment === commentId) {
+      debugLog('既にいいね処理中', commentId);
+      return;
     }
-  }, [
-    isLikingComment, 
-    toggleLike, 
-    getEffectiveLikeState, 
-    optimisticUpdates.likes, 
-    photoId, 
-    persistCommentState, 
-    debugLog, 
-    handleError
-  ]);
+
+    if (!toggleLike) {
+      debugLog('toggleLike関数が利用できません');
+      errorHelpers.operationFailed('save', 'いいね機能は現在利用できません');
+      return;
+    }
+
+    // アニメーション開始
+    setLikeAnimation(commentId);
+    
+    // 現在の状態を正確に取得
+    const currentState = getEffectiveLikeState(commentId);
+    const newIsLiked = !currentState.isLiked;
+    const newCount = newIsLiked ? currentState.count + 1 : Math.max(0, currentState.count - 1);
+
+    // ハートフロートアニメーション（いいね時のみ）
+    if (newIsLiked) {
+      setHeartFloatAnimation(commentId);
+      setTimeout(() => setHeartFloatAnimation(null), 1000);
+    }
+
+    // 楽観的更新
+    setOptimisticUpdates(prev => ({
+      ...prev,
+      likes: {
+        ...prev.likes,
+        [commentId]: { count: newCount, isLiked: newIsLiked }
+      }
+    }));
+
+    debugLog('いいね楽観的更新', { commentId, newCount, newIsLiked });
+
+    // useCommentsのtoggleLike関数を呼び出し
+    await toggleLike(commentId);
+    
+    // 永続化（デモモード用）
+    persistCommentState(photoId, {
+      likes: {
+        [commentId]: { count: newCount, isLiked: newIsLiked }
+      }
+    });
+    
+    debugLog('いいね処理完了', commentId);
+  } catch (error) {
+    // エラー時：楽観的更新をロールバック
+    const originalState = getEffectiveLikeState(commentId);
+    setOptimisticUpdates(prev => ({
+      ...prev,
+      likes: {
+        ...prev.likes,
+        [commentId]: originalState
+      }
+    }));
+    
+    handleError(error, 'いいね', { commentId });
+  } finally {
+    // アニメーション終了
+    setTimeout(() => setLikeAnimation(null), 300);
+  }
+}, [
+  isLikingComment, 
+  toggleLike, 
+  getEffectiveLikeState, 
+  optimisticUpdates.likes, 
+  photoId, 
+  persistCommentState, 
+  debugLog, 
+  handleError
+]);
 
   // Phase 2: リトライ機能
   const retryAction = useCallback(async () => {
