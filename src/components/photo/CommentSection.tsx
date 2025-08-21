@@ -7,6 +7,7 @@ import { useApp } from '../../context/AppContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { errorHelpers } from '../../utils/errors';
 import type { Comment } from '../../types/core';
+import { useEnvironment } from '../../hooks/useEnvironment';
 
 interface CommentSectionProps {
   photoId: string;
@@ -44,6 +45,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
   
   const { user, profile } = useApp();
   const { canDeleteResource, canEditResource } = usePermissions();
+  const { isDemo } = useEnvironment();
 
   // デバッグログ（開発時のみ）
   const debugLog = useCallback((message: string, data?: any) => {
@@ -72,28 +74,60 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     }
   }, [debugLog]);
 
-  // Phase 2: 永続化の改善 - ローカルストレージへの安全な保存
-  const persistCommentState = useCallback((photoId: string, updates: any) => {
-    if (!photoId) return;
+  // Phase 3: デモモード永続化の改善（編集・削除履歴対応）
+const persistCommentState = useCallback((photoId: string, updates: any) => {
+  if (!photoId || !isDemo) return;
+  
+  try {
+    const storageKey = `commentState_${photoId}`;
+    const currentState = localStorage.getItem(storageKey);
+    const parsedState = currentState ? JSON.parse(currentState) : {};
     
-    try {
-      const storageKey = `commentState_${photoId}`;
-      const currentState = localStorage.getItem(storageKey);
-      const parsedState = currentState ? JSON.parse(currentState) : {};
-      
-      const newState = {
-        ...parsedState,
-        ...updates,
-        lastUpdated: new Date().toISOString()
-      };
-      
-      localStorage.setItem(storageKey, JSON.stringify(newState));
-      debugLog('コメント状態を永続化', { photoId, updates: Object.keys(updates) });
-    } catch (error) {
-      debugLog('永続化エラー', error);
-      // 永続化の失敗は致命的ではないのでログのみ
+    const newState = {
+      ...parsedState,
+      ...updates,
+      lastUpdated: new Date().toISOString(),
+      version: (parsedState.version || 0) + 1 // バージョン管理
+    };
+    
+    localStorage.setItem(storageKey, JSON.stringify(newState));
+    debugLog('コメント状態を永続化', { 
+      photoId, 
+      updates: Object.keys(updates),
+      version: newState.version 
+    });
+    
+    // 編集・削除イベントの場合、コメントリストも更新
+    if (updates.lastEdit || updates.lastDelete) {
+      const commentsKey = `demoComments_${photoId}`;
+      const savedComments = localStorage.getItem(commentsKey);
+      if (savedComments) {
+        let commentsList = JSON.parse(savedComments);
+        
+        if (updates.lastEdit) {
+          commentsList = commentsList.map((comment: Comment) =>
+            comment.id === updates.lastEdit.commentId
+              ? { ...comment, content: updates.lastEdit.content, updated_at: updates.lastEdit.timestamp }
+              : comment
+          );
+        }
+        
+        if (updates.lastDelete) {
+          commentsList = commentsList.filter((comment: Comment) => 
+            comment.id !== updates.lastDelete.commentId
+          );
+        }
+        
+        localStorage.setItem(commentsKey, JSON.stringify(commentsList));
+        debugLog('デモコメントリスト更新完了');
+      }
     }
-  }, [debugLog]);
+    
+  } catch (error) {
+    debugLog('永続化エラー', error);
+    // 永続化の失敗は致命的ではないのでログのみ
+  }
+}, [isDemo, debugLog]);
 
   // Phase 2: ローカル状態からの復元
   const restoreCommentState = useCallback((photoId: string) => {
@@ -130,23 +164,31 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     }
   }, [comments, onCommentsChange, debugLog]);
 
-  // Phase 2: 権限チェック（自分のコメントのみ編集・削除可能）
-  const canManageComment = useCallback((comment: Comment): boolean => {
-    const currentUserId = user?.id || profile?.id;
-    const isOwner = comment.user_id === currentUserId;
-    const isAdmin = profile?.role === 'admin';
-    
-    debugLog('コメント管理権限チェック', {
-      commentId: comment.id,
-      currentUserId,
-      commentUserId: comment.user_id,
-      isOwner,
-      isAdmin,
-      canManage: isOwner || isAdmin
-    });
-    
-    return isOwner || isAdmin;
-  }, [user?.id, profile?.id, profile?.role, debugLog]);
+  // Phase 3: より厳密な権限チェック（自分のコメントのみ編集・削除可能）
+const canManageComment = useCallback((comment: Comment): boolean => {
+  const currentUserId = user?.id || profile?.id;
+  const isOwner = comment.user_id === currentUserId;
+  const isAdmin = profile?.role === 'admin';
+  
+  // デモモードでの特別処理
+  if (isDemo) {
+    // デモモードでは自分が作成したコメント（demo-user-1）のみ管理可能
+    const isDemoOwner = comment.user_id === 'demo-user-1' && 
+                       (currentUserId === 'demo-user-1' || profile?.id === 'demo-user-1');
+    return isDemoOwner || isAdmin;
+  }
+  
+  debugLog('コメント管理権限チェック', {
+    commentId: comment.id,
+    currentUserId,
+    commentUserId: comment.user_id,
+    isOwner,
+    isAdmin,
+    canManage: isOwner || isAdmin
+  });
+  
+  return isOwner || isAdmin;
+}, [user?.id, profile?.id, profile?.role, isDemo, debugLog]);
 
   // Phase 2: リトライ機能付きコメント投稿処理
   const handleSubmit = async (e: React.FormEvent) => {
@@ -242,46 +284,77 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
   }, [canManageComment, debugLog]);
 
   // Phase 2: エラーハンドリング付き編集保存
-  const saveEdit = async () => {
-    if (!editingComment || !editingComment.content.trim()) return;
-    
-    const originalComment = comments.find(c => c.id === editingComment.id);
-    if (!originalComment) return;
+  // Phase 3: エラーハンドリング付き編集保存（改善版）
+const saveEdit = async () => {
+  if (!editingComment || !editingComment.content.trim()) return;
+  
+  const originalComment = comments.find(c => c.id === editingComment.id);
+  if (!originalComment) return;
 
-    try {
-      debugLog('編集保存開始', editingComment);
-      
-      // 楽観的更新
-      setOptimisticUpdates(prev => ({
-        ...prev,
-        comments: prev.comments.map(c => 
-          c.id === editingComment.id 
-            ? { ...c, content: editingComment.content, updated_at: new Date().toISOString() }
-            : c
-        )
-      }));
-      
-      await updateComment(editingComment.id, editingComment.content);
-      
-      // 永続化
-      persistCommentState(photoId, {
-        lastEdit: { commentId: editingComment.id, content: editingComment.content }
-      });
-      
-      setEditingComment(null);
-      debugLog('編集保存完了');
-    } catch (error) {
-      // エラー時：楽観的更新をロールバック
-      setOptimisticUpdates(prev => ({
-        ...prev,
-        comments: prev.comments.map(c => 
-          c.id === editingComment.id ? originalComment : c
-        )
-      }));
-      
-      handleError(error, 'コメント編集', { commentId: editingComment.id });
-    }
-  };
+  // 変更がない場合は保存しない
+  if (editingComment.content.trim() === originalComment.content.trim()) {
+    setEditingComment(null);
+    return;
+  }
+
+  try {
+    debugLog('編集保存開始', editingComment);
+    
+    const updatedContent = editingComment.content.trim();
+    const tempUpdatedComment = {
+      ...originalComment,
+      content: updatedContent,
+      updated_at: new Date().toISOString()
+    };
+    
+    // 楽観的更新
+    setOptimisticUpdates(prev => ({
+      ...prev,
+      comments: prev.comments.map(c => 
+        c.id === editingComment.id ? tempUpdatedComment : c
+      )
+    }));
+    
+    // UI状態をクリア
+    setEditingComment(null);
+    
+    await updateComment(editingComment.id, updatedContent);
+    
+    // 永続化
+    persistCommentState(photoId, {
+      lastEdit: { 
+        commentId: editingComment.id, 
+        content: updatedContent,
+        editedBy: user?.id || profile?.id || 'unknown',
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+    debugLog('編集保存完了');
+    
+    // 成功フィードバック
+    setTimeout(() => {
+      errorHelpers.info('コメントを更新しました');
+    }, 100);
+    
+  } catch (error) {
+    // エラー時：楽観的更新をロールバック
+    setOptimisticUpdates(prev => ({
+      ...prev,
+      comments: prev.comments.map(c => 
+        c.id === editingComment.id ? originalComment : c
+      )
+    }));
+    
+    // 編集状態を復元
+    setEditingComment({
+      id: editingComment.id,
+      content: editingComment.content
+    });
+    
+    handleError(error, 'コメント編集', { commentId: editingComment.id });
+  }
+};
 
   // 編集キャンセル
   const cancelEdit = useCallback(() => {
@@ -289,48 +362,61 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     debugLog('編集キャンセル');
   }, [debugLog]);
 
-  // Phase 2: エラーハンドリング付きコメント削除
-  const handleDeleteComment = async (commentId: string) => {
-    const comment = comments.find(c => c.id === commentId);
-    if (!comment || !canManageComment(comment)) {
-      debugLog('削除権限なし', commentId);
-      errorHelpers.permissionDenied('このコメントを削除する権限がありません');
-      return;
-    }
+  // Phase 3: 改善された削除確認とエラーハンドリング
+const handleDeleteComment = async (commentId: string) => {
+  const comment = comments.find(c => c.id === commentId);
+  if (!comment || !canManageComment(comment)) {
+    debugLog('削除権限なし', commentId);
+    errorHelpers.permissionDenied('このコメントを削除する権限がありません');
+    return;
+  }
 
-    if (!window.confirm('このコメントを削除しますか？')) {
-      return;
-    }
+  // より詳細な確認ダイアログ
+  const confirmMessage = `以下のコメントを削除してもよろしいですか？\n\n「${comment.content.length > 50 ? comment.content.substring(0, 50) + '...' : comment.content}」\n\nこの操作は取り消せません。`;
+  
+  if (!window.confirm(confirmMessage)) {
+    return;
+  }
 
-    try {
-      debugLog('コメント削除開始', commentId);
-      
-      // 楽観的更新：即座にUIから削除
-      setOptimisticUpdates(prev => ({
-        ...prev,
-        comments: prev.comments.filter(c => c.id !== commentId)
-      }));
-      
-      await deleteComment(commentId);
-      
-      // 永続化
-      persistCommentState(photoId, {
-        lastDelete: { commentId, timestamp: new Date().toISOString() }
-      });
-      
-      debugLog('コメント削除完了');
-    } catch (error) {
-      // エラー時：楽観的更新をロールバック
-      setOptimisticUpdates(prev => ({
-        ...prev,
-        comments: [...prev.comments, comment].sort((a, b) => 
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        )
-      }));
-      
-      handleError(error, 'コメント削除', { commentId });
-    }
-  };
+  try {
+    debugLog('コメント削除開始', commentId);
+    
+    // 楽観的更新：即座にUIから削除
+    setOptimisticUpdates(prev => ({
+      ...prev,
+      comments: prev.comments.filter(c => c.id !== commentId)
+    }));
+    
+    await deleteComment(commentId);
+    
+    // 永続化
+    persistCommentState(photoId, {
+      lastDelete: { 
+        commentId, 
+        timestamp: new Date().toISOString(),
+        deletedBy: user?.id || profile?.id || 'unknown'
+      }
+    });
+    
+    debugLog('コメント削除完了');
+    
+    // 成功フィードバック
+    setTimeout(() => {
+      errorHelpers.info('コメントを削除しました');
+    }, 100);
+    
+  } catch (error) {
+    // エラー時：楽観的更新をロールバック
+    setOptimisticUpdates(prev => ({
+      ...prev,
+      comments: [...prev.comments, comment].sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      )
+    }));
+    
+    handleError(error, 'コメント削除', { commentId });
+  }
+};
 
   // Phase 2: 実際のいいね状態を取得（楽観的更新を優先）
   const getEffectiveLikeState = useCallback((commentId: string) => {
@@ -444,21 +530,27 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     }
   }, [retryingAction, newComment, editingComment, handleSubmit, saveEdit, debugLog]);
 
-  // ESCキーでキャンセル
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+  // ESCキーでキャンセル + エンターキーで保存
+useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (editingComment) {
       if (e.key === 'Escape') {
-        if (editingComment) {
-          cancelEdit();
-        } else if (retryingAction) {
-          setRetryingAction(null);
-        }
+        e.preventDefault();
+        cancelEdit();
+      } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        saveEdit();
       }
-    };
+    }
     
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [editingComment, retryingAction, cancelEdit]);
+    if (retryingAction && e.key === 'Escape') {
+      setRetryingAction(null);
+    }
+  };
+  
+  document.addEventListener('keydown', handleKeyDown);
+  return () => document.removeEventListener('keydown', handleKeyDown);
+}, [editingComment, retryingAction, cancelEdit, saveEdit]);
 
   // 状態復元（初回のみ）
   useEffect(() => {
@@ -492,7 +584,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
       console.error('日付フォーマットエラー:', error);
       return '不明';
     }
-  };
+  };  
 
   // Phase 2: いいね数の表示フォーマット
   const formatLikeCount = (count: number): string => {
@@ -627,6 +719,11 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
                         </span>
                         <span className="text-xs text-gray-500 flex-shrink-0">
                           {formatDate(comment.created_at)}
+                          {comment.updated_at && comment.updated_at !== comment.created_at && (
+                          <span className="ml-1 text-gray-400" title={`編集: ${formatDate(comment.updated_at)}`}>
+                            (編集済み)
+                          </span>
+                          )}
                         </span>
                         {isTemporary && (
                           <span className="text-xs text-orange-500 flex-shrink-0">
@@ -658,49 +755,63 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
                       )}
                     </div>
                     
-                    {/* 編集モード */}
-                    {editingComment && editingComment.id === comment.id ? (
-                      <div className="space-y-2">
-                        <textarea
-                          ref={editInputRef}
-                          value={editingComment.content}
-                          onChange={(e) => setEditingComment({
-                            ...editingComment,
-                            content: e.target.value
-                          })}
-                          className="w-full p-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300"
-                          rows={2}
-                          placeholder="コメントを編集..."
-                          maxLength={500}
-                        />
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={saveEdit}
-                              className="inline-flex items-center space-x-1 px-2 py-1 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50"
-                              disabled={!editingComment.content.trim()}
-                            >
-                              <Check size={12} />
-                              <span>保存</span>
-                            </button>
-                            <button
-                              onClick={cancelEdit}
-                              className="inline-flex items-center space-x-1 px-2 py-1 bg-gray-500 text-white text-xs rounded-md hover:bg-gray-600 transition-colors"
-                            >
-                              <X size={12} />
-                              <span>キャンセル</span>
-                            </button>
-                          </div>
-                          <span className={`text-xs ${editingComment.content.length > 450 ? 'text-orange-500 font-medium' : 'text-gray-400'}`}>
-                            {editingComment.content.length}/500
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-gray-800 text-sm leading-relaxed break-words">
-                        {comment.content}
-                      </p>
-                    )}
+                    {/* 編集モード - 改善版 */}
+{editingComment && editingComment.id === comment.id ? (
+  <div className="space-y-3">
+    <div className="relative">
+      <textarea
+        ref={editInputRef}
+        value={editingComment.content}
+        onChange={(e) => setEditingComment({
+          ...editingComment,
+          content: e.target.value
+        })}
+        className="w-full p-3 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-300 transition-all"
+        rows={Math.min(Math.max(2, Math.ceil(editingComment.content.length / 50)), 6)}
+        placeholder="コメントを編集..."
+        maxLength={500}
+      />
+      <div className="absolute bottom-2 right-2 text-xs text-gray-400 bg-white px-1 rounded">
+        {editingComment.content.length}/500
+      </div>
+    </div>
+    
+    <div className="flex items-center justify-between">
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={saveEdit}
+          className="inline-flex items-center space-x-1 px-3 py-1.5 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!editingComment.content.trim() || editingComment.content === comment.content}
+        >
+          <Check size={12} />
+          <span>保存</span>
+        </button>
+        <button
+          onClick={cancelEdit}
+          className="inline-flex items-center space-x-1 px-3 py-1.5 bg-gray-500 text-white text-xs rounded-md hover:bg-gray-600 transition-colors"
+        >
+          <X size={12} />
+          <span>キャンセル</span>
+        </button>
+      </div>
+      
+      <div className="flex items-center space-x-2 text-xs text-gray-500">
+        <span>Ctrl+Enter: 保存</span>
+        <span>Esc: キャンセル</span>
+      </div>
+    </div>
+    
+    {editingComment.content.length > 450 && (
+      <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+        文字数が上限に近づいています
+      </div>
+    )}
+  </div>
+) : (
+  <p className="text-gray-800 text-sm leading-relaxed break-words">
+    {comment.content}
+  </p>
+)}
                   </div>
                   
                   {/* Phase 2: 改善されたいいねボタン */}
