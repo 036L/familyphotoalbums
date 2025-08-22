@@ -26,9 +26,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
     likes: Record<string, { count: number; isLiked: boolean }>;
     comments: Comment[];
   }>({ likes: {}, comments: [] });
-  // いいね機能の状態管理
-const [likesState, setLikesState] = useState<Record<string, LikeState>>({});
-const [isLikingComment, setIsLikingComment] = useState<string | null>(null);
 
 // Phase 4: アニメーション効果の状態管理
 const [likeAnimation, setLikeAnimation] = useState<string | null>(null);
