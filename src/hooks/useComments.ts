@@ -97,7 +97,10 @@ export const useComments = (photoId?: string) => {
   const initializeDemoLikes = useCallback((comments: Comment[]) => {
     const initialLikes: Record<string, LikeState> = {};
     
-    debugLog('コメントいいね状態初期化開始', { commentCount: comments.length });
+    // debugLog を直接使用（依存配列から除去）
+    if (import.meta.env.DEV) {
+      console.log(`[useComments] コメントいいね状態初期化開始`, { commentCount: comments.length });
+    }
     
     comments.forEach(comment => {
       try {
@@ -108,10 +111,12 @@ export const useComments = (photoId?: string) => {
             count: parsedLikes.count || comment.likes_count || 0,
             isLiked: parsedLikes.isLiked || false
           };
-          debugLog('コメントいいね状態復元', { 
-            commentId: comment.id, 
-            state: initialLikes[comment.id] 
-          });
+          if (import.meta.env.DEV) {
+            console.log(`[useComments] コメントいいね状態復元`, { 
+              commentId: comment.id, 
+              state: initialLikes[comment.id] 
+            });
+          }
         } else {
           // localStorage にない場合はコメントのデフォルト値を使用
           initialLikes[comment.id] = {
@@ -121,16 +126,22 @@ export const useComments = (photoId?: string) => {
           // デフォルト値をlocalStorageに保存
           try {
             localStorage.setItem(`commentLikes_${comment.id}`, JSON.stringify(initialLikes[comment.id]));
-            debugLog('コメントいいね初期値保存', { 
-              commentId: comment.id, 
-              state: initialLikes[comment.id] 
-            });
+            if (import.meta.env.DEV) {
+              console.log(`[useComments] コメントいいね初期値保存`, { 
+                commentId: comment.id, 
+                state: initialLikes[comment.id] 
+              });
+            }
           } catch (saveError) {
-            debugLog('コメントいいね初期値保存エラー', saveError);
+            if (import.meta.env.DEV) {
+              console.log(`[useComments] コメントいいね初期値保存エラー`, saveError);
+            }
           }
         }
       } catch (error) {
-        debugLog('いいね状態読み込みエラー', { commentId: comment.id, error });
+        if (import.meta.env.DEV) {
+          console.log(`[useComments] いいね状態読み込みエラー`, { commentId: comment.id, error });
+        }
         // エラー時はコメントのデフォルト値
         initialLikes[comment.id] = {
           count: comment.likes_count || 0,
@@ -140,41 +151,48 @@ export const useComments = (photoId?: string) => {
     });
     
     setLikesState(prev => ({ ...prev, ...initialLikes }));
-    debugLog('コメントいいね状態初期化完了', { 
-      commentCount: comments.length, 
-      likesCount: Object.keys(initialLikes).length,
-      initialLikes 
-    });
-  }, [debugLog]);
+    if (import.meta.env.DEV) {
+      console.log(`[useComments] コメントいいね状態初期化完了`, { 
+        commentCount: comments.length, 
+        likesCount: Object.keys(initialLikes).length,
+        initialLikes 
+      });
+    }
+  }, []); 
 
   const fetchComments = useCallback(async (targetPhotoId?: string) => {
     const currentPhotoId = targetPhotoId || photoId;
     
     if (!currentPhotoId) {
-      debugLog('写真IDが指定されていません');
+      if (import.meta.env.DEV) {
+        console.log(`[useComments] 写真IDが指定されていません`);
+      }
       setComments([]);
-      setLikesState({}); // いいね状態もクリア
+      setLikesState({});
       setLoading(false);
-      return;
+      return []; // 修正: 空配列を返す
     }
   
     try {
       setLoading(true);
       setError(null);
-      debugLog('コメント取得開始', { photoId: currentPhotoId, isDemo });
+      if (import.meta.env.DEV) {
+        console.log(`[useComments] コメント取得開始`, { photoId: currentPhotoId, isDemo });
+      }
   
       if (isDemo) {
         // デモモードでのコメント取得
         const demoComments = getDemoComments(currentPhotoId);
         
         setComments(demoComments);
-        // いいね状態を初期化（重要：コメント取得後に実行）
         initializeDemoLikes(demoComments);
         setLoading(false);
-        debugLog('デモコメント取得完了', { 
-          photoId: currentPhotoId, 
-          commentCount: demoComments.length 
-        });
+        if (import.meta.env.DEV) {
+          console.log(`[useComments] デモコメント取得完了`, { 
+            photoId: currentPhotoId, 
+            commentCount: demoComments.length 
+          });
+        }
         return demoComments;
       }
   
@@ -194,7 +212,7 @@ export const useComments = (photoId?: string) => {
         ...comment,
         user_name: comment.profiles?.name || '不明',
         user_avatar: comment.profiles?.avatar_url || null,
-        likes_count: 0, // いいね機能は別途実装
+        likes_count: 0,
         is_liked: false,
       }));
   
@@ -210,22 +228,26 @@ export const useComments = (photoId?: string) => {
       });
       setLikesState(initialLikes);
       
-      debugLog('Supabaseコメント取得完了', { 
-        photoId: currentPhotoId, 
-        commentCount: commentsWithUserInfo.length 
-      });
-      return commentsWithUserInfo;
+      if (import.meta.env.DEV) {
+        console.log(`[useComments] Supabaseコメント取得完了`, { 
+          photoId: currentPhotoId, 
+          commentCount: commentsWithUserInfo.length 
+        });
+      }
+      return commentsWithUserInfo; // 修正: 結果を返す
     } catch (err) {
-      debugLog('コメント取得エラー', err);
+      if (import.meta.env.DEV) {
+        console.log(`[useComments] コメント取得エラー`, err);
+      }
       console.error('コメント取得エラー:', err);
       setError('コメントの取得に失敗しました');
-      setComments([]); // エラー時は空配列
-      setLikesState({}); // いいね状態もクリア
-      return [];
+      setComments([]);
+      setLikesState({});
+      return []; // 修正: エラー時も空配列を返す
     } finally {
       setLoading(false);
     }
-  }, [photoId, isDemo, getDemoComments, initializeDemoLikes, debugLog]);
+  }, [photoId, isDemo, getDemoComments, initializeDemoLikes]);
 
   const addComment = useCallback(async (content: string, targetPhotoId?: string, parentId?: string) => {
     const currentPhotoId = targetPhotoId || photoId;
@@ -470,11 +492,15 @@ export const useComments = (photoId?: string) => {
   // いいね機能のメイン処理
   const toggleLike = useCallback(async (commentId: string) => {
     try {
-      debugLog('コメントいいね処理開始', { commentId, isDemo });
+      if (import.meta.env.DEV) {
+        console.log(`[useComments] コメントいいね処理開始`, { commentId, isDemo });
+      }
       
       // 重複実行を防止
       if (isLikingComment === commentId) {
-        debugLog('既にコメントいいね処理中', commentId);
+        if (import.meta.env.DEV) {
+          console.log(`[useComments] 既にコメントいいね処理中`, commentId);
+        }
         return;
       }
       
@@ -495,15 +521,21 @@ export const useComments = (photoId?: string) => {
         [commentId]: newState
       }));
   
-      debugLog('コメントいいね楽観的更新', { commentId, newState });
+      if (import.meta.env.DEV) {
+        console.log(`[useComments] コメントいいね楽観的更新`, { commentId, newState });
+      }
   
       if (isDemo) {
         // デモモードではローカルストレージに保存
         try {
           localStorage.setItem(`commentLikes_${commentId}`, JSON.stringify(newState));
-          debugLog('コメントいいね状態保存完了', { commentId, newState });
+          if (import.meta.env.DEV) {
+            console.log(`[useComments] コメントいいね状態保存完了`, { commentId, newState });
+          }
         } catch (error) {
-          debugLog('コメントいいね保存エラー', error);
+          if (import.meta.env.DEV) {
+            console.log(`[useComments] コメントいいね保存エラー`, error);
+          }
           // エラー時はロールバック
           setLikesState(prev => ({
             ...prev,
@@ -511,12 +543,11 @@ export const useComments = (photoId?: string) => {
           }));
           throw new Error('コメントいいねの保存に失敗しました');
         }
-      } else {
-        // 実際のSupabase処理（将来の実装）
-        debugLog('Supabaseコメントいいね処理完了', { commentId, newIsLiked });
       }
     } catch (error) {
-      debugLog('コメントいいね処理エラー', error);
+      if (import.meta.env.DEV) {
+        console.log(`[useComments] コメントいいね処理エラー`, error);
+      }
       console.error('コメントいいね処理エラー:', error);
       
       // エラー時はロールバック
@@ -530,7 +561,7 @@ export const useComments = (photoId?: string) => {
     } finally {
       setIsLikingComment(null);
     }
-  }, [isDemo, likesState, isLikingComment, debugLog]);
+  }, [isDemo, likesState, isLikingComment]);
 
   // 写真IDが変更されたときにコメントを取得
   useEffect(() => {
