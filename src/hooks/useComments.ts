@@ -491,22 +491,20 @@ export const useComments = (photoId?: string) => {
 
   // いいね機能のメイン処理
   const toggleLike = useCallback(async (commentId: string) => {
+    console.log('🔧 [FINAL] コメントいいね処理開始', { commentId, isDemo });
+    
     try {
-      if (import.meta.env.DEV) {
-        console.log(`[useComments] コメントいいね処理開始`, { commentId, isDemo });
-      }
-      
       // 重複実行を防止
       if (isLikingComment === commentId) {
-        if (import.meta.env.DEV) {
-          console.log(`[useComments] 既にコメントいいね処理中`, commentId);
-        }
+        console.log('🔧 [FINAL] 既に処理中のためスキップ', commentId);
         return;
       }
       
       setIsLikingComment(commentId);
       
       const currentState = likesState[commentId] || { count: 0, isLiked: false };
+      console.log('🔧 [FINAL] 現在の状態:', { commentId, currentState });
+      
       const newIsLiked = !currentState.isLiked;
       const newCount = newIsLiked ? currentState.count + 1 : Math.max(0, currentState.count - 1);
   
@@ -515,27 +513,40 @@ export const useComments = (photoId?: string) => {
         isLiked: newIsLiked
       };
   
+      console.log('🔧 [FINAL] 新しい状態:', { commentId, newState });
+  
       // 楽観的更新
-      setLikesState(prev => ({
-        ...prev,
-        [commentId]: newState
-      }));
+      setLikesState(prev => {
+        const updated = {
+          ...prev,
+          [commentId]: newState
+        };
+        console.log('🔧 [FINAL] 状態更新:', { prev, updated });
+        return updated;
+      });
   
-      if (import.meta.env.DEV) {
-        console.log(`[useComments] コメントいいね楽観的更新`, { commentId, newState });
-      }
-  
+      // localStorage保存（デモモード時）
       if (isDemo) {
-        // デモモードではローカルストレージに保存
+        console.log('🔧 [FINAL] localStorage保存開始');
         try {
-          localStorage.setItem(`commentLikes_${commentId}`, JSON.stringify(newState));
-          if (import.meta.env.DEV) {
-            console.log(`[useComments] コメントいいね状態保存完了`, { commentId, newState });
+          const key = `commentLikes_${commentId}`;
+          const value = JSON.stringify(newState);
+          
+          console.log('🔧 [FINAL] 保存データ:', { key, value });
+          
+          localStorage.setItem(key, value);
+          
+          // 保存確認
+          const saved = localStorage.getItem(key);
+          console.log('🔧 [FINAL] 保存確認:', { key, saved });
+          
+          if (saved === value) {
+            console.log('✅ [FINAL] localStorage保存成功');
+          } else {
+            console.error('❌ [FINAL] localStorage保存失敗 - 値が一致しない');
           }
         } catch (error) {
-          if (import.meta.env.DEV) {
-            console.log(`[useComments] コメントいいね保存エラー`, error);
-          }
+          console.error('❌ [FINAL] localStorage保存エラー:', error);
           // エラー時はロールバック
           setLikesState(prev => ({
             ...prev,
@@ -543,12 +554,13 @@ export const useComments = (photoId?: string) => {
           }));
           throw new Error('コメントいいねの保存に失敗しました');
         }
+      } else {
+        console.log('🔧 [FINAL] Supabaseモード（保存なし）');
       }
+      
+      console.log('✅ [FINAL] いいね処理完了');
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.log(`[useComments] コメントいいね処理エラー`, error);
-      }
-      console.error('コメントいいね処理エラー:', error);
+      console.error('❌ [FINAL] いいね処理エラー:', error);
       
       // エラー時はロールバック
       const originalState = likesState[commentId] || { count: 0, isLiked: false };
