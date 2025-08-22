@@ -57,7 +57,6 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   // 写真いいね機能の状態
   const [photoLikes, setPhotoLikes] = useState<Record<string, PhotoLikeState>>({});
   const [isLikingPhoto, setIsLikingPhoto] = useState<string | null>(null);
-  const [likesInitialized, setLikesInitialized] = useState(false);
 
   const { currentAlbum } = useApp();
   const { isDemo } = useEnvironment();
@@ -85,87 +84,14 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   // 現在の写真のコメントを直接取得（自動表示判定のため）
   const { comments, loading: commentsLoading } = useComments(currentPhoto?.id);
 
-  // ローカルストレージキーの統一化（修正：一貫性のため）
-  const getPhotoLikesKey = useCallback((photoId: string) => {
-    return `photoLikes_${photoId}`; // キー形式を統一
-  }, []);
-
-  // 写真いいね状態の読み込み（永続化対応）
-  const loadPhotoLikeState = useCallback((photoId: string): PhotoLikeState => {
-    debugLog('写真いいね状態読み込み開始', { photoId, isDemo });
-
-    if (!isDemo) {
-      // 実際のSupabaseから取得（将来の実装）
-      return { count: 0, isLiked: false };
-    }
-
-    try {
-      const savedLikes = localStorage.getItem(getPhotoLikesKey(photoId));
-      if (savedLikes) {
-        const parsed = JSON.parse(savedLikes);
-        debugLog('写真いいね状態読み込み成功', { photoId, state: parsed });
-        return {
-          count: parsed.count || 0,
-          isLiked: parsed.isLiked || false,
-          timestamp: parsed.timestamp || new Date().toISOString()
-        };
-      }
-    } catch (error) {
-      debugLog('写真いいね状態読み込みエラー', { photoId, error });
-    }
-
-    // デフォルト値（ランダムなカウントで初期化）
-    const defaultState = { 
-      count: Math.floor(Math.random() * 20), 
-      isLiked: false,
-      timestamp: new Date().toISOString()
-    };
-    
-    // デフォルト値をローカルストレージに保存
-    try {
-      localStorage.setItem(getPhotoLikesKey(photoId), JSON.stringify(defaultState));
-      debugLog('写真いいね初期状態保存', { photoId, state: defaultState });
-    } catch (error) {
-      debugLog('写真いいね初期状態保存エラー', { photoId, error });
-    }
-
-    return defaultState;
-  }, [isDemo, getPhotoLikesKey, debugLog]);
-
-  // 写真いいね状態の保存
-  const savePhotoLikeState = useCallback((photoId: string, state: PhotoLikeState) => {
-    if (!isDemo) {
-      // 実際のSupabaseに保存（将来の実装）
-      return;
-    }
-
-    try {
-      const stateWithTimestamp = {
-        ...state,
-        timestamp: new Date().toISOString()
-      };
-      localStorage.setItem(getPhotoLikesKey(photoId), JSON.stringify(stateWithTimestamp));
-      debugLog('写真いいね状態保存成功', { photoId, state: stateWithTimestamp });
-    } catch (error) {
-      debugLog('写真いいね状態保存エラー', { photoId, error });
-      throw new Error('写真いいねの保存に失敗しました');
-    }
-  }, [isDemo, getPhotoLikesKey, debugLog]);
-
-  // 写真いいね状態の初期化（改善版：重複実行を防止）
   const initializePhotoLikes = useCallback((photo: Photo) => {
-    if (!photo) return;
-  
-    debugLog('写真いいね状態初期化開始', { photoId: photo.id });
-  
-    // 既に初期化済みの場合はスキップ
-    if (photoLikes[photo.id]) {
-      debugLog('写真いいね状態は既に初期化済み', { photoId: photo.id });
-      return;
+    if (!photo || photoLikes[photo.id]) {
+      return; // 既に初期化済みならスキップ
     }
+  
+    debugLog('写真いいね状態初期化', { photoId: photo.id });
   
     if (isDemo) {
-      // デモモードでローカルストレージから読み込み
       try {
         const savedLikes = localStorage.getItem(`photoLikes_${photo.id}`);
         if (savedLikes) {
@@ -177,14 +103,13 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
               isLiked: likeState.isLiked || false
             }
           }));
-          debugLog('写真いいね状態復元完了', { photoId: photo.id, state: likeState });
           return;
         }
       } catch (error) {
-        debugLog('写真いいね状態読み込みエラー', error);
+        debugLog('いいね状態読み込みエラー', error);
       }
   
-      // デフォルト値を設定して保存
+      // デフォルト値
       const defaultState = { 
         count: Math.floor(Math.random() * 20), 
         isLiked: false 
@@ -195,15 +120,13 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
         [photo.id]: defaultState
       }));
   
-      // デフォルト値をlocalStorageに保存
+      // localStorage に保存
       try {
         localStorage.setItem(`photoLikes_${photo.id}`, JSON.stringify(defaultState));
-        debugLog('写真いいね初期状態保存完了', { photoId: photo.id, state: defaultState });
       } catch (error) {
-        debugLog('写真いいね初期状態保存エラー', error);
+        debugLog('デフォルト状態保存エラー', error);
       }
     } else {
-      // 実際のSupabaseから取得（将来の実装）
       setPhotoLikes(prev => ({
         ...prev,
         [photo.id]: { count: 0, isLiked: false }
@@ -211,146 +134,45 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     }
   }, [isDemo, photoLikes, debugLog]);
 
-  // 全写真のいいね状態を一括初期化（パフォーマンス改善）
-  const initializeAllPhotoLikes = useCallback(() => {
-    if (!isOpen || likesInitialized) return;
-
-    debugLog('全写真いいね状態初期化開始', { photoCount: photos.length });
-
-    const newLikesState: Record<string, PhotoLikeState> = {};
-    
-    // 現在の写真を優先して初期化
-    if (currentPhoto) {
-      newLikesState[currentPhoto.id] = loadPhotoLikeState(currentPhoto.id);
-    }
-
-    // 他の写真も初期化（バックグラウンド）
-    photos.forEach(photo => {
-      if (photo.id !== currentPhoto?.id) {
-        newLikesState[photo.id] = loadPhotoLikeState(photo.id);
-      }
-    });
-
-    setPhotoLikes(prev => ({ ...prev, ...newLikesState }));
-    setLikesInitialized(true);
-
-    debugLog('全写真いいね状態初期化完了', { 
-      initializedCount: Object.keys(newLikesState).length 
-    });
-  }, [isOpen, likesInitialized, photos, currentPhoto, loadPhotoLikeState, debugLog]);
-
   // 写真いいね機能（永続化確実実行版）
   const togglePhotoLike = useCallback(async (photoId: string) => {
+    if (isLikingPhoto === photoId) return;
+  
+    debugLog('いいね処理開始', { photoId });
+    setIsLikingPhoto(photoId);
+  
     try {
-      debugLog('写真いいね処理開始', { photoId, isDemo });
-      
-      if (isLikingPhoto === photoId) {
-        debugLog('既に写真いいね処理中', photoId);
-        return;
-      }
-      
-      setIsLikingPhoto(photoId);
-      
       const currentState = photoLikes[photoId] || { count: 0, isLiked: false };
       const newIsLiked = !currentState.isLiked;
       const newCount = newIsLiked ? currentState.count + 1 : Math.max(0, currentState.count - 1);
   
-      const newState = {
-        count: newCount,
-        isLiked: newIsLiked
-      };
+      const newState = { count: newCount, isLiked: newIsLiked };
   
-      // 楽観的更新
+      // 状態更新
       setPhotoLikes(prev => ({
         ...prev,
         [photoId]: newState
       }));
   
-      debugLog('写真いいね楽観的更新', { photoId, newState });
-  
+      // localStorage保存（デモモード）
       if (isDemo) {
-        // デモモードでlocalStorageに確実に保存
-        try {
-          localStorage.setItem(`photoLikes_${photoId}`, JSON.stringify(newState));
-          debugLog('写真いいね状態保存完了', { photoId, newState });
-        } catch (error) {
-          debugLog('写真いいね保存エラー', error);
-          // エラー時はロールバック
-          setPhotoLikes(prev => ({
-            ...prev,
-            [photoId]: currentState
-          }));
-          throw new Error('写真いいねの保存に失敗しました');
-        }
-      } else {
-        // 実際のSupabase処理（将来の実装）
-        debugLog('写真いいねSupabase処理完了', { photoId, newIsLiked });
+        localStorage.setItem(`photoLikes_${photoId}`, JSON.stringify(newState));
       }
+  
+      debugLog('いいね処理完了', { photoId, newState });
     } catch (error) {
-      debugLog('写真いいね処理エラー', error);
-      console.error('写真いいね処理エラー:', error);
-      
-      // エラー時はロールバック
-      const originalState = photoLikes[photoId] || { count: 0, isLiked: false };
-      setPhotoLikes(prev => ({
-        ...prev,
-        [photoId]: originalState
-      }));
-      
+      debugLog('いいね処理エラー', error);
       setError('いいねの処理に失敗しました');
     } finally {
       setIsLikingPhoto(null);
     }
-  }, [isDemo, photoLikes, isLikingPhoto, debugLog]);
+  }, [photoLikes, isLikingPhoto, isDemo, debugLog]);
 
-  // photoの変更を監視してインデックスを更新
   useEffect(() => {
-    if (!photo || photos.length === 0) {
-      setCurrentIndex(0);
-      return;
-    }
-
-    const index = photos.findIndex(p => p.id === photo.id);
-    if (index !== -1) {
-      setCurrentIndex(index);
-      debugLog('写真インデックス更新:', { photoId: photo.id, index });
-    } else {
-      debugLog('写真がリストに見つからない:', photo.id);
-    }
-  }, [photo, photos, debugLog]);
-
-  // モーダルが開かれたときの初期化処理
-  useEffect(() => {
-    if (isOpen) {
-      debugLog('モーダル開放時の初期化');
-      setLikesInitialized(false);
-      setError(null);
-      // すべての写真のいいね状態を初期化
-      initializeAllPhotoLikes();
-    }
-  }, [isOpen, initializeAllPhotoLikes, debugLog]);
-
-  // 現在の写真が変更されたときの処理（確実な初期化）
-  useEffect(() => {
-    if (currentPhoto && isOpen) {
-      debugLog('現在の写真変更による初期化', { photoId: currentPhoto.id });
+    if (isOpen && currentPhoto) {
       initializePhotoLikes(currentPhoto);
     }
-  }, [currentPhoto?.id, isOpen, initializePhotoLikes, debugLog]);
-
-  // コメント自動表示ロジック - コメントが存在する場合は自動でパネルを表示
-  useEffect(() => {
-    if (isOpen && currentPhoto && showComments) {
-      // コメントが存在し、まだロードされていない場合は取得を待つ
-      if (!commentsLoading && comments.length > 0 && !showCommentsPanel) {
-        debugLog('コメントが存在するため自動表示', { 
-          photoId: currentPhoto.id,
-          commentCount: comments.length 
-        });
-        setShowCommentsPanel(true);
-      }
-    }
-  }, [isOpen, currentPhoto?.id, comments.length, commentsLoading, showComments, showCommentsPanel, debugLog]);
+  }, [isOpen, currentPhoto?.id, initializePhotoLikes]);
 
   // エラーハンドリング
   const handleError = useCallback((errorMessage: string) => {
@@ -494,51 +316,39 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   // 写真いいねボタンのレンダリング（永続化対応改善版）
   const renderPhotoLikeButton = useCallback(() => {
     if (!currentPhoto) return null;
-
-    const likeState = photoLikes[currentPhoto.id];
+  
+    const likeState = photoLikes[currentPhoto.id] || { count: 0, isLiked: false };
     const isLoading = isLikingPhoto === currentPhoto.id;
-    const isStateLoaded = !!likeState;
-
-    // 状態がまだ読み込まれていない場合は初期化を試行
-    if (!isStateLoaded && !isLoading) {
-      initializePhotoLikes(currentPhoto);
-    }
-
-    const displayState = likeState || { count: 0, isLiked: false };
-
+  
     return (
       <Button 
         variant="outline" 
         size="sm" 
         className={`flex items-center space-x-2 transition-all duration-200 ${
-          displayState.isLiked 
+          likeState.isLiked 
             ? 'text-red-500 border-red-300 bg-red-50 hover:bg-red-100' 
             : 'text-gray-500 hover:text-red-500 hover:border-red-300'
         }`}
         onClick={() => togglePhotoLike(currentPhoto.id)}
-        disabled={isLoading || !isStateLoaded}
-        aria-label={displayState.isLiked ? '写真のいいねを取り消す' : '写真にいいね'}
-        title={displayState.isLiked ? 'いいねを取り消す' : 'いいね'}
+        disabled={isLoading}
+        aria-label={likeState.isLiked ? 'いいねを取り消す' : 'いいね'}
       >
         <Heart 
           size={16} 
-          fill={displayState.isLiked ? 'currentColor' : 'none'}
+          fill={likeState.isLiked ? 'currentColor' : 'none'}
           className={`transition-transform duration-200 ${
             isLoading ? 'scale-110 animate-pulse' : 'hover:scale-110'
           }`}
         />
         <span className="font-medium">
-          {displayState.count > 999 ? '999+' : displayState.count}
+          {likeState.count > 999 ? '999+' : likeState.count}
         </span>
         {isLoading && (
           <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
         )}
-        {!isStateLoaded && !isLoading && (
-          <div className="w-3 h-3 border border-gray-300 border-t-transparent rounded-full animate-spin opacity-50" />
-        )}
       </Button>
     );
-  }, [currentPhoto, photoLikes, isLikingPhoto, togglePhotoLike, initializePhotoLikes]);
+  }, [currentPhoto, photoLikes, isLikingPhoto, togglePhotoLike]);
 
   // 改善されたコメントボタン - コメント数を正確に反映し、バッジ表示
   const renderCommentButton = useCallback(() => {
