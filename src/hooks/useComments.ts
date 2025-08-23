@@ -1,40 +1,36 @@
-// src/hooks/useComments.ts - 修正版（Hooksルール準拠 + 完全ないいね機能）
+// useComments.ts - Supabase いいね機能完全版
+// 既存のuseComments.tsを以下で置き換えてください
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useEnvironment } from './useEnvironment';
 import { useApp } from '../context/AppContext';
 import type { Comment } from '../types/core';
 
-// デバッグログ関数
 const debugLog = (message: string, data?: any) => {
   if (import.meta.env.DEV) {
     console.log(`[useComments] ${message}`, data);
   }
 };
 
-// いいね状態の型定義
 interface LikeState {
   count: number;
   isLiked: boolean;
 }
 
 export const useComments = (photoId?: string) => {
-  // すべてのHooksをトップレベルで宣言（Hooksルール遵守）
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // いいね機能の状態管理
   const [likesState, setLikesState] = useState<Record<string, LikeState>>({});
   const [isLikingComment, setIsLikingComment] = useState<string | null>(null);
   
-  // 環境情報をHookで取得
   const { isDemo } = useEnvironment();
   const { user, profile } = useApp();
 
-  // デモコメントデータの改善（いいね情報を含む）
+  // デモコメントデータ（いいね機能は無効）
   const getDemoComments = useCallback((targetPhotoId: string): Comment[] => {
-    const demoComments: Comment[] = [
+    return [
       {
         id: 'demo-comment-1',
         content: 'とても綺麗な写真ですね！✨ 家族みんなで楽しそう😊',
@@ -75,129 +71,50 @@ export const useComments = (photoId?: string) => {
         is_liked: true,
       }
     ];
-
-    // ローカルストレージから追加されたコメントも読み込み
-    try {
-      const savedCommentsKey = `demoComments_${targetPhotoId}`;
-      const savedComments = localStorage.getItem(savedCommentsKey);
-      if (savedComments) {
-        const parsedComments = JSON.parse(savedComments);
-        if (Array.isArray(parsedComments)) {
-          return [...demoComments, ...parsedComments];
-        }
-      }
-    } catch (error) {
-      debugLog('保存されたコメントの読み込みに失敗', error);
-    }
-
-    return demoComments;
   }, []);
 
-  // デモ用いいね状態の初期化
-  const initializeDemoLikes = useCallback((comments: Comment[]) => {
-    const initialLikes: Record<string, LikeState> = {};
-    
-    // debugLog を直接使用（依存配列から除去）
-    if (import.meta.env.DEV) {
-      console.log(`[useComments] コメントいいね状態初期化開始`, { commentCount: comments.length });
-    }
-    
-    comments.forEach(comment => {
-      try {
-        const savedLikes = localStorage.getItem(`commentLikes_${comment.id}`);
-        if (savedLikes) {
-          const parsedLikes = JSON.parse(savedLikes);
-          initialLikes[comment.id] = {
-            count: parsedLikes.count || comment.likes_count || 0,
-            isLiked: parsedLikes.isLiked || false
-          };
-          if (import.meta.env.DEV) {
-            console.log(`[useComments] コメントいいね状態復元`, { 
-              commentId: comment.id, 
-              state: initialLikes[comment.id] 
-            });
-          }
-        } else {
-          // localStorage にない場合はコメントのデフォルト値を使用
-          initialLikes[comment.id] = {
-            count: comment.likes_count || 0,
-            isLiked: comment.is_liked || false
-          };
-          // デフォルト値をlocalStorageに保存
-          try {
-            localStorage.setItem(`commentLikes_${comment.id}`, JSON.stringify(initialLikes[comment.id]));
-            if (import.meta.env.DEV) {
-              console.log(`[useComments] コメントいいね初期値保存`, { 
-                commentId: comment.id, 
-                state: initialLikes[comment.id] 
-              });
-            }
-          } catch (saveError) {
-            if (import.meta.env.DEV) {
-              console.log(`[useComments] コメントいいね初期値保存エラー`, saveError);
-            }
-          }
-        }
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.log(`[useComments] いいね状態読み込みエラー`, { commentId: comment.id, error });
-        }
-        // エラー時はコメントのデフォルト値
-        initialLikes[comment.id] = {
-          count: comment.likes_count || 0,
-          isLiked: comment.is_liked || false
-        };
-      }
-    });
-    
-    setLikesState(prev => ({ ...prev, ...initialLikes }));
-    if (import.meta.env.DEV) {
-      console.log(`[useComments] コメントいいね状態初期化完了`, { 
-        commentCount: comments.length, 
-        likesCount: Object.keys(initialLikes).length,
-        initialLikes 
-      });
-    }
-  }, []); 
-
+  // コメント取得（いいね情報含む）
   const fetchComments = useCallback(async (targetPhotoId?: string) => {
     const currentPhotoId = targetPhotoId || photoId;
     
     if (!currentPhotoId) {
-      if (import.meta.env.DEV) {
-        console.log(`[useComments] 写真IDが指定されていません`);
-      }
+      debugLog('写真IDが指定されていません');
       setComments([]);
       setLikesState({});
       setLoading(false);
-      return []; // 修正: 空配列を返す
+      return [];
     }
   
     try {
       setLoading(true);
       setError(null);
-      if (import.meta.env.DEV) {
-        console.log(`[useComments] コメント取得開始`, { photoId: currentPhotoId, isDemo });
-      }
+      debugLog('コメント取得開始', { photoId: currentPhotoId, isDemo });
   
       if (isDemo) {
-        // デモモードでのコメント取得
+        // デモモードではローカルコメント（いいね機能無効）
         const demoComments = getDemoComments(currentPhotoId);
-        
         setComments(demoComments);
-        initializeDemoLikes(demoComments);
+        
+        // デモ用のいいね状態（静的）
+        const demoLikes: Record<string, LikeState> = {};
+        demoComments.forEach(comment => {
+          demoLikes[comment.id] = {
+            count: comment.likes_count || 0,
+            isLiked: comment.is_liked || false
+          };
+        });
+        setLikesState(demoLikes);
+        
         setLoading(false);
-        if (import.meta.env.DEV) {
-          console.log(`[useComments] デモコメント取得完了`, { 
-            photoId: currentPhotoId, 
-            commentCount: demoComments.length 
-          });
-        }
+        debugLog('デモコメント取得完了', { commentCount: demoComments.length });
         return demoComments;
       }
   
-      // 実際のSupabaseからの取得
-      const { data, error } = await supabase
+      // 現在のユーザーを取得
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      // 1. コメントを取得
+      const { data: commentsData, error: commentsError } = await supabase
         .from('comments')
         .select(`
           *,
@@ -206,112 +123,119 @@ export const useComments = (photoId?: string) => {
         .eq('photo_id', currentPhotoId)
         .order('created_at', { ascending: true });
   
-      if (error) throw error;
+      if (commentsError) throw commentsError;
   
-      const commentsWithUserInfo = (data || []).map((comment: any) => ({
+      if (!commentsData || commentsData.length === 0) {
+        setComments([]);
+        setLikesState({});
+        debugLog('コメントが見つかりません', { photoId: currentPhotoId });
+        return [];
+      }
+  
+      debugLog('コメント基本データ取得完了', { 
+        photoId: currentPhotoId, 
+        commentCount: commentsData.length,
+        commentIds: commentsData.map((c: any) => c.id)
+      });
+  
+      // 2. すべてのいいね情報を一度に取得
+      const commentIds = commentsData.map((c: any) => c.id);
+      const { data: allLikes, error: likesError } = await supabase
+        .from('comment_likes')
+        .select('comment_id, user_id')
+        .in('comment_id', commentIds);
+  
+      if (likesError) throw likesError;
+  
+      debugLog('いいね情報取得完了', { 
+        totalLikes: allLikes?.length || 0,
+        currentUserId: currentUser?.id
+      });
+  
+      // 3. いいね数をカウントし、現在ユーザーのいいね状態をチェック
+      const likeCounts: Record<string, number> = {};
+      const userLikes: Record<string, boolean> = {};
+      
+      // 初期化
+      commentIds.forEach((id: string) => {
+        likeCounts[id] = 0;
+        userLikes[id] = false;
+      });
+  
+      // いいね情報を集計
+      (allLikes || []).forEach((like: any) => {
+        const commentId = like.comment_id;
+        likeCounts[commentId] = (likeCounts[commentId] || 0) + 1;
+        
+        if (currentUser && like.user_id === currentUser.id) {
+          userLikes[commentId] = true;
+        }
+      });
+  
+      debugLog('いいね集計完了', { 
+        likeCounts, 
+        userLikes: currentUser ? userLikes : {} 
+      });
+  
+      // 4. コメントデータを構築
+      const commentsWithLikes = commentsData.map((comment: any) => ({
         ...comment,
         user_name: comment.profiles?.name || '不明',
         user_avatar: comment.profiles?.avatar_url || null,
-        likes_count: 0,
-        is_liked: false,
+        likes_count: likeCounts[comment.id] || 0,
+        is_liked: currentUser ? (userLikes[comment.id] || false) : false,
       }));
   
-      setComments(commentsWithUserInfo);
+      setComments(commentsWithLikes);
       
-      // いいね状態を初期化
-      const initialLikes: Record<string, LikeState> = {};
-      commentsWithUserInfo.forEach((comment: Comment) => {
-        initialLikes[comment.id] = {
+      // 5. いいね状態を設定
+      const newLikesState: Record<string, LikeState> = {};
+      commentsWithLikes.forEach((comment: Comment) => {
+        newLikesState[comment.id] = {
           count: comment.likes_count || 0,
           isLiked: comment.is_liked || false
         };
       });
-      setLikesState(initialLikes);
+      setLikesState(newLikesState);
       
-      if (import.meta.env.DEV) {
-        console.log(`[useComments] Supabaseコメント取得完了`, { 
-          photoId: currentPhotoId, 
-          commentCount: commentsWithUserInfo.length 
-        });
-      }
-      return commentsWithUserInfo; // 修正: 結果を返す
+      debugLog('コメント処理完了', { 
+        photoId: currentPhotoId, 
+        commentCount: commentsWithLikes.length,
+        likesState: newLikesState
+      });
+      
+      return commentsWithLikes;
     } catch (err) {
-      if (import.meta.env.DEV) {
-        console.log(`[useComments] コメント取得エラー`, err);
-      }
+      debugLog('コメント取得エラー', err);
       console.error('コメント取得エラー:', err);
       setError('コメントの取得に失敗しました');
       setComments([]);
       setLikesState({});
-      return []; // 修正: エラー時も空配列を返す
+      return [];
     } finally {
       setLoading(false);
     }
-  }, [photoId, isDemo, getDemoComments, initializeDemoLikes]);
+  }, [photoId, isDemo, getDemoComments]);
 
+  // コメント追加
   const addComment = useCallback(async (content: string, targetPhotoId?: string, parentId?: string) => {
     const currentPhotoId = targetPhotoId || photoId;
     
     if (!currentPhotoId) {
       throw new Error('写真IDが指定されていません');
     }
-  
+
     try {
       debugLog('コメント追加開始', { content, photoId: currentPhotoId, parentId });
-  
+
       if (isDemo) {
-        // デモモードでのコメント追加
-        const newComment: Comment = {
-          id: `demo-comment-${Date.now()}`,
-          content,
-          photo_id: currentPhotoId,
-          user_id: profile?.id || user?.id || 'demo-user-1',
-          parent_id: parentId || null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          user_name: profile?.name || 'デモユーザー',
-          user_avatar: profile?.avatar_url || null,
-          likes_count: 0,
-          is_liked: false,
-        };
-  
-        // 楽観的更新
-        setComments(prev => [...prev, newComment]);
-        
-        // 新しいコメントのいいね状態を初期化
-        const newLikeState = { count: 0, isLiked: false };
-        setLikesState(prev => ({
-          ...prev,
-          [newComment.id]: newLikeState
-        }));
-        
-        // localStorage に新しいコメントのいいね状態を保存
-        try {
-          localStorage.setItem(`commentLikes_${newComment.id}`, JSON.stringify(newLikeState));
-          debugLog('新規コメントいいね状態保存', { commentId: newComment.id, state: newLikeState });
-        } catch (saveError) {
-          debugLog('新規コメントいいね状態保存エラー', saveError);
-        }
-        
-        // ローカルストレージに保存
-        try {
-          const savedCommentsKey = `demoComments_${currentPhotoId}`;
-          const existingComments = localStorage.getItem(savedCommentsKey);
-          const commentsList = existingComments ? JSON.parse(existingComments) : [];
-          commentsList.push(newComment);
-          localStorage.setItem(savedCommentsKey, JSON.stringify(commentsList));
-          debugLog('デモコメントをローカルストレージに保存');
-        } catch (error) {
-          debugLog('ローカルストレージ保存エラー', error);
-        }
-  
-        debugLog('デモコメント追加完了', newComment);
-        return newComment;
+        // デモモードでは追加機能を無効化
+        throw new Error('デモモードではコメント追加はできません');
       }
-  
+
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) throw new Error('ログインが必要です');
-  
+
       const { data, error } = await supabase
         .from('comments')
         .insert({
@@ -325,9 +249,9 @@ export const useComments = (photoId?: string) => {
           profiles!comments_user_id_fkey(name, avatar_url)
         `)
         .single();
-  
+
       if (error) throw error;
-  
+
       const newComment = {
         ...data,
         user_name: data.profiles?.name || '不明',
@@ -335,58 +259,32 @@ export const useComments = (photoId?: string) => {
         likes_count: 0,
         is_liked: false,
       };
-  
-      // 楽観的更新
+
+      // コメントリストを更新
       setComments(prev => [...prev, newComment]);
       
-      // 新しいコメントのいいね状態を初期化
+      // いいね状態を初期化
       setLikesState(prev => ({
         ...prev,
         [newComment.id]: { count: 0, isLiked: false }
       }));
       
-      debugLog('Supabaseコメント追加完了', newComment);
+      debugLog('コメント追加完了', newComment);
       return newComment;
     } catch (err) {
       debugLog('コメント投稿エラー', err);
       console.error('コメント投稿エラー:', err);
       throw new Error('コメントの投稿に失敗しました');
     }
-  }, [photoId, isDemo, profile, user, debugLog]);
+  }, [photoId, isDemo]);
 
+  // コメント更新
   const updateComment = useCallback(async (id: string, content: string) => {
     try {
       debugLog('コメント更新開始', { id, content });
 
       if (isDemo) {
-        // 楽観的更新（デモモード）
-        const updatedComments = comments.map(comment =>
-          comment.id === id
-            ? { ...comment, content, updated_at: new Date().toISOString() }
-            : comment
-        );
-        setComments(updatedComments);
-        
-        // ローカルストレージも更新
-        try {
-          const currentPhotoId = photoId;
-          if (currentPhotoId) {
-            const savedCommentsKey = `demoComments_${currentPhotoId}`;
-            const existingComments = localStorage.getItem(savedCommentsKey);
-            if (existingComments) {
-              const commentsList = JSON.parse(existingComments);
-              const updatedList = commentsList.map((comment: Comment) =>
-                comment.id === id ? { ...comment, content, updated_at: new Date().toISOString() } : comment
-              );
-              localStorage.setItem(savedCommentsKey, JSON.stringify(updatedList));
-            }
-          }
-        } catch (error) {
-          debugLog('ローカルストレージ更新エラー', error);
-        }
-        
-        debugLog('デモコメント更新完了', { id, content });
-        return comments.find(c => c.id === id);
+        throw new Error('デモモードではコメント編集はできません');
       }
 
       const { data, error } = await supabase
@@ -410,58 +308,29 @@ export const useComments = (photoId?: string) => {
         user_avatar: data.profiles?.avatar_url || null,
       };
 
-      // 楽観的更新
+      // コメントリストを更新
       setComments(prev => 
         prev.map(comment => 
           comment.id === id ? updatedComment : comment
         )
       );
 
-      debugLog('Supabaseコメント更新完了', updatedComment);
+      debugLog('コメント更新完了', updatedComment);
       return updatedComment;
     } catch (err) {
       debugLog('コメント更新エラー', err);
       console.error('コメント更新エラー:', err);
       throw new Error('コメントの更新に失敗しました');
     }
-  }, [isDemo, comments, photoId]);
+  }, [isDemo]);
 
+  // コメント削除
   const deleteComment = useCallback(async (id: string) => {
     try {
       debugLog('コメント削除開始', id);
 
       if (isDemo) {
-        // 楽観的更新（デモモード）
-        const filteredComments = comments.filter(comment => comment.id !== id);
-        setComments(filteredComments);
-        
-        // いいね状態も削除
-        setLikesState(prev => {
-          const newState = { ...prev };
-          delete newState[id];
-          return newState;
-        });
-        
-        // ローカルストレージからも削除
-        try {
-          const currentPhotoId = photoId;
-          if (currentPhotoId) {
-            const savedCommentsKey = `demoComments_${currentPhotoId}`;
-            const existingComments = localStorage.getItem(savedCommentsKey);
-            if (existingComments) {
-              const commentsList = JSON.parse(existingComments);
-              const filteredList = commentsList.filter((comment: Comment) => comment.id !== id);
-              localStorage.setItem(savedCommentsKey, JSON.stringify(filteredList));
-            }
-          }
-          // いいね状態も削除
-          localStorage.removeItem(`commentLikes_${id}`);
-        } catch (error) {
-          debugLog('ローカルストレージ削除エラー', error);
-        }
-        
-        debugLog('デモコメント削除完了', id);
-        return;
+        throw new Error('デモモードではコメント削除はできません');
       }
 
       const { error } = await supabase
@@ -471,7 +340,7 @@ export const useComments = (photoId?: string) => {
 
       if (error) throw error;
 
-      // 楽観的更新
+      // コメントリストから削除
       setComments(prev => prev.filter(comment => comment.id !== id));
       
       // いいね状態も削除
@@ -481,99 +350,82 @@ export const useComments = (photoId?: string) => {
         return newState;
       });
       
-      debugLog('Supabaseコメント削除完了', id);
+      debugLog('コメント削除完了', id);
     } catch (err) {
       debugLog('コメント削除エラー', err);
       console.error('コメント削除エラー:', err);
       throw new Error('コメントの削除に失敗しました');
     }
-  }, [isDemo, comments, photoId]);
+  }, [isDemo]);
 
-  // いいね機能のメイン処理
+  // いいね機能（Supabase版）
   const toggleLike = useCallback(async (commentId: string) => {
-    console.log('🔧 [FINAL] コメントいいね処理開始', { commentId, isDemo });
-    
     try {
+      debugLog('いいね処理開始', { commentId, isDemo });
+      
+      if (isDemo) {
+        debugLog('デモモードではいいね機能は無効');
+        return;
+      }
+
       // 重複実行を防止
       if (isLikingComment === commentId) {
-        console.log('🔧 [FINAL] 既に処理中のためスキップ', commentId);
+        debugLog('既に処理中', commentId);
         return;
       }
       
       setIsLikingComment(commentId);
-      
-      const currentState = likesState[commentId] || { count: 0, isLiked: false };
-      console.log('🔧 [FINAL] 現在の状態:', { commentId, currentState });
-      
-      const newIsLiked = !currentState.isLiked;
-      const newCount = newIsLiked ? currentState.count + 1 : Math.max(0, currentState.count - 1);
-  
-      const newState = {
-        count: newCount,
-        isLiked: newIsLiked
-      };
-  
-      console.log('🔧 [FINAL] 新しい状態:', { commentId, newState });
-  
-      // 楽観的更新
-      setLikesState(prev => {
-        const updated = {
-          ...prev,
-          [commentId]: newState
-        };
-        console.log('🔧 [FINAL] 状態更新:', { prev, updated });
-        return updated;
-      });
-  
-      // localStorage保存（デモモード時）
-      if (isDemo) {
-        console.log('🔧 [FINAL] localStorage保存開始');
-        try {
-          const key = `commentLikes_${commentId}`;
-          const value = JSON.stringify(newState);
-          
-          console.log('🔧 [FINAL] 保存データ:', { key, value });
-          
-          localStorage.setItem(key, value);
-          
-          // 保存確認
-          const saved = localStorage.getItem(key);
-          console.log('🔧 [FINAL] 保存確認:', { key, saved });
-          
-          if (saved === value) {
-            console.log('✅ [FINAL] localStorage保存成功');
-          } else {
-            console.error('❌ [FINAL] localStorage保存失敗 - 値が一致しない');
-          }
-        } catch (error) {
-          console.error('❌ [FINAL] localStorage保存エラー:', error);
-          // エラー時はロールバック
-          setLikesState(prev => ({
-            ...prev,
-            [commentId]: currentState
-          }));
-          throw new Error('コメントいいねの保存に失敗しました');
-        }
-      } else {
-        console.log('🔧 [FINAL] Supabaseモード（保存なし）');
+
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) {
+        throw new Error('ログインが必要です');
       }
+
+      // 現在のいいね状態を確認
+      const { data: existingLike, error: checkError } = await supabase
+        .from('comment_likes')
+        .select()
+        .eq('comment_id', commentId)
+        .eq('user_id', currentUser.id)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+
+      if (existingLike) {
+        // いいね削除
+        const { error: deleteError } = await supabase
+          .from('comment_likes')
+          .delete()
+          .eq('comment_id', commentId)
+          .eq('user_id', currentUser.id);
+
+        if (deleteError) throw deleteError;
+        
+        debugLog('いいね削除完了', commentId);
+      } else {
+        // いいね追加
+        const { error: insertError } = await supabase
+          .from('comment_likes')
+          .insert({ comment_id: commentId, user_id: currentUser.id });
+
+        if (insertError) throw insertError;
+        
+        debugLog('いいね追加完了', commentId);
+      }
+
+      // コメントリストを再取得して最新状態に更新
+      await fetchComments();
       
-      console.log('✅ [FINAL] いいね処理完了');
     } catch (error) {
-      console.error('❌ [FINAL] いいね処理エラー:', error);
-      
-      // エラー時はロールバック
-      const originalState = likesState[commentId] || { count: 0, isLiked: false };
-      setLikesState(prev => ({
-        ...prev,
-        [commentId]: originalState
-      }));
-      
+      debugLog('いいね処理エラー', error);
+      console.error('いいね処理エラー:', error);
       throw error;
     } finally {
       setIsLikingComment(null);
     }
-  }, [isDemo, likesState, isLikingComment]);
+  }, [isDemo, isLikingComment, fetchComments]);
 
   // 写真IDが変更されたときにコメントを取得
   useEffect(() => {
@@ -581,27 +433,11 @@ export const useComments = (photoId?: string) => {
       debugLog('写真ID変更によるコメント取得', photoId);
       fetchComments();
     } else {
-      // 写真IDがない場合はコメントをクリア
       setComments([]);
       setLikesState({});
       setError(null);
     }
   }, [photoId, fetchComments]);
-
-  // デバッグ用の状態ログ出力（開発時のみ）
-  useEffect(() => {
-    if (import.meta.env.DEV) {
-      debugLog('コメント状態変更', { 
-        photoId, 
-        commentCount: comments.length, 
-        loading, 
-        error,
-        likesStateCount: Object.keys(likesState).length,
-        isDemo,
-        commentIds: comments.map(c => c.id).slice(0, 3) // 最初の3つのIDのみ
-      });
-    }
-  }, [photoId, comments, loading, error, likesState, isDemo]);
 
   return {
     comments,

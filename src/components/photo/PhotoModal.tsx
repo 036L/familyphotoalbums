@@ -8,6 +8,7 @@ import { useApp } from '../../context/AppContext';
 import { useComments } from '../../hooks/useComments';
 import { useEnvironment } from '../../hooks/useEnvironment';
 import type { Photo, Comment } from '../../types/core';
+import { supabase } from '../../lib/supabase';
 
 // Props型の厳密な定義
 interface PhotoModalProps {
@@ -85,94 +86,148 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   const { comments, loading: commentsLoading } = useComments(currentPhoto?.id);
 
   const initializePhotoLikes = useCallback((photo: Photo) => {
-    if (!photo || photoLikes[photo.id]) {
-      return; // 既に初期化済みならスキップ
-    }
+    if (!photo) return;
   
-    debugLog('写真いいね状態初期化', { photoId: photo.id });
+    debugLog('写真いいね状態初期化', { photoId: photo.id, isDemo });
   
     if (isDemo) {
-      try {
-        const savedLikes = localStorage.getItem(`photoLikes_${photo.id}`);
-        if (savedLikes) {
-          const likeState = JSON.parse(savedLikes);
-          setPhotoLikes(prev => ({
-            ...prev,
-            [photo.id]: {
-              count: likeState.count || 0,
-              isLiked: likeState.isLiked || false
-            }
-          }));
-          return;
-        }
-      } catch (error) {
-        debugLog('いいね状態読み込みエラー', error);
-      }
-  
-      // デフォルト値
-      const defaultState = { 
+      // デモモードでは静的な値
+      const demoState = { 
         count: Math.floor(Math.random() * 20), 
         isLiked: false 
       };
-      
       setPhotoLikes(prev => ({
         ...prev,
-        [photo.id]: defaultState
+        [photo.id]: demoState
       }));
-  
-      // localStorage に保存
-      try {
-        localStorage.setItem(`photoLikes_${photo.id}`, JSON.stringify(defaultState));
-      } catch (error) {
-        debugLog('デフォルト状態保存エラー', error);
-      }
+      debugLog('デモ写真いいね状態設定', { photoId: photo.id, state: demoState });
     } else {
+      // Supabaseモードでは初期値を0に設定
       setPhotoLikes(prev => ({
         ...prev,
         [photo.id]: { count: 0, isLiked: false }
       }));
     }
-  }, [isDemo, photoLikes, debugLog]);
+  }, [isDemo, debugLog]);
+
+  const fetchPhotoLikes = useCallback(async (photoId: string) => {
+    if (!photoId || isDemo) return;
+  
+    try {
+      debugLog('写真いいね数取得開始', { photoId });
+  
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      // いいね数を取得
+      const { data: likeCounts, error: countError } = await supabase
+        .from('photo_likes')
+        .select('user_id')
+        .eq('photo_id', photoId);
+  
+      if (countError) throw countError;
+  
+      // 現在のユーザーがいいねしているかチェック
+      const isLiked = currentUser ? likeCounts?.some((like: any) => like.user_id === currentUser.id) || false : false;
+      const count = likeCounts?.length || 0;
+  
+      const likeState = { count, isLiked };
+      
+      setPhotoLikes(prev => ({
+        ...prev,
+        [photoId]: likeState
+      }));
+  
+      debugLog('写真いいね数取得完了', { photoId, likeState });
+    } catch (error) {
+      debugLog('写真いいね数取得エラー', error);
+      console.error('写真いいね数取得エラー:', error);
+    }
+  }, [isDemo, debugLog]);
 
   // 写真いいね機能（永続化確実実行版）
   const togglePhotoLike = useCallback(async (photoId: string) => {
-    if (isLikingPhoto === photoId) return;
-  
-    debugLog('いいね処理開始', { photoId });
-    setIsLikingPhoto(photoId);
-  
     try {
-      const currentState = photoLikes[photoId] || { count: 0, isLiked: false };
-      const newIsLiked = !currentState.isLiked;
-      const newCount = newIsLiked ? currentState.count + 1 : Math.max(0, currentState.count - 1);
+      debugLog('写真いいね処理開始', { photoId, isDemo });
+      
+      if (isLikingPhoto === photoId) return;
+      setIsLikingPhoto(photoId);
   
-      const newState = { count: newCount, isLiked: newIsLiked };
-  
-      // 状態更新
-      setPhotoLikes(prev => ({
-        ...prev,
-        [photoId]: newState
-      }));
-  
-      // localStorage保存（デモモード）
       if (isDemo) {
-        localStorage.setItem(`photoLikes_${photoId}`, JSON.stringify(newState));
+        // デモモードでは表示のみ更新
+        const currentState = photoLikes[photoId] || { count: 0, isLiked: false };
+        const newIsLiked = !currentState.isLiked;
+        const newCount = newIsLiked ? currentState.count + 1 : Math.max(0, currentState.count - 1);
+  
+        setPhotoLikes(prev => ({
+          ...prev,
+          [photoId]: { count: newCount, isLiked: newIsLiked }
+        }));
+        
+        debugLog('デモ写真いいね処理完了', { photoId, newCount, newIsLiked });
+        return;
       }
   
-      debugLog('いいね処理完了', { photoId, newState });
+      // Supabaseでの処理
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) {
+        throw new Error('ログインが必要です');
+      }
+  
+      // 現在のいいね状態を確認
+      const { data: existingLike, error: checkError } = await supabase
+        .from('photo_likes')
+        .select()
+        .eq('photo_id', photoId)
+        .eq('user_id', currentUser.id)
+        .single();
+  
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+  
+      if (existingLike) {
+        // いいね削除
+        const { error: deleteError } = await supabase
+          .from('photo_likes')
+          .delete()
+          .eq('photo_id', photoId)
+          .eq('user_id', currentUser.id);
+  
+        if (deleteError) throw deleteError;
+        debugLog('写真いいね削除完了', photoId);
+      } else {
+        // いいね追加
+        const { error: insertError } = await supabase
+          .from('photo_likes')
+          .insert({ photo_id: photoId, user_id: currentUser.id });
+  
+        if (insertError) throw insertError;
+        debugLog('写真いいね追加完了', photoId);
+      }
+  
+      // 最新のいいね数を取得
+      await fetchPhotoLikes(photoId);
+  
     } catch (error) {
-      debugLog('いいね処理エラー', error);
+      debugLog('写真いいね処理エラー', error);
+      console.error('写真いいね処理エラー:', error);
       setError('いいねの処理に失敗しました');
     } finally {
       setIsLikingPhoto(null);
     }
-  }, [photoLikes, isLikingPhoto, isDemo, debugLog]);
+  }, [photoLikes, isLikingPhoto, isDemo, fetchPhotoLikes, debugLog]);
 
   useEffect(() => {
-    if (isOpen && currentPhoto) {
-      initializePhotoLikes(currentPhoto);
+    if (currentPhoto && isOpen) {
+      debugLog('現在の写真変更による初期化', { photoId: currentPhoto.id });
+      if (isDemo) {
+        initializePhotoLikes(currentPhoto);
+      } else {
+        // Supabaseモードではいいね数を取得
+        fetchPhotoLikes(currentPhoto.id);
+      }
     }
-  }, [isOpen, currentPhoto?.id, initializePhotoLikes]);
+  }, [currentPhoto?.id, isOpen, isDemo, initializePhotoLikes, fetchPhotoLikes, debugLog]);
 
   // エラーハンドリング
   const handleError = useCallback((errorMessage: string) => {
