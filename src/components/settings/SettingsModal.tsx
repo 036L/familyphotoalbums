@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Settings, Bell, Palette, Type, Moon, X } from 'lucide-react';
+import { Settings, Bell, Palette, Type, Moon, X, Users } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { MemberManagementPanel } from './MemberManagementPanel';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -12,7 +13,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose
 }) => {
-  const [activeTab, setActiveTab] = useState<'notifications' | 'accessibility'>('notifications');
+  const [activeTab, setActiveTab] = useState<'notifications' | 'accessibility' | 'members'>('notifications');
   const [settings, setSettings] = useState({
     notifications: {
       newPhotos: true,
@@ -67,6 +68,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const tabs = [
     { id: 'notifications', name: '通知', icon: Bell },
     { id: 'accessibility', name: 'アクセシビリティ', icon: Palette },
+    { id: 'members', name: 'メンバー管理', icon: Users }, // 新規追加
   ];
 
   return (
@@ -250,6 +252,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
             </div>
+          )}
+
+          {/* メンバー管理設定 */}
+          {activeTab === 'members' && (
+              <MemberManagementPanel />
           )}
 
           {/* 保存ボタン */}

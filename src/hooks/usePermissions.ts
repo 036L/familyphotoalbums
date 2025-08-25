@@ -25,6 +25,7 @@ const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     'settings.edit',
     'family.manage',
     'admin.all',
+    'member.manage',  // メンバー権限管理
   ] as const,
   editor: [
     // 基本的な編集権限（写真削除も含む）

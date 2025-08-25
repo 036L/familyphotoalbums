@@ -171,6 +171,7 @@ export type Permission =
     | 'family.manage'
     // 管理者権限
     | 'admin.all';
+    | 'member.manage';  // メンバー権限管理
   
 export type Role = 'admin' | 'editor' | 'viewer';
   
