@@ -44,6 +44,7 @@ export interface Profile {
     email?: string;
     avatar_url: string | null;
     role: 'admin' | 'editor' | 'viewer';
+    family_id?: string;  // 追加
     settings?: Record<string, any>;
     created_at?: string;
     updated_at?: string;
@@ -170,7 +171,7 @@ export type Permission =
     | 'settings.edit'
     | 'family.manage'
     // 管理者権限
-    | 'admin.all';
+    | 'admin.all'
     | 'member.manage';  // メンバー権限管理
   
 export type Role = 'admin' | 'editor' | 'viewer';

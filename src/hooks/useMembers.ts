@@ -65,18 +65,18 @@ export const useMembers = () => {
       }
 
       // データを適切な形式に変換
-      const formattedMembers: FamilyMember[] = (data || []).map(member => ({
+      const formattedMembers: FamilyMember[] = (data || []).map((member: any) => ({
         id: member.id,
         family_id: member.family_id,
         user_id: member.user_id,
         role: member.role as Role,
-        email: member.profiles.email,
-        display_name: member.profiles.display_name,
-        avatar_url: member.profiles.avatar_url,
+        email: member.profiles?.email || '',
+        display_name: member.profiles?.display_name || null,
+        avatar_url: member.profiles?.avatar_url || null,
         joined_at: member.joined_at,
         invited_by: member.invited_by,
         is_current_user: member.user_id === currentUserId,
-        last_seen_at: member.profiles.last_seen_at,
+        last_seen_at: member.profiles?.last_seen_at || null,
       }));
 
       setMembers(formattedMembers);

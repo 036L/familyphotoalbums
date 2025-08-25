@@ -81,7 +81,7 @@ export const MemberManagementPanel: React.FC = () => {
     }
   };
 
-  const canModifyMember = (member: any) => {
+  const canModifyMember = (member: FamilyMember) => {
     // 自分自身は編集不可
     if (member.is_current_user) return false;
     // 管理者のみが他のメンバーを編集可能
