@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Bell, Shield, Palette, Type, Moon, X } from 'lucide-react';
+import { Settings, Bell, Palette, Type, Moon, X } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 
@@ -12,7 +12,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose
 }) => {
-  const [activeTab, setActiveTab] = useState<'notifications' | 'accessibility' | 'account'>('notifications');
+  const [activeTab, setActiveTab] = useState<'notifications' | 'accessibility'>('notifications');
   const [settings, setSettings] = useState({
     notifications: {
       newPhotos: true,
@@ -28,11 +28,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       darkMode: false,
       reducedMotion: false,
     },
-    privacy: {
-      profileVisibility: 'family',
-      allowInvitations: true,
-      showOnlineStatus: true,
-    }
   });
 
   const handleNotificationChange = (key: string, value: boolean) => {
@@ -55,16 +50,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }));
   };
 
-  const handlePrivacyChange = (key: string, value: any) => {
-    setSettings(prev => ({
-      ...prev,
-      privacy: {
-        ...prev.privacy,
-        [key]: value
-      }
-    }));
-  };
-
   const handleSave = async () => {
     try {
       // 設定をローカルストレージまたはサーバーに保存
@@ -82,7 +67,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const tabs = [
     { id: 'notifications', name: '通知', icon: Bell },
     { id: 'accessibility', name: 'アクセシビリティ', icon: Palette },
-    { id: 'account', name: 'アカウント', icon: Shield },
   ];
 
   return (
@@ -263,74 +247,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                     );
                   })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* アカウント設定 */}
-          {activeTab === 'account' && (
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">アカウント設定</h3>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    プロフィール公開範囲
-                  </label>
-                  <div className="space-y-2">
-                    {[
-                      { value: 'family', label: '家族のみ', description: '家族メンバーのみがプロフィールを表示できます' },
-                      { value: 'friends', label: '友人も含む', description: '招待された友人もプロフィールを表示できます' },
-                      { value: 'public', label: '公開', description: '誰でもプロフィールを表示できます' },
-                    ].map(option => (
-                      <label key={option.value} className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer">
-                        <input
-                          type="radio"
-                          name="profileVisibility"
-                          value={option.value}
-                          checked={settings.privacy.profileVisibility === option.value}
-                          onChange={(e) => handlePrivacyChange('profileVisibility', e.target.value)}
-                          className="mt-1 h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
-                        />
-                        <div>
-                          <span className="text-sm font-medium text-gray-900">{option.label}</span>
-                          <p className="text-xs text-gray-600">{option.description}</p>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {[
-                    {
-                      key: 'allowInvitations',
-                      label: '招待の受信を許可',
-                      description: '他の家族から新しいアルバムへの招待を受け取ります'
-                    },
-                    {
-                      key: 'showOnlineStatus',
-                      label: 'オンライン状態を表示',
-                      description: '他のメンバーにオンライン状態を表示します'
-                    },
-                  ].map(item => (
-                    <div key={item.key} className="flex items-start justify-between p-4 bg-gray-50 rounded-xl">
-                      <div>
-                        <label className="text-sm font-medium text-gray-900">{item.label}</label>
-                        <p className="text-xs text-gray-600 mt-1">{item.description}</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={settings.privacy[item.key as keyof typeof settings.privacy] as boolean}
-                          onChange={(e) => handlePrivacyChange(item.key, e.target.checked)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
-                      </label>
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>
