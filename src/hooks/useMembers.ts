@@ -103,7 +103,7 @@ export const useMembers = () => {
       setError(null);
 
       // 権限チェック：管理者のみが実行可能
-      if (profile?.role !== 'admin') {
+      if (!profile || profile.role !== 'admin') {
         throw new Error('メンバーの権限変更には管理者権限が必要です');
       }
 
@@ -153,7 +153,7 @@ export const useMembers = () => {
       setError(null);
 
       // 権限チェック：管理者のみが実行可能
-      if (profile?.role !== 'admin') {
+      if (!profile || profile.role !== 'admin') {
         throw new Error('メンバーの削除には管理者権限が必要です');
       }
 
@@ -196,7 +196,7 @@ export const useMembers = () => {
       setError(null);
 
       // 権限チェック：管理者と編集者が実行可能
-      if (!profile?.role || !['admin', 'editor'].includes(profile.role)) {
+      if (!profile || !profile.role || !['admin', 'editor'].includes(profile.role)) {
         throw new Error('メンバーの招待には管理者または編集者権限が必要です');
       }
 

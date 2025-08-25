@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Users, Crown, Edit3, Eye, AlertTriangle, Check, X } from 'lucide-react';
-import { useMembers } from '../../hooks/useMembers';
+import { useMembers, type FamilyMember } from '../../hooks/useMembers';
 import { usePermissions } from '../../hooks/usePermissions';
 import { Button } from '../ui/Button';
 import type { Role } from '../../types/core';
