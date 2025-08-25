@@ -1,10 +1,6 @@
-// useComments.ts - Supabase いいね機能完全版
-// 既存のuseComments.tsを以下で置き換えてください
-
+// src/hooks/useComments.ts - デモモード削除版
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { useEnvironment } from './useEnvironment';
-import { useApp } from '../context/AppContext';
 import type { Comment } from '../types/core';
 
 const debugLog = (message: string, data?: any) => {
@@ -24,54 +20,6 @@ export const useComments = (photoId?: string) => {
   const [error, setError] = useState<string | null>(null);
   const [likesState, setLikesState] = useState<Record<string, LikeState>>({});
   const [isLikingComment, setIsLikingComment] = useState<string | null>(null);
-  
-  const { isDemo } = useEnvironment();
-  const { user, profile } = useApp();
-
-  // デモコメントデータ（いいね機能は無効）
-  const getDemoComments = useCallback((targetPhotoId: string): Comment[] => {
-    return [
-      {
-        id: 'demo-comment-1',
-        content: 'とても綺麗な写真ですね！✨ 家族みんなで楽しそう😊',
-        photo_id: targetPhotoId,
-        user_id: 'demo-user-2',
-        parent_id: null,
-        created_at: '2024-01-15T10:30:00Z',
-        updated_at: '2024-01-15T10:30:00Z',
-        user_name: '田中花子',
-        user_avatar: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop',
-        likes_count: 5,
-        is_liked: false,
-      },
-      {
-        id: 'demo-comment-2',
-        content: 'この夕日、本当に美しいですね。写真で見ても感動します。',
-        photo_id: targetPhotoId,
-        user_id: 'demo-user-3',
-        parent_id: null,
-        created_at: '2024-01-15T19:00:00Z',
-        updated_at: '2024-01-15T19:00:00Z',
-        user_name: '田中おじいちゃん',
-        user_avatar: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop',
-        likes_count: 3,
-        is_liked: false,
-      },
-      {
-        id: 'demo-comment-3',
-        content: 'みんなで泳いで楽しかった〜！🏊‍♀️',
-        photo_id: targetPhotoId,
-        user_id: 'demo-user-1',
-        parent_id: null,
-        created_at: '2024-01-15T21:00:00Z',
-        updated_at: '2024-01-15T21:00:00Z',
-        user_name: 'デモユーザー',
-        user_avatar: null,
-        likes_count: 2,
-        is_liked: true,
-      }
-    ];
-  }, []);
 
   // コメント取得（いいね情報含む）
   const fetchComments = useCallback(async (targetPhotoId?: string) => {
@@ -88,28 +36,8 @@ export const useComments = (photoId?: string) => {
     try {
       setLoading(true);
       setError(null);
-      debugLog('コメント取得開始', { photoId: currentPhotoId, isDemo });
-  
-      if (isDemo) {
-        // デモモードではローカルコメント（いいね機能無効）
-        const demoComments = getDemoComments(currentPhotoId);
-        setComments(demoComments);
-        
-        // デモ用のいいね状態（静的）
-        const demoLikes: Record<string, LikeState> = {};
-        demoComments.forEach(comment => {
-          demoLikes[comment.id] = {
-            count: comment.likes_count || 0,
-            isLiked: comment.is_liked || false
-          };
-        });
-        setLikesState(demoLikes);
-        
-        setLoading(false);
-        debugLog('デモコメント取得完了', { commentCount: demoComments.length });
-        return demoComments;
-      }
-  
+      debugLog('コメント取得開始', { photoId: currentPhotoId });
+
       // 現在のユーザーを取得
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       
@@ -122,36 +50,36 @@ export const useComments = (photoId?: string) => {
         `)
         .eq('photo_id', currentPhotoId)
         .order('created_at', { ascending: true });
-  
+
       if (commentsError) throw commentsError;
-  
+
       if (!commentsData || commentsData.length === 0) {
         setComments([]);
         setLikesState({});
         debugLog('コメントが見つかりません', { photoId: currentPhotoId });
         return [];
       }
-  
+
       debugLog('コメント基本データ取得完了', { 
         photoId: currentPhotoId, 
         commentCount: commentsData.length,
         commentIds: commentsData.map((c: any) => c.id)
       });
-  
+
       // 2. すべてのいいね情報を一度に取得
       const commentIds = commentsData.map((c: any) => c.id);
       const { data: allLikes, error: likesError } = await supabase
         .from('comment_likes')
         .select('comment_id, user_id')
         .in('comment_id', commentIds);
-  
+
       if (likesError) throw likesError;
-  
+
       debugLog('いいね情報取得完了', { 
         totalLikes: allLikes?.length || 0,
         currentUserId: currentUser?.id
       });
-  
+
       // 3. いいね数をカウントし、現在ユーザーのいいね状態をチェック
       const likeCounts: Record<string, number> = {};
       const userLikes: Record<string, boolean> = {};
@@ -161,7 +89,7 @@ export const useComments = (photoId?: string) => {
         likeCounts[id] = 0;
         userLikes[id] = false;
       });
-  
+
       // いいね情報を集計
       (allLikes || []).forEach((like: any) => {
         const commentId = like.comment_id;
@@ -171,12 +99,12 @@ export const useComments = (photoId?: string) => {
           userLikes[commentId] = true;
         }
       });
-  
+
       debugLog('いいね集計完了', { 
         likeCounts, 
         userLikes: currentUser ? userLikes : {} 
       });
-  
+
       // 4. コメントデータを構築
       const commentsWithLikes = commentsData.map((comment: any) => ({
         ...comment,
@@ -185,7 +113,7 @@ export const useComments = (photoId?: string) => {
         likes_count: likeCounts[comment.id] || 0,
         is_liked: currentUser ? (userLikes[comment.id] || false) : false,
       }));
-  
+
       setComments(commentsWithLikes);
       
       // 5. いいね状態を設定
@@ -215,7 +143,7 @@ export const useComments = (photoId?: string) => {
     } finally {
       setLoading(false);
     }
-  }, [photoId, isDemo, getDemoComments]);
+  }, [photoId]);
 
   // コメント追加
   const addComment = useCallback(async (content: string, targetPhotoId?: string, parentId?: string) => {
@@ -227,11 +155,6 @@ export const useComments = (photoId?: string) => {
 
     try {
       debugLog('コメント追加開始', { content, photoId: currentPhotoId, parentId });
-
-      if (isDemo) {
-        // デモモードでは追加機能を無効化
-        throw new Error('デモモードではコメント追加はできません');
-      }
 
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) throw new Error('ログインが必要です');
@@ -276,16 +199,12 @@ export const useComments = (photoId?: string) => {
       console.error('コメント投稿エラー:', err);
       throw new Error('コメントの投稿に失敗しました');
     }
-  }, [photoId, isDemo]);
+  }, [photoId]);
 
   // コメント更新
   const updateComment = useCallback(async (id: string, content: string) => {
     try {
       debugLog('コメント更新開始', { id, content });
-
-      if (isDemo) {
-        throw new Error('デモモードではコメント編集はできません');
-      }
 
       const { data, error } = await supabase
         .from('comments')
@@ -322,16 +241,12 @@ export const useComments = (photoId?: string) => {
       console.error('コメント更新エラー:', err);
       throw new Error('コメントの更新に失敗しました');
     }
-  }, [isDemo]);
+  }, []);
 
   // コメント削除
   const deleteComment = useCallback(async (id: string) => {
     try {
       debugLog('コメント削除開始', id);
-
-      if (isDemo) {
-        throw new Error('デモモードではコメント削除はできません');
-      }
 
       const { error } = await supabase
         .from('comments')
@@ -356,18 +271,13 @@ export const useComments = (photoId?: string) => {
       console.error('コメント削除エラー:', err);
       throw new Error('コメントの削除に失敗しました');
     }
-  }, [isDemo]);
+  }, []);
 
-  // いいね機能（Supabase版）
+  // いいね機能
   const toggleLike = useCallback(async (commentId: string) => {
     try {
-      debugLog('いいね処理開始', { commentId, isDemo });
+      debugLog('いいね処理開始', { commentId });
       
-      if (isDemo) {
-        debugLog('デモモードではいいね機能は無効');
-        return;
-      }
-
       // 重複実行を防止
       if (isLikingComment === commentId) {
         debugLog('既に処理中', commentId);
@@ -425,7 +335,7 @@ export const useComments = (photoId?: string) => {
     } finally {
       setIsLikingComment(null);
     }
-  }, [isDemo, isLikingComment, fetchComments]);
+  }, [isLikingComment, fetchComments]);
 
   // 写真IDが変更されたときにコメントを取得
   useEffect(() => {

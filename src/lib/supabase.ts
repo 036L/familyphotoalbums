@@ -1,105 +1,23 @@
-// src/lib/supabase.ts
+// src/lib/supabase.ts - デモモード削除版
 import { createClient } from '@supabase/supabase-js';
 
-// デモ用の設定（実際の開発では環境変数を使用してください）
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://demo.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'demo-anon-key';
+// 環境変数の取得
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// デモモードかどうかを判定
-const isDemoMode = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
+// 環境変数のチェック
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Supabase環境変数が設定されていません。\n' +
+    'VITE_SUPABASE_URL と VITE_SUPABASE_ANON_KEY を .env ファイルに設定してください。\n\n' +
+    '例:\n' +
+    'VITE_SUPABASE_URL=https://your-project.supabase.co\n' +
+    'VITE_SUPABASE_ANON_KEY=your-anon-key'
+  );
+}
 
-// デモモード用のモッククライアント
-const createMockClient = () => ({
-  auth: {
-    getUser: () => Promise.resolve({ data: { user: null }, error: null }),
-    getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-    onAuthStateChange: () => ({
-      data: { subscription: { unsubscribe: () => {} } }
-    }),
-    signInWithPassword: ({ email, password }: { email: string; password: string }) => {
-      if (email === 'test@example.com' && password === 'password123') {
-        return Promise.resolve({
-          data: {
-            user: {
-              id: 'demo-user-1',
-              email: 'test@example.com',
-              user_metadata: { name: 'デモユーザー' }
-            },
-            session: { access_token: 'demo-token' }
-          },
-          error: null
-        });
-      }
-      return Promise.resolve({
-        data: { user: null, session: null },
-        error: new Error('認証情報が正しくありません')
-      });
-    },
-    signUp: () => Promise.resolve({
-      data: { user: null, session: null },
-      error: new Error('デモモードではサインアップできません')
-    }),
-    signOut: () => Promise.resolve({ error: null })
-  },
-  from: () => ({
-    select: () => ({
-      eq: () => ({
-        single: () => Promise.resolve({
-          data: {
-            id: 'demo-user-1',
-            name: 'デモユーザー',
-            avatar_url: null,
-            role: 'admin'
-          },
-          error: null
-        }),
-        order: () => Promise.resolve({
-          data: [],
-          error: null
-        })
-      }),
-      order: () => Promise.resolve({
-        data: [],
-        error: null
-      })
-    }),
-    insert: () => ({
-      select: () => ({
-        single: () => Promise.resolve({
-          data: { id: 'new-item', created_at: new Date().toISOString() },
-          error: null
-        })
-      })
-    }),
-    update: () => ({
-      eq: () => ({
-        select: () => ({
-          single: () => Promise.resolve({
-            data: { id: 'updated-item', updated_at: new Date().toISOString() },
-            error: null
-          })
-        })
-      })
-    }),
-    delete: () => ({
-      eq: () => Promise.resolve({ error: null })
-    })
-  }),
-  storage: {
-    from: () => ({
-      upload: () => Promise.resolve({
-        data: { path: 'demo/path.jpg' },
-        error: null
-      }),
-      getPublicUrl: () => ({
-        data: { publicUrl: 'https://via.placeholder.com/800x600' }
-      }),
-      remove: () => Promise.resolve({ error: null })
-    })
-  }
-});
-
-export const supabase = isDemoMode ? createMockClient() as any : createClient(supabaseUrl, supabaseAnonKey);
+// Supabaseクライアントの作成
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Database types
 export interface Database {
@@ -209,6 +127,106 @@ export interface Database {
         };
         Update: {
           content?: string;
+          updated_at?: string;
+        };
+      };
+      comment_likes: {
+        Row: {
+          id: string;
+          comment_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          comment_id: string;
+          user_id: string;
+        };
+        Update: never;
+      };
+      families: {
+        Row: {
+          id: string;
+          name: string;
+          description: string | null;
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          name: string;
+          description?: string | null;
+          created_by: string;
+        };
+        Update: {
+          name?: string;
+          description?: string | null;
+          updated_at?: string;
+        };
+      };
+      family_members: {
+        Row: {
+          id: string;
+          family_id: string;
+          user_id: string;
+          role: 'admin' | 'editor' | 'viewer';
+          invited_by: string;
+          joined_at: string;
+          created_at: string;
+        };
+        Insert: {
+          family_id: string;
+          user_id: string;
+          role: 'admin' | 'editor' | 'viewer';
+          invited_by: string;
+        };
+        Update: {
+          role?: 'admin' | 'editor' | 'viewer';
+        };
+      };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          type: 'comment' | 'like' | 'photo_upload' | 'album_shared';
+          target_type: 'photo' | 'album' | 'comment';
+          target_id: string;
+          source_user_id: string | null;
+          message: string | null;
+          metadata: Record<string, any>;
+          is_read: boolean;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          type: 'comment' | 'like' | 'photo_upload' | 'album_shared';
+          target_type: 'photo' | 'album' | 'comment';
+          target_id: string;
+          source_user_id?: string | null;
+          message?: string | null;
+          metadata?: Record<string, any>;
+          is_read?: boolean;
+        };
+        Update: {
+          is_read?: boolean;
+          metadata?: Record<string, any>;
+        };
+      };
+      user_last_seen: {
+        Row: {
+          user_id: string;
+          target_type: 'photo' | 'album';
+          target_id: string;
+          last_seen_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          target_type: 'photo' | 'album';
+          target_id: string;
+          last_seen_at?: string;
+        };
+        Update: {
+          last_seen_at?: string;
           updated_at?: string;
         };
       };

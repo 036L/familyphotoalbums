@@ -314,12 +314,12 @@ export interface Database {
 // =========================
   
 export interface EnvironmentInfo {
-    isDemo: boolean;
+    isDemo: false; 
     isDevelopment: boolean;
     isProduction: boolean;
     supabaseUrl?: string;
     supabaseAnonKey?: string;
-}
+  }
   
 export interface CompressionOptions {
     maxSizeMB?: number;

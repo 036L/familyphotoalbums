@@ -1,10 +1,9 @@
-// src/hooks/useAlbums.ts - 修正版
+// src/hooks/useAlbums.ts - デモモード削除版
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { useEnvironment } from './useEnvironment';
 import type { Album, AlbumCreateData } from '../types/core';
 
-// デバッグログ関数（ガイドライン準拠）
+// デバッグログ関数
 const debugLog = (message: string, data?: any) => {
   if (import.meta.env.DEV) {
     console.log(`[useAlbums] ${message}`, data);
@@ -27,108 +26,17 @@ interface RawAlbumData {
   photos?: Array<{ count: number }>;
 }
 
-// デモデータ（より充実した内容に改善）
-const demoAlbums: Album[] = [
-  {
-    id: 'demo-album-1',
-    title: '2024年家族旅行',
-    description: '沖縄での楽しい思い出',
-    cover_image_url: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=400&fit=crop',
-    created_by: 'demo-user-1',
-    is_public: false,
-    created_at: '2024-01-15T00:00:00Z',
-    updated_at: '2024-01-15T00:00:00Z',
-    createdAt: '2024-01-15T00:00:00Z',
-    photo_count: 24,
-    creator_name: 'デモユーザー'
-  },
-  {
-    id: 'demo-album-2',
-    title: 'お正月2024',
-    description: 'みんなでお雑煮を食べました',
-    cover_image_url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=400&fit=crop',
-    created_by: 'demo-user-1',
-    is_public: false,
-    created_at: '2024-01-01T00:00:00Z',
-    updated_at: '2024-01-01T00:00:00Z',
-    createdAt: '2024-01-01T00:00:00Z',
-    photo_count: 18,
-    creator_name: 'デモユーザー'
-  },
-  {
-    id: 'demo-album-3',
-    title: '桜の季節',
-    description: '近所の公園で花見',
-    cover_image_url: 'https://images.unsplash.com/photo-1522383225653-ed111181a951?w=400&h=400&fit=crop',
-    created_by: 'demo-user-1',
-    is_public: false,
-    created_at: '2024-04-05T00:00:00Z',
-    updated_at: '2024-04-05T00:00:00Z',
-    createdAt: '2024-04-05T00:00:00Z',
-    photo_count: 12,
-    creator_name: 'デモユーザー'
-  },
-  {
-    id: 'demo-album-4',
-    title: '夏祭り',
-    description: '地域の夏祭りに参加',
-    cover_image_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=400&fit=crop',
-    created_by: 'demo-user-1',
-    is_public: false,
-    created_at: '2024-07-20T00:00:00Z',
-    updated_at: '2024-07-20T00:00:00Z',
-    createdAt: '2024-07-20T00:00:00Z',
-    photo_count: 30,
-    creator_name: 'デモユーザー'
-  },
-  {
-    id: 'demo-album-5',
-    title: '秋の紅葉狩り',
-    description: '山に紅葉を見に行きました',
-    cover_image_url: 'https://images.unsplash.com/photo-1507041957456-9c397ce39c97?w=400&h=400&fit=crop',
-    created_by: 'demo-user-1',
-    is_public: false,
-    created_at: '2024-11-10T00:00:00Z',
-    updated_at: '2024-11-10T00:00:00Z',
-    createdAt: '2024-11-10T00:00:00Z',
-    photo_count: 45,
-    creator_name: 'デモユーザー'
-  },
-  {
-    id: 'demo-album-6',
-    title: '誕生日パーティー',
-    description: 'おじいちゃんの80歳のお祝い',
-    cover_image_url: 'https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?w=400&h=400&fit=crop',
-    created_by: 'demo-user-1',
-    is_public: false,
-    created_at: '2024-08-25T00:00:00Z',
-    updated_at: '2024-08-25T00:00:00Z',
-    createdAt: '2024-08-25T00:00:00Z',
-    photo_count: 67,
-    creator_name: 'デモユーザー'
-  }
-];
-
 export const useAlbums = () => {
-  // すべてのHooksをトップレベルで宣言（Hooksルール遵守）
   const [albums, setAlbums] = useState<Album[]>([]);
-  const [loading, setLoading] = useState(false); // 初期値をfalseに変更
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
-  
-  // 環境情報をHookで取得
-  const { isDemo } = useEnvironment();
 
-  debugLog('useAlbums初期化', { isDemo });
+  debugLog('useAlbums初期化');
 
   // カバー画像を自動設定する関数
   const getLatestPhotoForCover = async (albumId: string): Promise<string | null> => {
     try {
-      if (isDemo) {
-        // デモモードでは既にカバー画像が設定されている
-        return null;
-      }
-
       const { data, error } = await supabase
         .from('photos')
         .select('thumbnail_url, url')
@@ -150,8 +58,6 @@ export const useAlbums = () => {
   // アルバムのカバー画像を更新する関数
   const updateAlbumCover = async (albumId: string, coverImageUrl: string) => {
     try {
-      if (isDemo) return;
-
       const { error } = await supabase
         .from('albums')
         .update({ 
@@ -175,55 +81,6 @@ export const useAlbums = () => {
     }
   };
 
-  // デモアルバムの初期化を確実に実行する関数
-  const initializeDemoAlbums = useCallback(() => {
-    debugLog('デモアルバム初期化開始');
-    
-    try {
-      // デフォルトのデモアルバムから開始
-      let allAlbums = [...demoAlbums];
-      
-      // ローカルストレージから追加されたアルバムも読み込み
-      const savedAlbums = localStorage.getItem('demoAlbums');
-      if (savedAlbums) {
-        try {
-          const parsedSavedAlbums = JSON.parse(savedAlbums);
-          if (Array.isArray(parsedSavedAlbums)) {
-            // 保存されたアルバムを先頭に追加（新しい順）
-            allAlbums = [...parsedSavedAlbums, ...demoAlbums];
-            debugLog('保存されたアルバムを統合', { 
-              savedCount: parsedSavedAlbums.length,
-              totalCount: allAlbums.length 
-            });
-          }
-        } catch (parseError) {
-          debugLog('保存されたアルバムの読み込みに失敗', parseError);
-          // エラーの場合はデフォルトアルバムのみ使用
-        }
-      }
-      
-      debugLog('最終アルバム数', allAlbums.length);
-      
-      // 状態を確実に更新
-      setAlbums(allAlbums);
-      setLoading(false);
-      setInitialized(true);
-      setError(null);
-      
-      debugLog('デモアルバム設定完了', { 
-        albumCount: allAlbums.length,
-        albumTitles: allAlbums.map(a => a.title)
-      });
-      
-      return allAlbums;
-    } catch (err) {
-      debugLog('デモアルバム初期化エラー', err);
-      setError('デモアルバムの初期化に失敗しました');
-      setLoading(false);
-      return [];
-    }
-  }, []);
-
   const fetchAlbums = useCallback(async () => {
     // 既に初期化済みの場合はスキップ
     if (initialized) {
@@ -235,14 +92,6 @@ export const useAlbums = () => {
       debugLog('アルバム取得開始');
       setLoading(true);
       setError(null);
-
-      if (isDemo) {
-        debugLog('デモモードでアルバム取得');
-        
-        // デモモードでは同期的に処理
-        const albumsResult = initializeDemoAlbums();
-        return albumsResult;
-      }
 
       // Supabaseからの取得処理
       const { data, error } = await supabase
@@ -293,41 +142,12 @@ export const useAlbums = () => {
     } finally {
       setLoading(false);
     }
-  }, [isDemo, initialized, initializeDemoAlbums, albums]);
+  }, [initialized, albums]);
 
   const createAlbum = async (albumData: AlbumCreateData) => {
     try {
       debugLog('アルバム作成開始', albumData);
       
-      if (isDemo) {
-        // デモモードでは新しいアルバムをローカルに追加
-        const newAlbum: Album = {
-          id: `demo-new-${Date.now()}`,
-          ...albumData,
-          description: albumData.description || null,
-          cover_image_url: null,
-          created_by: 'demo-user-1',
-          is_public: albumData.is_public || false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          photo_count: 0,
-          creator_name: 'デモユーザー'
-        };
-        
-        const newAlbums = [newAlbum, ...albums];
-        setAlbums(newAlbums);
-        
-        // ローカルストレージに保存（デフォルトデモアルバムは除外）
-        const userCreatedAlbums = newAlbums.filter(album => 
-          !demoAlbums.find(demo => demo.id === album.id)
-        );
-        localStorage.setItem('demoAlbums', JSON.stringify(userCreatedAlbums));
-        
-        debugLog('デモアルバム作成完了', newAlbum);
-        return newAlbum;
-      }
-
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('ログインが必要です');
 
@@ -354,24 +174,6 @@ export const useAlbums = () => {
 
   const updateAlbum = async (id: string, updates: Partial<Album>) => {
     try {
-      if (isDemo) {
-        // デモモードではローカルで更新
-        const updatedAlbums = albums.map(album => 
-          album.id === id 
-            ? { ...album, ...updates, updated_at: new Date().toISOString() }
-            : album
-        );
-        setAlbums(updatedAlbums);
-        
-        // ローカルストレージも更新（デフォルトデモアルバムは除外）
-        const userCreatedAlbums = updatedAlbums.filter(album => 
-          !demoAlbums.find(demo => demo.id === album.id)
-        );
-        localStorage.setItem('demoAlbums', JSON.stringify(userCreatedAlbums));
-        
-        return { id, ...updates };
-      }
-
       const { data, error } = await supabase
         .from('albums')
         .update({ ...updates, updated_at: new Date().toISOString() })
@@ -391,19 +193,6 @@ export const useAlbums = () => {
 
   const deleteAlbum = async (id: string) => {
     try {
-      if (isDemo) {
-        // デモモードではローカルから削除
-        const updatedAlbums = albums.filter(album => album.id !== id);
-        setAlbums(updatedAlbums);
-        
-        // ローカルストレージも更新（デフォルトデモアルバムは除外）
-        const userCreatedAlbums = updatedAlbums.filter(album => 
-          !demoAlbums.find(demo => demo.id === album.id)
-        );
-        localStorage.setItem('demoAlbums', JSON.stringify(userCreatedAlbums));
-        return;
-      }
-
       const { error } = await supabase
         .from('albums')
         .delete()
@@ -436,11 +225,7 @@ export const useAlbums = () => {
     setLoading(false);
     setError(null);
     setAlbums([]);
-    // fetchAlbums は外部から呼び出される
   }, []);
-
-  // 初期化エフェクトを削除（外部からfetchAlbumsが呼び出される）
-  // useEffectは削除
 
   // デバッグ用の状態ログ出力（開発時のみ）
   useEffect(() => {
