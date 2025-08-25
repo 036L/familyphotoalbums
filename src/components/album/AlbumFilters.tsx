@@ -14,7 +14,8 @@ import {
   LucideIcon
 } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { useAutoSort, SortCriteria, GroupCriteria, FilterCriteria } from '../../hooks/useAutoSort';
+import { useAutoSort } from '../../hooks/useAutoSort';
+import { SortCriteria, GroupCriteria, FilterCriteria } from '../../types/core';
 import { usePhotoTags } from '../../hooks/usePhotoTags';
 
 interface AlbumFiltersProps {

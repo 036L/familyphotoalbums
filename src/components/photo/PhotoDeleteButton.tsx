@@ -5,7 +5,7 @@ import { Button } from '../ui/Button';
 import { ConfirmDeleteModal } from '../ui/ConfirmDeleteModal';
 import { useApp } from '../../context/AppContext';
 import { usePermissions } from '../../hooks/usePermissions';
-import { Photo } from '../../hooks/usePhotos';
+import { Photo } from '../../types/core';
 
 interface PhotoDeleteButtonProps {
   photo: Photo;

@@ -5,7 +5,7 @@ import { Button } from '../ui/Button';
 import { ConfirmDeleteModal } from '../ui/ConfirmDeleteModal';
 import { useApp } from '../../context/AppContext';
 import { usePermissions } from '../../hooks/usePermissions';
-import { Album } from '../../hooks/useAlbums';
+import type { Album } from '../../types/core';
 
 interface AlbumDeleteButtonProps {
   album: Album;

@@ -21,50 +21,6 @@ export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className 
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
 
-  // デモ用の通知データ
-  useEffect(() => {
-    const demoNotifications: Notification[] = [
-      {
-        id: '1',
-        type: 'new_photo',
-        title: '新しい写真',
-        message: '田中花子さんが「2024年家族旅行」に3枚の写真を追加しました',
-        timestamp: '5分前',
-        read: false,
-        avatar: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop'
-      },
-      {
-        id: '2',
-        type: 'new_comment',
-        title: '新しいコメント',
-        message: '田中おじいちゃんが写真にコメントしました：「素敵な写真ですね！」',
-        timestamp: '1時間前',
-        read: false,
-        avatar: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop'
-      },
-      {
-        id: '3',
-        type: 'new_member',
-        title: '新しいメンバー',
-        message: '田中次郎さんが家族アルバムに参加しました',
-        timestamp: '3時間前',
-        read: true,
-        avatar: 'https://images.pexels.com/photos/1040880/pexels-photo-1040880.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop'
-      },
-      {
-        id: '4',
-        type: 'album_created',
-        title: '新しいアルバム',
-        message: '田中花子さんが「クリスマス2024」アルバムを作成しました',
-        timestamp: '1日前',
-        read: true
-      }
-    ];
-
-    setNotifications(demoNotifications);
-    setUnreadCount(demoNotifications.filter(n => !n.read).length);
-  }, []);
-
   const getNotificationIcon = (type: Notification['type']): React.ReactElement => {
     const iconProps = { size: 16, className: "text-white" };
     

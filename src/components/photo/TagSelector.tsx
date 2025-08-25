@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Tag, Plus, X, Search, Palette } from 'lucide-react';
-import { usePhotoTags, PhotoTag } from '../../hooks/usePhotoTags';
+import { usePhotoTags } from '../../hooks/usePhotoTags';
+import { PhotoTag } from '../../types/core';
 import { Button } from '../ui/Button';
 
 interface TagSelectorProps {

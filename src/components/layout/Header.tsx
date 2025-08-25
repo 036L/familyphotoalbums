@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { Button } from '../ui/Button';
 import { NotificationBadge } from '../notification/NotificationBadge';
 import { ProfileModal } from '../profile/ProfileModal';
-import { SettingsModal } from '../settings/SettingsModal.tsx';
+import { SettingsModal } from '../settings/SettingsModal';
 import { InviteModal } from '../invite/InviteModal';
 import { PermissionGuard } from '../auth/PermissionGuard';
 

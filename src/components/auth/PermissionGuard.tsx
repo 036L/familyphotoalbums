@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
-import { usePermissions, Permission } from '../../hooks/usePermissions';
+import { usePermissions } from '../../hooks/usePermissions';
+import { Permission } from '../../types/core';
 
 interface PermissionGuardProps {
   children: ReactNode;
