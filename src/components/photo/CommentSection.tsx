@@ -7,7 +7,6 @@ import { useApp } from '../../context/AppContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { errorHelpers } from '../../utils/errors';
 import type { Comment } from '../../types/core';
-import { useEnvironment } from '../../hooks/useEnvironment';
 
 interface CommentSectionProps {
   photoId: string;
@@ -49,7 +48,6 @@ const [heartFloatAnimation, setHeartFloatAnimation] = useState<string | null>(nu
   
   const { user, profile } = useApp();
   const { canDeleteResource, canEditResource } = usePermissions();
-  const { isDemo } = useEnvironment();
 
   // デバッグログ（開発時のみ）
   const debugLog = useCallback((message: string, data?: any) => {
@@ -78,60 +76,9 @@ const [heartFloatAnimation, setHeartFloatAnimation] = useState<string | null>(nu
     }
   }, [debugLog]);
 
-  // Phase 3: デモモード永続化の改善（編集・削除履歴対応）
 const persistCommentState = useCallback((photoId: string, updates: any) => {
-  if (!photoId || !isDemo) return;
-  
-  try {
-    const storageKey = `commentState_${photoId}`;
-    const currentState = localStorage.getItem(storageKey);
-    const parsedState = currentState ? JSON.parse(currentState) : {};
-    
-    const newState = {
-      ...parsedState,
-      ...updates,
-      lastUpdated: new Date().toISOString(),
-      version: (parsedState.version || 0) + 1 // バージョン管理
-    };
-    
-    localStorage.setItem(storageKey, JSON.stringify(newState));
-    debugLog('コメント状態を永続化', { 
-      photoId, 
-      updates: Object.keys(updates),
-      version: newState.version 
-    });
-    
-    // 編集・削除イベントの場合、コメントリストも更新
-    if (updates.lastEdit || updates.lastDelete) {
-      const commentsKey = `demoComments_${photoId}`;
-      const savedComments = localStorage.getItem(commentsKey);
-      if (savedComments) {
-        let commentsList = JSON.parse(savedComments);
-        
-        if (updates.lastEdit) {
-          commentsList = commentsList.map((comment: Comment) =>
-            comment.id === updates.lastEdit.commentId
-              ? { ...comment, content: updates.lastEdit.content, updated_at: updates.lastEdit.timestamp }
-              : comment
-          );
-        }
-        
-        if (updates.lastDelete) {
-          commentsList = commentsList.filter((comment: Comment) => 
-            comment.id !== updates.lastDelete.commentId
-          );
-        }
-        
-        localStorage.setItem(commentsKey, JSON.stringify(commentsList));
-        debugLog('デモコメントリスト更新完了');
-      }
-    }
-    
-  } catch (error) {
-    debugLog('永続化エラー', error);
-    // 永続化の失敗は致命的ではないのでログのみ
-  }
-}, [isDemo, debugLog]);
+  return;
+}, [debugLog]);
 
   // Phase 2: ローカル状態からの復元
   const restoreCommentState = useCallback((photoId: string) => {
@@ -169,22 +116,22 @@ const persistCommentState = useCallback((photoId: string, updates: any) => {
   }, [comments, onCommentsChange, debugLog]);
 
   // Phase 3: より厳密な権限チェック（自分のコメントのみ編集・削除可能）
-const canManageComment = useCallback((comment: Comment): boolean => {
-  const currentUserId = user?.id || profile?.id;
-  const isOwner = comment.user_id === currentUserId;
-  const isAdmin = profile?.role === 'admin';
-  
-  debugLog('コメント管理権限チェック', {
-    commentId: comment.id,
-    currentUserId,
-    commentUserId: comment.user_id,
-    isOwner,
-    isAdmin,
-    canManage: isOwner || isAdmin
-  });
-  
-  return isOwner || isAdmin;
-}, [user?.id, profile?.id, profile?.role, isDemo, debugLog]);
+  const canManageComment = useCallback((comment: Comment): boolean => {
+    const currentUserId = user?.id || profile?.id;
+    const isOwner = comment.user_id === currentUserId;
+    const isAdmin = profile?.role === 'admin';
+    
+    debugLog('コメント管理権限チェック', {
+      commentId: comment.id,
+      currentUserId,
+      commentUserId: comment.user_id,
+      isOwner,
+      isAdmin,
+      canManage: isOwner || isAdmin
+    });
+    
+    return isOwner || isAdmin;
+  }, [user?.id, profile?.id, profile?.role, debugLog]);
 
   // Phase 2: リトライ機能付きコメント投稿処理
   const handleSubmit = async (e: React.FormEvent) => {
