@@ -92,10 +92,6 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
-      {/* スキップリンク（アクセシビリティ対応） */}
-      <a href="#main-content" className="skip-link">
-        メインコンテンツに戻る
-      </a>
       
       {/* アクセシビリティボタン */}
       <button
