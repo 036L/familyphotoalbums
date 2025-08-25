@@ -53,7 +53,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   // すべてのHooksをトップレベルで宣言（Hooksルール遵守）
   const [currentIndex, setCurrentIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [showCommentsPanel, setShowCommentsPanel] = useState(false);
+  const [showCommentsPanel, setShowCommentsPanel] = useState(true); // デフォルトでtrue
   
   // 写真いいね機能の状態
   const [photoLikes, setPhotoLikes] = useState<Record<string, PhotoLikeState>>({});
@@ -228,6 +228,17 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
       }
     }
   }, [currentPhoto?.id, isOpen, isDemo, initializePhotoLikes, fetchPhotoLikes, debugLog]);
+
+  // コメント数に応じてパネル表示を制御
+useEffect(() => {
+  if (!commentsLoading) {
+    if (comments && comments.length > 0) {
+      setShowCommentsPanel(true);  // コメントがある場合は表示
+    } else {
+      setShowCommentsPanel(false); // コメントがない場合は非表示
+    }
+  }
+}, [comments, commentsLoading]);
 
   // エラーハンドリング
   const handleError = useCallback((errorMessage: string) => {
@@ -409,6 +420,9 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   const renderCommentButton = useCallback(() => {
     if (!showComments) return null;
   
+    // 新着コメント数の計算（実装は後で追加）
+    const newCommentCount = 0; // TODO: 新着コメント計算ロジック
+  
     return (
       <Button 
         variant={showCommentsPanel ? 'primary' : 'outline'} 
@@ -420,13 +434,16 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
       >
         <MessageCircle size={16} />
         <span>
-          {commentsLoading ? '読み込み中...' : 'コメント'}
+        {commentsLoading 
+          ? '読み込み中...' 
+          : `コメント（${comments.length}）`
+        }
         </span>
-        {/* コメント数バッジ - 0より大きい場合のみ表示 */}
-        {!commentsLoading && comments.length > 0 && (
-          <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs rounded-full min-w-5 h-5 flex items-center justify-center px-1">
-            {comments.length > 99 ? '99+' : comments.length}
-          </span>
+        {/* 新着コメント通知バッジ（今後実装） */}
+        {false && ( // 一旦false（後で新着通知機能実装時に有効化）
+        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full min-w-5 h-5 flex items-center justify-center px-1 animate-pulse">
+          New
+        </span>
         )}
       </Button>
     );

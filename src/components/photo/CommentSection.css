@@ -1,0 +1,68 @@
+.comment-section-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+  }
+  
+  .comment-list-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 1rem;
+    /* モバイル向けスクロール最適化 */
+    -webkit-overflow-scrolling: touch;
+    /* スクロールバーのスタイリング */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+  }
+  
+  /* Webkit系ブラウザ用スクロールバー */
+  .comment-list-container::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .comment-list-container::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .comment-list-container::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 163, 175, 0.5);
+    border-radius: 3px;
+  }
+  
+  .comment-list-container::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(156, 163, 175, 0.7);
+  }
+  
+  .comment-input-area {
+    flex-shrink: 0;
+    border-top: 1px solid #f3f4f6;
+    padding: 1rem;
+    background: white;
+    /* 入力エリアを固定 */
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+  }
+  
+  /* モバイル専用の調整 */
+  @media (max-width: 768px) {
+    .comment-list-container {
+      /* モバイルではより積極的にスクロール */
+      overscroll-behavior: contain;
+      scroll-behavior: smooth;
+    }
+    
+    /* モバイルでのコメント間隔調整 */
+    .comment-item {
+      margin-bottom: 1rem;
+    }
+    
+    /* モバイルでのタッチ領域拡大 */
+    .comment-action-button {
+      min-width: 44px;
+      min-height: 44px;
+    }
+  }

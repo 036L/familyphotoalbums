@@ -174,14 +174,6 @@ const canManageComment = useCallback((comment: Comment): boolean => {
   const isOwner = comment.user_id === currentUserId;
   const isAdmin = profile?.role === 'admin';
   
-  // デモモードでの特別処理
-  if (isDemo) {
-    // デモモードでは自分が作成したコメント（demo-user-1）のみ管理可能
-    const isDemoOwner = comment.user_id === 'demo-user-1' && 
-                       (currentUserId === 'demo-user-1' || profile?.id === 'demo-user-1');
-    return isDemoOwner || isAdmin;
-  }
-  
   debugLog('コメント管理権限チェック', {
     commentId: comment.id,
     currentUserId,
@@ -628,7 +620,7 @@ useEffect(() => {
   const effectiveComments = getEffectiveComments();
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="comment-section-container">
       {/* エラー表示 */}
       {commentsError && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-xl mx-4 mt-4">
