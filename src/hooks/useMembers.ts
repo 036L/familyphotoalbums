@@ -43,22 +43,20 @@ export const useMembers = () => {
       const { data, error: fetchError } = await supabase
         .from('family_members')
         .select(`
-          id,
-          family_id,
-          user_id,
-          role,
-          joined_at,
-          invited_by,
-          profiles!inner(
-            id,
-            email,
-            display_name,
-            avatar_url,
-            last_seen_at
-          )
-        `)
-        .eq('family_id', currentFamilyId)
-        .order('joined_at', { ascending: true });
+                id,
+                family_id,
+                user_id,
+                role,
+                joined_at,
+                invited_by,
+                profiles!family_members_user_id_fkey(
+                  id,
+                  name,
+                  avatar_url
+                )
+              `)
+  .eq('family_id', currentFamilyId)
+  .order('joined_at', { ascending: true });
 
       if (fetchError) {
         throw fetchError;
@@ -70,8 +68,8 @@ export const useMembers = () => {
         family_id: member.family_id,
         user_id: member.user_id,
         role: member.role as Role,
-        email: member.profiles?.email || '',
-        display_name: member.profiles?.display_name || null,
+        email: member.profiles?.name || '', // emailの代わりにnameを使用
+        display_name: member.profiles?.name || null, // display_nameの代わりにnameを使用
         avatar_url: member.profiles?.avatar_url || null,
         joined_at: member.joined_at,
         invited_by: member.invited_by,
