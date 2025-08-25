@@ -619,7 +619,11 @@ useEffect(() => {
       {/* コメント一覧 */}
       <div 
         ref={commentsSectionRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4"
+        className="comment-list-container"
+        style={{
+                  WebkitOverflowScrolling: 'touch',
+                  overscrollBehavior: 'contain'
+        }}
         role="log"
         aria-label="コメント一覧"
         aria-live="polite"
@@ -655,7 +659,7 @@ useEffect(() => {
             const isTemporary = comment.id.startsWith('temp-');
             
             return (
-              <div key={comment.id} className={`flex space-x-3 ${isTemporary ? 'opacity-70' : ''}`}>
+              <div key={comment.id} className={`comment-item flex space-x-3 ${isTemporary ? 'opacity-70' : ''}`}>
                 <img
                   src={comment.user_avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop'}
                   alt={comment.user_name}

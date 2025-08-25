@@ -11,6 +11,8 @@
     overflow-y: auto;
     overflow-x: hidden;
     padding: 1rem;
+    /* 重要: 高さを明示的に設定 */
+    max-height: 400px; /* または適切な高さ */
     /* モバイル向けスクロール最適化 */
     -webkit-overflow-scrolling: touch;
     /* スクロールバーのスタイリング */
@@ -41,10 +43,6 @@
     border-top: 1px solid #f3f4f6;
     padding: 1rem;
     background: white;
-    /* 入力エリアを固定 */
-    position: sticky;
-    bottom: 0;
-    z-index: 10;
   }
   
   /* モバイル専用の調整 */
@@ -57,7 +55,7 @@
     
     /* モバイルでのコメント間隔調整 */
     .comment-item {
-      margin-bottom: 1rem;
+        margin-bottom: 1rem;
     }
     
     /* モバイルでのタッチ領域拡大 */
