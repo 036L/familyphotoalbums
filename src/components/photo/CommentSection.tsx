@@ -567,7 +567,9 @@ useEffect(() => {
   const effectiveComments = getEffectiveComments();
 
   return (
-    <div className="comment-section-container">
+    <div 
+    className="flex flex-col h-full"
+    style={{ height: '100%', maxHeight: '100%', overflow: 'hidden' }}>
       {/* エラー表示 */}
       {commentsError && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-xl mx-4 mt-4">
@@ -618,15 +620,20 @@ useEffect(() => {
 
       {/* コメント一覧 */}
       <div 
-        ref={commentsSectionRef}
-        className="comment-list-container"
-        style={{
-                  WebkitOverflowScrolling: 'touch',
-                  overscrollBehavior: 'contain'
-        }}
-        role="log"
-        aria-label="コメント一覧"
-        aria-live="polite"
+      ref={commentsSectionRef}
+      style={{
+        flex: '1 1 0%',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        padding: '1rem',
+        WebkitOverflowScrolling: 'touch',
+        overscrollBehavior: 'contain',
+        maxHeight: 'calc(100vh - 300px)', // 入力エリア分を考慮
+        scrollbarWidth: 'thin',
+      }}
+      role="log"
+      aria-label="コメント一覧"
+      aria-live="polite"
       >
         {loading ? (
           <div className="text-center py-8">
@@ -814,7 +821,16 @@ useEffect(() => {
       </div>
 
       {/* コメント入力エリア */}
-      <div className="border-t border-gray-100 p-4">
+      <div 
+      style={{
+        flexShrink: 0,
+        borderTop: '1px solid #f3f4f6',
+        padding: '1rem',
+        backgroundColor: 'white',
+        position: 'sticky',
+        bottom: 0,
+        zIndex: 10
+      }}>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="flex space-x-2">
             <div className="flex-1 relative">

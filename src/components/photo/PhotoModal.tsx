@@ -597,11 +597,18 @@ useEffect(() => {
 
             {/* コメントセクション（自動表示または手動表示） */}
             {showComments && showCommentsPanel && (
-              <div className="flex-1 overflow-hidden">
-                <CommentSection 
+              <div 
+                  className="flex-1"
+                  style={{ 
+                    height: '100%',
+                    minHeight: 0,  // 重要: flexアイテムの高さ制限を解除
+                    overflow: 'hidden' 
+                  }}
+              >
+              <CommentSection 
                   photoId={currentPhoto.id}
                   onCommentsChange={handleCommentsChange}
-                />
+              />
               </div>
             )}
           </div>
