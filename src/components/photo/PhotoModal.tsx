@@ -591,8 +591,6 @@ useEffect(() => {
                 className="flex-1 w-full"
                 style={{ 
                   minHeight: '300px',
-                  height: '0', // flexboxでの高さ制御
-                  overflow: 'hidden' // 親要素ではhidden
                 }}
               >
                 <CommentSection 

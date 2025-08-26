@@ -631,36 +631,11 @@ useEffect(() => {
         className="flex-1 w-full"
         style={{
           // 重要: スクロール可能エリアの確実な設定
-          height: '0', // flexboxでの高さ制御のため
           minHeight: '200px',
-          overflow: 'hidden', // 親要素ではhiddenに設定
           position: 'relative'
         }}
       >
-        <div
-          className="w-full h-full p-4"
-          style={{
-            // 実際のスクロールコンテナ
-            height: '100%',
-            overflow: 'auto',
-            overflowX: 'hidden',
-            WebkitOverflowScrolling: 'touch',
-            overscrollBehavior: 'contain',
-            touchAction: 'pan-y',
-            // モバイル対応の重要な設定
-            transform: 'translate3d(0,0,0)', // ハードウェアアクセラレーション
-            willChange: 'scroll-position',
-            // スクロールバーのスタイリング
-            scrollbarWidth: 'thin',
-            scrollbarColor: '#cbd5e0 transparent',
-          }}
-          role="log"
-          aria-label="コメント一覧"
-          aria-live="polite"
-          // タッチイベントの確実な処理
-          onTouchStart={(e) => e.stopPropagation()}
-          onTouchMove={(e) => e.stopPropagation()}
-        >
+        
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-pulse space-y-3">
@@ -845,7 +820,7 @@ useEffect(() => {
             </div>
           )}
         </div>
-      </div>
+      
 
       {/* コメント入力エリア - 修正版 */}
       <div 
