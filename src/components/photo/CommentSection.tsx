@@ -572,8 +572,9 @@ useEffect(() => {
       style={{ 
         height: '100%', 
         minHeight: '300px',
-        maxHeight: '100%', 
-        overflow: 'hidden' 
+        maxHeight: '100vh', 
+        overflow: 'hidden',
+        position: 'relative'
       }}
     >
       {/* エラー表示 */}
@@ -627,15 +628,15 @@ useEffect(() => {
       {/* コメント一覧 */}
       <div 
         ref={commentsSectionRef}
+        className="comment-list-container flex-1 overflow-y-auto overflow-x-hidden p-4"
         style={{
-          flex: '1 1 0%',
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          padding: '1rem',
           WebkitOverflowScrolling: 'touch',
           overscrollBehavior: 'contain',
+          touchAction: 'pan-y',
           minHeight: '200px',
+          maxHeight: 'calc(100vh - 200px)',
           scrollbarWidth: 'thin',
+          scrollbarColor: '#cbd5e0 transparent',
         }}
         role="log"
         aria-label="コメント一覧"
@@ -828,12 +829,13 @@ useEffect(() => {
 
       {/* コメント入力エリア */}
       <div 
-        className="flex-shrink-0"
+        className="flex-shrink-0 bg-white border-t border-gray-200 p-4"
         style={{
-          borderTop: '1px solid #f3f4f6',
-          padding: '1rem',
-          backgroundColor: 'white',
-          minHeight: '80px'
+          minHeight: '80px',
+          maxHeight: '120px',
+          position: 'sticky',
+          bottom: 0,
+          zIndex: 10
         }}
       >
         <form onSubmit={handleSubmit} className="space-y-3">

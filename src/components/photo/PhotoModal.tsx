@@ -294,16 +294,6 @@ useEffect(() => {
       return newState;
     });
     
-    // デモモードの場合はlocalStorageからも削除
-    if (isDemo) {
-      try {
-        localStorage.removeItem(`photoLikes_${photoId}`);
-        debugLog('削除された写真のいいね状態をクリーンアップ', photoId);
-      } catch (error) {
-        debugLog('いいね状態クリーンアップエラー', error);
-      }
-    }
-    
     onPhotoDeleted?.(photoId);
     
     // 既存の削除後処理...
@@ -598,10 +588,11 @@ useEffect(() => {
             {/* コメントセクション（自動表示または手動表示） */}
             {showComments && showCommentsPanel && (
               <div 
-                className="flex-1 min-h-0 overflow-hidden"
+                className="flex-1 min-h-0 relative"
                 style={{ 
                   minHeight: '300px',
-                  maxHeight: 'calc(100vh - 400px)'
+                  maxHeight: 'calc(100vh - 300px)',
+                  height: '100%'
                 }}
               >
                 <CommentSection 
