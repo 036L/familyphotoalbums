@@ -554,8 +554,8 @@ useEffect(() => {
           </div>
 
           {/* 情報・コメントエリア */}
-          <div className="w-full lg:w-96 bg-white rounded-r-2xl flex flex-col">
-            <div className="p-6 border-b border-gray-100">
+          <div className="w-full lg:w-96 bg-white rounded-r-2xl flex flex-col min-h-0">
+            <div className="flex-shrink-0 p-6 border-b border-gray-100">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-lg text-gray-900 truncate">
                   {currentPhoto.original_filename || currentPhoto.filename}
@@ -598,17 +598,16 @@ useEffect(() => {
             {/* コメントセクション（自動表示または手動表示） */}
             {showComments && showCommentsPanel && (
               <div 
-                  className="flex-1"
-                  style={{ 
-                    height: '100%',
-                    minHeight: 0,  // 重要: flexアイテムの高さ制限を解除
-                    overflow: 'hidden' 
-                  }}
+                className="flex-1 min-h-0 overflow-hidden"
+                style={{ 
+                  minHeight: '300px',
+                  maxHeight: 'calc(100vh - 400px)'
+                }}
               >
-              <CommentSection 
+                <CommentSection 
                   photoId={currentPhoto.id}
                   onCommentsChange={handleCommentsChange}
-              />
+                />
               </div>
             )}
           </div>
