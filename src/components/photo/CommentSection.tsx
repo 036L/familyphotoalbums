@@ -568,18 +568,18 @@ useEffect(() => {
 
   return (
     <div 
-      className="flex flex-col h-full"
+      className="h-full w-full flex flex-col"
       style={{ 
-        height: '100%', 
-        minHeight: '300px',
-        maxHeight: '100vh', 
-        overflow: 'hidden',
-        position: 'relative'
+        height: '100%',
+        width: '100%',
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column'
       }}
     >
-      {/* エラー表示 */}
+      {/* エラー表示 - 既存のまま */}
       {commentsError && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl mx-4 mt-4">
+        <div className="flex-shrink-0 p-3 bg-red-50 border border-red-200 rounded-xl mx-4 mt-4">
           <div className="flex items-start space-x-2">
             <AlertCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
@@ -597,9 +597,9 @@ useEffect(() => {
         </div>
       )}
 
-      {/* リトライ表示 */}
+      {/* リトライ表示 - 既存のまま */}
       {retryingAction && !commentsError && (
-        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-xl mx-4 mt-4">
+        <div className="flex-shrink-0 p-3 bg-yellow-50 border border-yellow-200 rounded-xl mx-4 mt-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <AlertCircle size={16} className="text-yellow-500" />
@@ -625,216 +625,236 @@ useEffect(() => {
         </div>
       )}
 
-      {/* コメント一覧 */}
+      {/* コメント一覧 - 完全修正版 */}
       <div 
         ref={commentsSectionRef}
-        className="comment-list-container flex-1 overflow-y-auto overflow-x-hidden p-4"
+        className="flex-1 w-full"
         style={{
-          WebkitOverflowScrolling: 'touch',
-          overscrollBehavior: 'contain',
-          touchAction: 'pan-y',
+          // 重要: スクロール可能エリアの確実な設定
+          height: '0', // flexboxでの高さ制御のため
           minHeight: '200px',
-          maxHeight: 'calc(100vh - 200px)',
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#cbd5e0 transparent',
+          overflow: 'hidden', // 親要素ではhiddenに設定
+          position: 'relative'
         }}
-        role="log"
-        aria-label="コメント一覧"
-        aria-live="polite"
       >
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="animate-pulse space-y-3">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="flex space-x-3">
-                  <div className="w-8 h-8 bg-gray-200 rounded-full flex-shrink-0"></div>
-                  <div className="flex-1">
-                    <div className="bg-gray-200 rounded-2xl px-4 py-2">
-                      <div className="h-4 bg-gray-300 rounded mb-2"></div>
-                      <div className="h-3 bg-gray-300 rounded w-3/4"></div>
+        <div
+          className="w-full h-full p-4"
+          style={{
+            // 実際のスクロールコンテナ
+            height: '100%',
+            overflow: 'auto',
+            overflowX: 'hidden',
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
+            touchAction: 'pan-y',
+            // モバイル対応の重要な設定
+            transform: 'translate3d(0,0,0)', // ハードウェアアクセラレーション
+            willChange: 'scroll-position',
+            // スクロールバーのスタイリング
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#cbd5e0 transparent',
+          }}
+          role="log"
+          aria-label="コメント一覧"
+          aria-live="polite"
+          // タッチイベントの確実な処理
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+        >
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-pulse space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="flex space-x-3">
+                    <div className="w-8 h-8 bg-gray-200 rounded-full flex-shrink-0"></div>
+                    <div className="flex-1">
+                      <div className="bg-gray-200 rounded-2xl px-4 py-2">
+                        <div className="h-4 bg-gray-300 rounded mb-2"></div>
+                        <div className="h-3 bg-gray-300 rounded w-3/4"></div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        ) : effectiveComments.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-              <MoreHorizontal size={24} className="text-gray-400" />
+          ) : effectiveComments.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                <MoreHorizontal size={24} className="text-gray-400" />
+              </div>
+              <p className="text-gray-500 font-medium">まだコメントがありません</p>
+              <p className="text-sm text-gray-400 mt-1">最初のコメントを投稿してみましょう</p>
             </div>
-            <p className="text-gray-500 font-medium">まだコメントがありません</p>
-            <p className="text-sm text-gray-400 mt-1">最初のコメントを投稿してみましょう</p>
-          </div>
-        ) : (
-          effectiveComments.map((comment) => {
-            // Phase 2: 楽観的更新を考慮したいいね状態の取得
-            const likeState = getEffectiveLikeState(comment.id);
-            const isTemporary = comment.id.startsWith('temp-');
-            
-            return (
-              <div key={comment.id} className={`comment-item flex space-x-3 ${isTemporary ? 'opacity-70' : ''}`}>
-                <img
-                  src={comment.user_avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop'}
-                  alt={comment.user_name}
-                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop';
-                  }}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="bg-gray-50 rounded-2xl px-4 py-3 relative group">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-medium text-sm text-gray-900 truncate">
-                          {comment.user_name || '不明'}
-                        </span>
-                        <span className="text-xs text-gray-500 flex-shrink-0">
-                          {formatDate(comment.created_at)}
-                          {comment.updated_at && comment.updated_at !== comment.created_at && (
-                          <span className="ml-1 text-gray-400" title={`編集: ${formatDate(comment.updated_at)}`}>
-                            (編集済み)
-                          </span>
+          ) : (
+            <div className="space-y-4">
+              {effectiveComments.map((comment) => {
+                const likeState = getEffectiveLikeState(comment.id);
+                const isTemporary = comment.id.startsWith('temp-');
+                
+                return (
+                  <div key={comment.id} className={`comment-item flex space-x-3 ${isTemporary ? 'opacity-70' : ''}`}>
+                    <img
+                      src={comment.user_avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop'}
+                      alt={comment.user_name}
+                      className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop';
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="bg-gray-50 rounded-2xl px-4 py-3 relative group">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-medium text-sm text-gray-900 truncate">
+                              {comment.user_name || '不明'}
+                            </span>
+                            <span className="text-xs text-gray-500 flex-shrink-0">
+                              {formatDate(comment.created_at)}
+                              {comment.updated_at && comment.updated_at !== comment.created_at && (
+                              <span className="ml-1 text-gray-400" title={`編集: ${formatDate(comment.updated_at)}`}>
+                                (編集済み)
+                              </span>
+                              )}
+                            </span>
+                            {isTemporary && (
+                              <span className="text-xs text-orange-500 flex-shrink-0">
+                                送信中...
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* 編集・削除ボタン（権限チェック付き） */}
+                          {!isTemporary && canManageComment(comment) && (
+                            <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => startEditing(comment)}
+                                className="p-1 hover:bg-gray-200 rounded-full transition-colors"
+                                title="編集"
+                                aria-label="コメントを編集"
+                              >
+                                <Edit size={12} className="text-gray-500" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteComment(comment.id)}
+                                className="p-1 hover:bg-red-100 rounded-full transition-colors"
+                                title="削除"
+                                aria-label="コメントを削除"
+                              >
+                                <Trash2 size={12} className="text-red-500" />
+                              </button>
+                            </div>
                           )}
-                        </span>
-                        {isTemporary && (
-                          <span className="text-xs text-orange-500 flex-shrink-0">
-                            送信中...
-                          </span>
+                        </div>
+                        
+                        {/* コメント内容表示部分（既存のまま） */}
+                        {editingComment && editingComment.id === comment.id ? (
+                          <div className="space-y-3">
+                            <div className="relative">
+                              <textarea
+                                ref={editInputRef}
+                                value={editingComment.content}
+                                onChange={(e) => setEditingComment({
+                                  ...editingComment,
+                                  content: e.target.value
+                                })}
+                                className="w-full p-3 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-300 transition-all"
+                                rows={Math.min(Math.max(2, Math.ceil(editingComment.content.length / 50)), 6)}
+                                placeholder="コメントを編集..."
+                                maxLength={500}
+                              />
+                              <div className="absolute bottom-2 right-2 text-xs text-gray-400 bg-white px-1 rounded">
+                                {editingComment.content.length}/500
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={saveEdit}
+                                  className="inline-flex items-center space-x-1 px-3 py-1.5 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  disabled={!editingComment.content.trim() || editingComment.content === comment.content}
+                                >
+                                  <Check size={12} />
+                                  <span>保存</span>
+                                </button>
+                                <button
+                                  onClick={cancelEdit}
+                                  className="inline-flex items-center space-x-1 px-3 py-1.5 bg-gray-500 text-white text-xs rounded-md hover:bg-gray-600 transition-colors"
+                                >
+                                  <X size={12} />
+                                  <span>キャンセル</span>
+                                </button>
+                              </div>
+                              
+                              <div className="flex items-center space-x-2 text-xs text-gray-500">
+                                <span>Ctrl+Enter: 保存</span>
+                                <span>Esc: キャンセル</span>
+                              </div>
+                            </div>
+                            
+                            {editingComment.content.length > 450 && (
+                              <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                                文字数が上限に近づいています
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-gray-800 text-sm leading-relaxed break-words">
+                            {comment.content}
+                          </p>
                         )}
                       </div>
                       
-                      {/* 編集・削除ボタン（権限チェック付き） */}
-                      {!isTemporary && canManageComment(comment) && (
-                        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => startEditing(comment)}
-                            className="p-1 hover:bg-gray-200 rounded-full transition-colors"
-                            title="編集"
-                            aria-label="コメントを編集"
-                          >
-                            <Edit size={12} className="text-gray-500" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteComment(comment.id)}
-                            className="p-1 hover:bg-red-100 rounded-full transition-colors"
-                            title="削除"
-                            aria-label="コメントを削除"
-                          >
-                            <Trash2 size={12} className="text-red-500" />
-                          </button>
+                      {/* いいねボタン */}
+                      {!isTemporary && (
+                      <div className="flex items-center space-x-4 mt-2 ml-4">
+                        <button
+                            onClick={() => handleLike(comment.id)}
+                            className={`flex items-center space-x-1 text-xs transition-all duration-200 ${
+                            getEffectiveLikeState(comment.id).isLiked 
+                              ? 'text-red-500 hover:text-red-600' 
+                              : 'text-gray-500 hover:text-red-500'
+                            }`}
+                          disabled={isLikingComment === comment.id}
+                          aria-label={getEffectiveLikeState(comment.id).isLiked ? 'いいねを取り消す' : 'いいね'}
+                          title={getEffectiveLikeState(comment.id).isLiked ? 'いいねを取り消す' : 'いいね'}
+                        >
+                        <Heart 
+                            size={14} 
+                            fill={getEffectiveLikeState(comment.id).isLiked ? 'currentColor' : 'none'}
+                            className={`transition-transform duration-200 ${
+                              isLikingComment === comment.id 
+                              ? 'scale-110 animate-pulse' 
+                              : 'hover:scale-110'
+                              }`}
+                        />
+                        <span className="font-medium">
+                          {formatLikeCount(getEffectiveLikeState(comment.id).count)}
+                        </span>
+                      {isLikingComment === comment.id && (
+                        <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin ml-1" />
+                          )}
+                        </button>
                         </div>
-                      )}
+                        )}
+                      </div>
                     </div>
-                    
-                    {/* 編集モード - 改善版 */}
-{editingComment && editingComment.id === comment.id ? (
-  <div className="space-y-3">
-    <div className="relative">
-      <textarea
-        ref={editInputRef}
-        value={editingComment.content}
-        onChange={(e) => setEditingComment({
-          ...editingComment,
-          content: e.target.value
-        })}
-        className="w-full p-3 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-300 transition-all"
-        rows={Math.min(Math.max(2, Math.ceil(editingComment.content.length / 50)), 6)}
-        placeholder="コメントを編集..."
-        maxLength={500}
-      />
-      <div className="absolute bottom-2 right-2 text-xs text-gray-400 bg-white px-1 rounded">
-        {editingComment.content.length}/500
-      </div>
-    </div>
-    
-    <div className="flex items-center justify-between">
-      <div className="flex items-center space-x-2">
-        <button
-          onClick={saveEdit}
-          className="inline-flex items-center space-x-1 px-3 py-1.5 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={!editingComment.content.trim() || editingComment.content === comment.content}
-        >
-          <Check size={12} />
-          <span>保存</span>
-        </button>
-        <button
-          onClick={cancelEdit}
-          className="inline-flex items-center space-x-1 px-3 py-1.5 bg-gray-500 text-white text-xs rounded-md hover:bg-gray-600 transition-colors"
-        >
-          <X size={12} />
-          <span>キャンセル</span>
-        </button>
-      </div>
-      
-      <div className="flex items-center space-x-2 text-xs text-gray-500">
-        <span>Ctrl+Enter: 保存</span>
-        <span>Esc: キャンセル</span>
-      </div>
-    </div>
-    
-    {editingComment.content.length > 450 && (
-      <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
-        文字数が上限に近づいています
-      </div>
-    )}
-  </div>
-) : (
-  <p className="text-gray-800 text-sm leading-relaxed break-words">
-    {comment.content}
-  </p>
-)}
-                  </div>
-                  
-                  {/* Phase 2: 改善されたいいねボタン */}
-                  {!isTemporary && (
-                  <div className="flex items-center space-x-4 mt-2 ml-4">
-                    <button
-                        onClick={() => handleLike(comment.id)}
-                        className={`flex items-center space-x-1 text-xs transition-all duration-200 ${
-                        getEffectiveLikeState(comment.id).isLiked 
-                          ? 'text-red-500 hover:text-red-600' 
-                          : 'text-gray-500 hover:text-red-500'
-                        }`}
-                      disabled={isLikingComment === comment.id}
-                      aria-label={getEffectiveLikeState(comment.id).isLiked ? 'いいねを取り消す' : 'いいね'}
-                      title={getEffectiveLikeState(comment.id).isLiked ? 'いいねを取り消す' : 'いいね'}
-                    >
-                    <Heart 
-                        size={14} 
-                        fill={getEffectiveLikeState(comment.id).isLiked ? 'currentColor' : 'none'}
-                        className={`transition-transform duration-200 ${
-                          isLikingComment === comment.id 
-                          ? 'scale-110 animate-pulse' 
-                          : 'hover:scale-110'
-                          }`}
-                    />
-                    <span className="font-medium">
-                      {formatLikeCount(getEffectiveLikeState(comment.id).count)}
-                    </span>
-                  {/* ローディング中の視覚的フィードバック */}
-                  {isLikingComment === comment.id && (
-                    <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin ml-1" />
-                      )}
-                    </button>
-                    </div>
-                    )}
-                    </div>
-                </div>
-            );
-          })
-        )}
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* コメント入力エリア */}
+      {/* コメント入力エリア - 修正版 */}
       <div 
-        className="flex-shrink-0 bg-white border-t border-gray-200 p-4"
+        className="flex-shrink-0 w-full bg-white border-t border-gray-200"
         style={{
+          padding: '16px',
           minHeight: '80px',
           maxHeight: '120px',
-          position: 'sticky',
-          bottom: 0,
+          position: 'relative', // stickyを削除
           zIndex: 10
         }}
       >
@@ -847,9 +867,8 @@ useEffect(() => {
                 placeholder="コメントを入力..."
                 className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent resize-none"
                 rows={1}
-                style={{ minHeight: '44px', maxHeight: '120px' }}
+                style={{ minHeight: '44px', maxHeight: '80px' }}
                 onKeyDown={(e) => {
-                  // 日本語入力中（IME使用中）は無視
                   if (e.nativeEvent.isComposing || e.keyCode === 229) {
                     return;
                   }
@@ -885,7 +904,6 @@ useEffect(() => {
             </Button>
           </div>
           
-          {/* ヒント */}
           <div className="flex items-center justify-between text-xs text-gray-500">
             <span>Enterで投稿、Shift+Enterで改行</span>
             <span className={newComment.length > 450 ? 'text-orange-500 font-medium' : ''}>
