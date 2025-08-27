@@ -568,28 +568,22 @@ useEffect(() => {
 
   return (
     <div 
-      className="w-full h-full"
+      className="flex flex-col h-full"
       style={{ 
-        display: 'flex',
-        flexDirection: 'column',
         height: '100%',
-        minHeight: '300px',
-        position: 'relative',
-        overflow: 'hidden'
+        minHeight: '350px',
+        maxHeight: '100%'
       }}
     >
-      {/* エラー表示 */}
+      {/* エラー・リトライ表示（簡潔版） */}
       {commentsError && (
-        <div className="flex-shrink-0 p-3 bg-red-50 border border-red-200 rounded-xl mx-4 mt-4">
+        <div className="flex-shrink-0 p-2 bg-red-50 border border-red-200 rounded-xl mx-3 mt-2">
           <div className="flex items-start space-x-2">
-            <AlertCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+            <AlertCircle size={14} className="text-red-500 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-sm text-red-700">{commentsError}</p>
+              <p className="text-xs text-red-700">{commentsError}</p>
               {retryingAction && (
-                <button
-                  onClick={retryAction}
-                  className="mt-2 text-xs text-red-600 hover:text-red-800 underline"
-                >
+                <button onClick={retryAction} className="mt-1 text-xs text-red-600 hover:text-red-800 underline">
                   再試行
                 </button>
               )}
@@ -598,81 +592,49 @@ useEffect(() => {
         </div>
       )}
 
-      {/* リトライ表示 */}
       {retryingAction && !commentsError && (
-        <div className="flex-shrink-0 p-3 bg-yellow-50 border border-yellow-200 rounded-xl mx-4 mt-4">
+        <div className="flex-shrink-0 p-2 bg-yellow-50 border border-yellow-200 rounded-xl mx-3 mt-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <AlertCircle size={16} className="text-yellow-500" />
-              <span className="text-sm text-yellow-700">
-                {retryingAction}に失敗しました
-              </span>
+              <AlertCircle size={14} className="text-yellow-500" />
+              <span className="text-xs text-yellow-700">{retryingAction}に失敗しました</span>
             </div>
             <div className="flex items-center space-x-2">
-              <button
-                onClick={retryAction}
-                className="text-xs bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
-              >
+              <button onClick={retryAction} className="text-xs bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600">
                 再試行
               </button>
-              <button
-                onClick={() => setRetryingAction(null)}
-                className="text-xs text-yellow-600 hover:text-yellow-800"
-              >
-                <X size={12} />
+              <button onClick={() => setRetryingAction(null)} className="text-xs text-yellow-600 hover:text-yellow-800">
+                <X size={10} />
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* コメント一覧エリア */}
-      <div 
-        className="flex-1 w-full relative"
-        style={{
-          flex: '1 1 auto',
-          minHeight: '200px',
-          overflow: 'hidden',
-          position: 'relative'
-        }}
-      >
+      {/* コメント一覧 - シンプル構造 */}
+      <div className="flex-1 overflow-hidden relative">
         <div
           ref={commentsSectionRef}
-          className="absolute inset-0"
+          className="absolute inset-0 overflow-y-auto p-3"
           style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            overflowY: 'auto',
-            overflowX: 'hidden',
             WebkitOverflowScrolling: 'touch',
             overscrollBehavior: 'contain',
             touchAction: 'pan-y',
-            transform: 'translateZ(0)',
-            willChange: 'scroll-position',
-            scrollbarWidth: 'thin',
-            scrollbarColor: '#cbd5e0 transparent',
-            padding: '16px',
-            paddingBottom: '24px',
+            paddingBottom: '16px'
           }}
-          role="log"
-          aria-label="コメント一覧"
-          aria-live="polite"
           onTouchStart={(e) => e.stopPropagation()}
           onTouchMove={(e) => e.stopPropagation()}
         >
           {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-pulse space-y-3">
+            <div className="text-center py-4">
+              <div className="animate-pulse space-y-2">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className="flex space-x-3">
-                    <div className="w-8 h-8 bg-gray-200 rounded-full flex-shrink-0"></div>
+                  <div key={i} className="flex space-x-2">
+                    <div className="w-6 h-6 bg-gray-200 rounded-full flex-shrink-0"></div>
                     <div className="flex-1">
-                      <div className="bg-gray-200 rounded-2xl px-4 py-2">
-                        <div className="h-4 bg-gray-300 rounded mb-2"></div>
-                        <div className="h-3 bg-gray-300 rounded w-3/4"></div>
+                      <div className="bg-gray-200 rounded-2xl px-3 py-2">
+                        <div className="h-3 bg-gray-300 rounded mb-1"></div>
+                        <div className="h-2 bg-gray-300 rounded w-3/4"></div>
                       </div>
                     </div>
                   </div>
@@ -680,31 +642,21 @@ useEffect(() => {
               </div>
             </div>
           ) : effectiveComments.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <MoreHorizontal size={24} className="text-gray-400" />
+            <div className="text-center py-4">
+              <div className="w-12 h-12 bg-gray-100 rounded-full mx-auto mb-3 flex items-center justify-center">
+                <MoreHorizontal size={20} className="text-gray-400" />
               </div>
-              <p className="text-gray-500 font-medium">まだコメントがありません</p>
-              <p className="text-sm text-gray-400 mt-1">最初のコメントを投稿してみましょう</p>
+              <p className="text-gray-500 font-medium text-sm">まだコメントがありません</p>
+              <p className="text-xs text-gray-400 mt-1">最初のコメントを投稿してみましょう</p>
             </div>
           ) : (
-            <div 
-              className="space-y-4"
-              style={{
-                minHeight: 'fit-content',
-                paddingBottom: '8px'
-              }}
-            >
+            <div className="space-y-3">
               {effectiveComments.map((comment) => {
                 const likeState = getEffectiveLikeState(comment.id);
                 const isTemporary = comment.id.startsWith('temp-');
                 
                 return (
-                  <div 
-                    key={comment.id} 
-                    className={`comment-item flex space-x-3 ${isTemporary ? 'opacity-70' : ''}`}
-                    style={{ minHeight: 'fit-content' }}
-                  >
+                  <div key={comment.id} className={`flex space-x-2 ${isTemporary ? 'opacity-70' : ''}`}>
                     <img
                       src={comment.user_avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop'}
                       alt={comment.user_name}
@@ -723,16 +675,9 @@ useEffect(() => {
                             </span>
                             <span className="text-xs text-gray-500 flex-shrink-0">
                               {formatDate(comment.created_at)}
-                              {comment.updated_at && comment.updated_at !== comment.created_at && (
-                              <span className="ml-1 text-gray-400" title={`編集: ${formatDate(comment.updated_at)}`}>
-                                (編集済み)
-                              </span>
-                              )}
                             </span>
                             {isTemporary && (
-                              <span className="text-xs text-orange-500 flex-shrink-0">
-                                送信中...
-                              </span>
+                              <span className="text-xs text-orange-500 flex-shrink-0">送信中...</span>
                             )}
                           </div>
                           
@@ -742,7 +687,6 @@ useEffect(() => {
                                 onClick={() => startEditing(comment)}
                                 className="p-1 hover:bg-gray-200 rounded-full transition-colors"
                                 title="編集"
-                                aria-label="コメントを編集"
                               >
                                 <Edit size={12} className="text-gray-500" />
                               </button>
@@ -750,7 +694,6 @@ useEffect(() => {
                                 onClick={() => handleDeleteComment(comment.id)}
                                 className="p-1 hover:bg-red-100 rounded-full transition-colors"
                                 title="削除"
-                                aria-label="コメントを削除"
                               >
                                 <Trash2 size={12} className="text-red-500" />
                               </button>
@@ -760,54 +703,34 @@ useEffect(() => {
                         
                         {editingComment && editingComment.id === comment.id ? (
                           <div className="space-y-3">
-                            <div className="relative">
-                              <textarea
-                                ref={editInputRef}
-                                value={editingComment.content}
-                                onChange={(e) => setEditingComment({
-                                  ...editingComment,
-                                  content: e.target.value
-                                })}
-                                className="w-full p-3 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-300 transition-all"
-                                rows={Math.min(Math.max(2, Math.ceil(editingComment.content.length / 50)), 6)}
-                                placeholder="コメントを編集..."
-                                maxLength={500}
-                              />
-                              <div className="absolute bottom-2 right-2 text-xs text-gray-400 bg-white px-1 rounded">
-                                {editingComment.content.length}/500
-                              </div>
+                            <textarea
+                              ref={editInputRef}
+                              value={editingComment.content}
+                              onChange={(e) => setEditingComment({
+                                ...editingComment,
+                                content: e.target.value
+                              })}
+                              className="w-full p-3 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300"
+                              rows={Math.min(Math.max(2, Math.ceil(editingComment.content.length / 50)), 6)}
+                              maxLength={500}
+                            />
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={saveEdit}
+                                className="inline-flex items-center space-x-1 px-3 py-1.5 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600"
+                                disabled={!editingComment.content.trim()}
+                              >
+                                <Check size={12} />
+                                <span>保存</span>
+                              </button>
+                              <button
+                                onClick={cancelEdit}
+                                className="inline-flex items-center space-x-1 px-3 py-1.5 bg-gray-500 text-white text-xs rounded-md hover:bg-gray-600"
+                              >
+                                <X size={12} />
+                                <span>キャンセル</span>
+                              </button>
                             </div>
-                            
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-2">
-                                <button
-                                  onClick={saveEdit}
-                                  className="inline-flex items-center space-x-1 px-3 py-1.5 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  disabled={!editingComment.content.trim() || editingComment.content === comment.content}
-                                >
-                                  <Check size={12} />
-                                  <span>保存</span>
-                                </button>
-                                <button
-                                  onClick={cancelEdit}
-                                  className="inline-flex items-center space-x-1 px-3 py-1.5 bg-gray-500 text-white text-xs rounded-md hover:bg-gray-600 transition-colors"
-                                >
-                                  <X size={12} />
-                                  <span>キャンセル</span>
-                                </button>
-                              </div>
-                              
-                              <div className="flex items-center space-x-2 text-xs text-gray-500">
-                                <span>Ctrl+Enter: 保存</span>
-                                <span>Esc: キャンセル</span>
-                              </div>
-                            </div>
-                            
-                            {editingComment.content.length > 450 && (
-                              <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
-                                文字数が上限に近づいています
-                              </div>
-                            )}
                           </div>
                         ) : (
                           <p className="text-gray-800 text-sm leading-relaxed break-words">
@@ -817,49 +740,31 @@ useEffect(() => {
                       </div>
                       
                       {!isTemporary && (
-                      <div 
-                        className="flex items-center space-x-4 mt-2 ml-4"
-                        style={{
-                          minHeight: '32px',
-                          paddingBottom: '4px'
-                        }}
-                      >
-                        <button
+                        <div className="flex items-center mt-2 ml-4">
+                          <button
                             onClick={() => handleLike(comment.id)}
                             className={`flex items-center space-x-1 text-xs transition-all duration-200 ${
-                            getEffectiveLikeState(comment.id).isLiked 
-                              ? 'text-red-500 hover:text-red-600' 
-                              : 'text-gray-500 hover:text-red-500'
+                              likeState.isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
                             }`}
-                          disabled={isLikingComment === comment.id}
-                          aria-label={getEffectiveLikeState(comment.id).isLiked ? 'いいねを取り消す' : 'いいね'}
-                          title={getEffectiveLikeState(comment.id).isLiked ? 'いいねを取り消す' : 'いいね'}
-                          style={{
-                            minHeight: '28px',
-                            minWidth: '40px',
-                            padding: '4px 8px'
-                          }}
-                        >
-                        <Heart 
-                            size={14} 
-                            fill={getEffectiveLikeState(comment.id).isLiked ? 'currentColor' : 'none'}
-                            className={`transition-transform duration-200 ${
-                              isLikingComment === comment.id 
-                              ? 'scale-110 animate-pulse' 
-                              : 'hover:scale-110'
+                            disabled={isLikingComment === comment.id}
+                            style={{ minHeight: '28px', padding: '4px 8px' }}
+                          >
+                            <Heart 
+                              size={14} 
+                              fill={likeState.isLiked ? 'currentColor' : 'none'}
+                              className={`transition-transform duration-200 ${
+                                isLikingComment === comment.id ? 'scale-110 animate-pulse' : 'hover:scale-110'
                               }`}
-                        />
-                        <span className="font-medium">
-                          {formatLikeCount(getEffectiveLikeState(comment.id).count)}
-                        </span>
-                      {isLikingComment === comment.id && (
-                        <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin ml-1" />
-                          )}
-                        </button>
+                            />
+                            <span className="font-medium">{formatLikeCount(likeState.count)}</span>
+                            {isLikingComment === comment.id && (
+                              <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin ml-1" />
+                            )}
+                          </button>
                         </div>
-                        )}
-                      </div>
+                      )}
                     </div>
+                  </div>
                 );
               })}
             </div>
@@ -867,33 +772,20 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* コメント入力エリア */}
-      <div 
-        className="flex-shrink-0 w-full bg-white border-t border-gray-200"
-        style={{
-          padding: '12px 16px',
-          minHeight: '60px',
-          maxHeight: '100px',
-          position: 'relative',
-          zIndex: 10,
-          backgroundColor: 'white',
-        }}
-      >
+      {/* 入力エリア - 固定高さ */}
+      <div className="flex-shrink-0 bg-white border-t border-gray-200 p-3">
         <form onSubmit={handleSubmit} className="space-y-2">
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 items-end">
             <div className="flex-1 relative">
               <textarea
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="コメントを入力..."
-                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent resize-none"
+                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent resize-none text-sm"
                 rows={1}
-                style={{ minHeight: '36px', maxHeight: '60px' }}
+                style={{ minHeight: '40px', maxHeight: '80px' }}
                 onKeyDown={(e) => {
-                  if (e.nativeEvent.isComposing || e.keyCode === 229) {
-                    return;
-                  }
-                  
+                  if (e.nativeEvent.isComposing || e.keyCode === 229) return;
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     handleSubmit(e);
@@ -903,8 +795,7 @@ useEffect(() => {
               />
               <button
                 type="button"
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-orange-500 transition-colors"
-                title="音声入力（準備中）"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400"
                 disabled
               >
                 <Mic size={14} />
@@ -913,20 +804,19 @@ useEffect(() => {
             <Button
               type="submit"
               size="sm"
-              className="px-3 py-2 rounded-xl self-end text-sm"
+              className="rounded-xl flex-shrink-0"
+              style={{ minHeight: '40px', minWidth: '40px', padding: '0 12px' }}
               disabled={!newComment.trim() || loading}
-              aria-label="コメントを投稿"
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                <Send size={14} />
+                <Send size={16} />
               )}
             </Button>
           </div>
-          
           <div className="flex items-center justify-between text-xs text-gray-500">
-            <span>Enterで投稿、Shift+Enterで改行</span>
+            <span>Enterで投稿</span>
             <span className={newComment.length > 450 ? 'text-orange-500 font-medium' : ''}>
               {newComment.length}/500
             </span>
