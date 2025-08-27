@@ -30,7 +30,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ photoId, onComme
 const [likeAnimation, setLikeAnimation] = useState<string | null>(null);
 const [heartFloatAnimation, setHeartFloatAnimation] = useState<string | null>(null);
   
-  const commentsSectionRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const inputFormRef = useRef<HTMLFormElement>(null);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   
   // Phase 2: useCommentsから全ての機能を取得
@@ -184,8 +185,8 @@ const persistCommentState = useCallback((photoId: string, updates: any) => {
       
       // 新しいコメント投稿後の自動スクロール
       setTimeout(() => {
-        if (commentsSectionRef.current) {
-          commentsSectionRef.current.scrollTop = commentsSectionRef.current.scrollHeight;
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
           debugLog('コメント投稿後の自動スクロール実行');
         }
       }, 100);
@@ -567,15 +568,8 @@ useEffect(() => {
   const effectiveComments = getEffectiveComments();
 
   return (
-    <div 
-      className="flex flex-col h-full"
-      style={{ 
-        height: '100%',
-        minHeight: '350px',
-        maxHeight: '100%'
-      }}
-    >
-      {/* エラー・リトライ表示（簡潔版） */}
+    <div className="flex flex-col h-full">
+      {/* エラー・リトライ表示（統一スクロールエリアの外） */}
       {commentsError && (
         <div className="flex-shrink-0 p-2 bg-red-50 border border-red-200 rounded-xl mx-3 mt-2">
           <div className="flex items-start space-x-2">
@@ -591,7 +585,7 @@ useEffect(() => {
           </div>
         </div>
       )}
-
+  
       {retryingAction && !commentsError && (
         <div className="flex-shrink-0 p-2 bg-yellow-50 border border-yellow-200 rounded-xl mx-3 mt-2">
           <div className="flex items-center justify-between">
@@ -610,21 +604,21 @@ useEffect(() => {
           </div>
         </div>
       )}
-
-      {/* コメント一覧 - シンプル構造 */}
-      <div className="flex-1 overflow-hidden relative">
-        <div
-          ref={commentsSectionRef}
-          className="absolute inset-0 overflow-y-auto p-3"
-          style={{
-            WebkitOverflowScrolling: 'touch',
-            overscrollBehavior: 'contain',
-            touchAction: 'pan-y',
-            paddingBottom: '16px'
-          }}
-          onTouchStart={(e) => e.stopPropagation()}
-          onTouchMove={(e) => e.stopPropagation()}
-        >
+  
+      {/* 統一スクロールエリア - コメント一覧と入力欄を含む */}
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain',
+          touchAction: 'pan-y'
+        }}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+      >
+        {/* コメント一覧部分 */}
+        <div className="p-3 pb-2">
           {loading ? (
             <div className="text-center py-4">
               <div className="animate-pulse space-y-2">
@@ -642,7 +636,7 @@ useEffect(() => {
               </div>
             </div>
           ) : effectiveComments.length === 0 ? (
-            <div className="text-center py-4">
+            <div className="text-center py-8">
               <div className="w-12 h-12 bg-gray-100 rounded-full mx-auto mb-3 flex items-center justify-center">
                 <MoreHorizontal size={20} className="text-gray-400" />
               </div>
@@ -770,58 +764,58 @@ useEffect(() => {
             </div>
           )}
         </div>
-      </div>
-
-      {/* 入力エリア - 固定高さ */}
-      <div className="flex-shrink-0 bg-white border-t border-gray-200 p-3">
-        <form onSubmit={handleSubmit} className="space-y-2">
-          <div className="flex space-x-2 items-end">
-            <div className="flex-1 relative">
-              <textarea
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="コメントを入力..."
-                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent resize-none text-sm"
-                rows={1}
-                style={{ minHeight: '40px', maxHeight: '80px' }}
-                onKeyDown={(e) => {
-                  if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSubmit(e);
-                  }
-                }}
-                maxLength={500}
-              />
-              <button
-                type="button"
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400"
-                disabled
+  
+        {/* 入力エリア - スクロールエリア内の最下部に配置 */}
+        <div className="sticky bottom-0 bg-white border-t border-gray-200 p-3">
+          <form ref={inputFormRef} onSubmit={handleSubmit} className="space-y-2">
+            <div className="flex space-x-2 items-end">
+              <div className="flex-1 relative">
+                <textarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="コメントを入力..."
+                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-transparent resize-none text-sm"
+                  rows={1}
+                  style={{ minHeight: '40px', maxHeight: '80px' }}
+                  onKeyDown={(e) => {
+                    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit(e);
+                    }
+                  }}
+                  maxLength={500}
+                />
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400"
+                  disabled
+                >
+                  <Mic size={14} />
+                </button>
+              </div>
+              <Button
+                type="submit"
+                size="sm"
+                className="rounded-xl flex-shrink-0"
+                style={{ minHeight: '40px', minWidth: '40px', padding: '0 12px' }}
+                disabled={!newComment.trim() || loading}
               >
-                <Mic size={14} />
-              </button>
+                {loading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Send size={16} />
+                )}
+              </Button>
             </div>
-            <Button
-              type="submit"
-              size="sm"
-              className="rounded-xl flex-shrink-0"
-              style={{ minHeight: '40px', minWidth: '40px', padding: '0 12px' }}
-              disabled={!newComment.trim() || loading}
-            >
-              {loading ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Send size={16} />
-              )}
-            </Button>
-          </div>
-          <div className="flex items-center justify-between text-xs text-gray-500">
-            <span>Enterで投稿</span>
-            <span className={newComment.length > 450 ? 'text-orange-500 font-medium' : ''}>
-              {newComment.length}/500
-            </span>
-          </div>
-        </form>
+            <div className="flex items-center justify-between text-xs text-gray-500">
+              <span>Enterで投稿</span>
+              <span className={newComment.length > 450 ? 'text-orange-500 font-medium' : ''}>
+                {newComment.length}/500
+              </span>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
