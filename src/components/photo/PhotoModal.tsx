@@ -544,8 +544,8 @@ useEffect(() => {
           </div>
 
           {/* 情報・コメントエリア */}
-          <div className="w-full lg:w-96 bg-white rounded-r-2xl flex flex-col min-h-0">
-          <div className="flex-shrink-0 p-4 border-b border-gray-100">
+          <div className="w-full lg:w-96 bg-white rounded-r-2xl flex flex-col" style={{ height: '100%' }}>
+            <div className="flex-shrink-0 p-4 border-b border-gray-100">
               <div className="space-y-2 text-sm text-gray-600">
                 <div className="flex items-center space-x-2">
                   <Calendar size={16} />
@@ -578,11 +578,10 @@ useEffect(() => {
             {/* コメントセクション（自動表示または手動表示） */}
             {showComments && showCommentsPanel && (
               <div 
-                className="flex-1"
+                className="flex-1 w-full overflow-hidden"
                 style={{ 
-                  minHeight: '0',
-                  display: 'flex',
-                  flexDirection: 'column'
+                  minHeight: 0, // flexboxで高さを確実に制限
+                  maxHeight: '100%'
                 }}
               >
                 <CommentSection 
