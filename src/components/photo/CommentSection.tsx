@@ -568,74 +568,55 @@ useEffect(() => {
 
   return (
     <div 
-      className="h-full w-full flex flex-col"
-      style={{ 
-        height: '100%',
-        width: '100%',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column'
-      }}
-    >
-      {/* エラー表示 - 既存のまま */}
-      {commentsError && (
-        <div className="flex-shrink-0 p-3 bg-red-50 border border-red-200 rounded-xl mx-4 mt-4">
-          <div className="flex items-start space-x-2">
-            <AlertCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm text-red-700">{commentsError}</p>
-              {retryingAction && (
-                <button
-                  onClick={retryAction}
-                  className="mt-2 text-xs text-red-600 hover:text-red-800 underline"
-                >
-                  再試行
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* リトライ表示 - 既存のまま */}
-      {retryingAction && !commentsError && (
-        <div className="flex-shrink-0 p-3 bg-yellow-50 border border-yellow-200 rounded-xl mx-4 mt-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <AlertCircle size={16} className="text-yellow-500" />
-              <span className="text-sm text-yellow-700">
-                {retryingAction}に失敗しました
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={retryAction}
-                className="text-xs bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
-              >
-                再試行
-              </button>
-              <button
-                onClick={() => setRetryingAction(null)}
-                className="text-xs text-yellow-600 hover:text-yellow-800"
-              >
-                <X size={12} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* コメント一覧 - 完全修正版 */}
-      <div 
-        ref={commentsSectionRef}
-        className="flex-1 w-full"
+        className="flex-1 w-full relative"
         style={{
-          // 重要: スクロール可能エリアの確実な設定
+          // flexで残りの空間をすべて使用
+          flex: '1 1 auto',
           minHeight: '200px',
+          // モバイル対応: 親要素でoverflow制御
+          overflow: 'hidden',
           position: 'relative'
         }}
       >
-        
+        <div
+          ref={commentsSectionRef}
+          className="absolute inset-0"
+          style={{
+            // 絶対配置でスクロール領域を確実に定義
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            // スクロール設定
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            // モバイル特化設定
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
+            touchAction: 'pan-y',
+            // GPU加速
+            transform: 'translateZ(0)',
+            willChange: 'scroll-position',
+            // スクロールバー
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#cbd5e0 transparent',
+            // 重要：パディングをここで設定
+            padding: '16px',
+            // モバイルでのスクロール余裕を確保
+            paddingBottom: '24px', // いいねボタンのための余裕
+          }}
+          role="log"
+          aria-label="コメント一覧"
+          aria-live="polite"
+          // タッチイベントの確実な処理
+          onTouchStart={(e) => {
+            e.stopPropagation();
+          }}
+          onTouchMove={(e) => {
+            e.stopPropagation();
+          }}
+        >
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-pulse space-y-3">
@@ -661,13 +642,27 @@ useEffect(() => {
               <p className="text-sm text-gray-400 mt-1">最初のコメントを投稿してみましょう</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div 
+              className="space-y-4"
+              style={{
+                // コメントコンテナに最小の高さを設定し、確実に表示
+                minHeight: 'fit-content',
+                paddingBottom: '8px' // 最後のコメントの下に余裕
+              }}
+            >
               {effectiveComments.map((comment) => {
                 const likeState = getEffectiveLikeState(comment.id);
                 const isTemporary = comment.id.startsWith('temp-');
                 
                 return (
-                  <div key={comment.id} className={`comment-item flex space-x-3 ${isTemporary ? 'opacity-70' : ''}`}>
+                  <div 
+                    key={comment.id} 
+                    className={`comment-item flex space-x-3 ${isTemporary ? 'opacity-70' : ''}`}
+                    style={{
+                      // 各コメントアイテムの最小高さを確保
+                      minHeight: 'fit-content',
+                    }}
+                  >
                     <img
                       src={comment.user_avatar || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop'}
                       alt={comment.user_name}
@@ -679,6 +674,7 @@ useEffect(() => {
                     />
                     <div className="flex-1 min-w-0">
                       <div className="bg-gray-50 rounded-2xl px-4 py-3 relative group">
+                        {/* 既存のコメント内容部分（省略） */}
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center space-x-2">
                             <span className="font-medium text-sm text-gray-900 truncate">
@@ -699,7 +695,6 @@ useEffect(() => {
                             )}
                           </div>
                           
-                          {/* 編集・削除ボタン（権限チェック付き） */}
                           {!isTemporary && canManageComment(comment) && (
                             <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
@@ -722,7 +717,7 @@ useEffect(() => {
                           )}
                         </div>
                         
-                        {/* コメント内容表示部分（既存のまま） */}
+                        {/* 編集モードとコメント表示（既存のまま） */}
                         {editingComment && editingComment.id === comment.id ? (
                           <div className="space-y-3">
                             <div className="relative">
@@ -781,9 +776,16 @@ useEffect(() => {
                         )}
                       </div>
                       
-                      {/* いいねボタン */}
+                      {/* いいねボタン - モバイル表示対応強化 */}
                       {!isTemporary && (
-                      <div className="flex items-center space-x-4 mt-2 ml-4">
+                      <div 
+                        className="flex items-center space-x-4 mt-2 ml-4"
+                        style={{
+                          // いいねボタンが確実に表示されるよう最小高さを設定
+                          minHeight: '32px',
+                          paddingBottom: '4px'
+                        }}
+                      >
                         <button
                             onClick={() => handleLike(comment.id)}
                             className={`flex items-center space-x-1 text-xs transition-all duration-200 ${
@@ -794,6 +796,12 @@ useEffect(() => {
                           disabled={isLikingComment === comment.id}
                           aria-label={getEffectiveLikeState(comment.id).isLiked ? 'いいねを取り消す' : 'いいね'}
                           title={getEffectiveLikeState(comment.id).isLiked ? 'いいねを取り消す' : 'いいね'}
+                          style={{
+                            // ボタンのタップターゲットを確保
+                            minHeight: '28px',
+                            minWidth: '40px',
+                            padding: '4px 8px'
+                          }}
                         >
                         <Heart 
                             size={14} 
@@ -822,15 +830,18 @@ useEffect(() => {
         </div>
       
 
-      {/* コメント入力エリア - 修正版 */}
+      {/* コメント入力エリア - モバイル特化修正版 */}
       <div 
         className="flex-shrink-0 w-full bg-white border-t border-gray-200"
         style={{
           padding: '16px',
           minHeight: '80px',
           maxHeight: '120px',
-          position: 'relative', // stickyを削除
-          zIndex: 10
+          // モバイルでのキーボード表示対応
+          position: 'relative',
+          zIndex: 10,
+          // 入力エリアの背景を確実に設定
+          backgroundColor: 'white',
         }}
       >
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -889,4 +900,4 @@ useEffect(() => {
       </div>
     </div>
   );
-};
+  }

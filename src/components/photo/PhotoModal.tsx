@@ -588,9 +588,14 @@ useEffect(() => {
             {/* コメントセクション（自動表示または手動表示） */}
             {showComments && showCommentsPanel && (
               <div 
-                className="flex-1 w-full"
+                className="flex-1 w-full relative"
                 style={{ 
                   minHeight: '300px',
+                  // モバイル対応の重要な設定
+                  height: 'auto',
+                  maxHeight: 'none',
+                  display: 'flex',
+                  flexDirection: 'column'
                 }}
               >
                 <CommentSection 
