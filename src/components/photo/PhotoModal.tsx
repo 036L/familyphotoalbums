@@ -545,13 +545,7 @@ useEffect(() => {
 
           {/* 情報・コメントエリア */}
           <div className="w-full lg:w-96 bg-white rounded-r-2xl flex flex-col min-h-0">
-            <div className="flex-shrink-0 p-6 border-b border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-lg text-gray-900 truncate">
-                  {currentPhoto.original_filename || currentPhoto.filename}
-                </h3>
-              </div>
-              
+          <div className="flex-shrink-0 p-4 border-b border-gray-100">
               <div className="space-y-2 text-sm text-gray-600">
                 <div className="flex items-center space-x-2">
                   <Calendar size={16} />
@@ -565,16 +559,12 @@ useEffect(() => {
                 )}
               </div>
 
-              <div className="flex items-center justify-between mt-4">
-                <div className="flex items-center space-x-4">
-                  {/* 改善された写真いいねボタン */}
+              <div className="flex items-center justify-between mt-3">
+                <div className="flex items-center space-x-3">
                   {renderPhotoLikeButton()}
-                  
-                  {/* 改善されたコメントボタン */}
                   {renderCommentButton()}
                 </div>
                 
-                {/* 削除ボタン */}
                 {showDeleteButton && (
                   <PhotoDeleteButton
                     photo={currentPhoto}
