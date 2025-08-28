@@ -63,7 +63,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   formatDate,
   formatLikeCount,
   getEffectiveLikeState,
-  showInput = true,
+  showInput = false,
   className = ''
 }) => {
   const editInputRef = useRef<HTMLTextAreaElement>(null);
