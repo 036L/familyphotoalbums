@@ -14,6 +14,7 @@ import { Camera } from 'lucide-react';
 import { Modal } from './components/ui/Modal';
 import { PermissionGuard } from './components/auth/PermissionGuard';
 import type { Album } from './types/core';
+import { BadgeTest } from './components/test/BadgeTest';
 
 function AppContent() {
   const { 
@@ -278,5 +279,7 @@ function App() {
     </AccessibilityProvider>
   );
 }
+
+<BadgeTest />
 
 export default App;
