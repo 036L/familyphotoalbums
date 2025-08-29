@@ -329,3 +329,79 @@ export interface CompressionOptions {
     useWebWorker?: boolean;
     quality?: number;
 }
+
+// =========================
+// 通知関連
+// =========================
+
+// 最終確認情報
+export interface UserLastSeen {
+    user_id: string;
+    target_type: 'photo' | 'album';
+    target_id: string;
+    last_seen_at: string;
+    updated_at: string;
+  }
+  
+  // バッジ情報
+  export interface NewCommentBadgeInfo {
+    targetId: string;
+    targetType: 'photo' | 'album';
+    newCommentCount: number;
+    hasNewComments: boolean;
+    lastSeenAt: string | null;
+  }
+  
+  // バッジ表示プロパティ
+  export interface BadgeDisplayProps {
+    variant: 'photo' | 'album';
+    size: 'sm' | 'md' | 'lg';
+    count?: number;
+    hasNew?: boolean;
+  }
+  
+  // useNewCommentBadge Hook のパラメータ型
+  export interface UseNewCommentBadgeParams {
+    targetId: string;
+    targetType: 'photo' | 'album';
+    enabled?: boolean;
+  }
+  
+  // useNewCommentBadge Hook の戻り値型
+  export interface UseNewCommentBadgeReturn {
+    newCommentCount: number;
+    hasNewComments: boolean;
+    lastSeenAt: string | null;
+    loading: boolean;
+    error: string | null;
+    markAsSeen: () => Promise<void>;
+    refresh: () => Promise<void>;
+    badgeInfo: NewCommentBadgeInfo; // デバッグ用
+  }
+  
+  // バッジコンポーネントのProps型
+  export interface NewCommentBadgeProps {
+    count?: number;           // 写真レベル用（数字表示）
+    hasNew?: boolean;         // アルバムレベル用（ドット表示）
+    variant: 'photo' | 'album';
+    size?: 'sm' | 'md' | 'lg';
+    className?: string;
+    ariaLabel?: string;
+    onClick?: () => void;
+  }
+  
+  // データベースクエリ結果の型
+  export interface NewCommentQueryResult {
+    photo_id: string;
+    new_comment_count: number;
+    has_new_comments: boolean;
+    last_comment_at: string | null;
+  }
+  
+  // 新着コメント統計情報
+  export interface NewCommentStats {
+    totalNewComments: number;
+    photosWithNewComments: number;
+    lastUpdateAt: string;
+    oldestUnseenComment: string | null;
+  }
