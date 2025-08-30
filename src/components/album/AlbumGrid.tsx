@@ -1,8 +1,11 @@
+// src/components/album/AlbumGrid.tsx - バッジ統合版  
 import React from 'react';
 import { Calendar, ImageIcon, RefreshCw } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { NewCommentBadge } from '../ui/NewCommentBadge';
+import { useNewCommentBadge } from '../../hooks/ui/useNewCommentBadge';
 
 export const AlbumGrid: React.FC = () => {
   const { 
@@ -24,6 +27,94 @@ export const AlbumGrid: React.FC = () => {
       });
     }
   }, [albums, albumsLoading, albumsInitialized]);
+
+  // 個別のアルバムバッジコンポーネント（パフォーマンス最適化）
+  const AlbumWithBadge: React.FC<{ album: any }> = ({ album }) => {
+    const { hasNewComments } = useNewCommentBadge({
+      targetId: album.id,
+      targetType: 'album',
+      enabled: true
+    });
+
+    // 複数の日付フィールドから有効なものを選択
+    const albumDate = album.createdAt || album.created_at;
+    const relativeTime = formatRelativeTime(albumDate);
+    
+    return (
+      <div className="relative">
+        <Card
+          onClick={() => setCurrentAlbum(album)}
+          className="overflow-hidden group hover:shadow-xl transition-all duration-300 cursor-pointer"
+        >
+          <div className="aspect-square relative">
+            {album.cover_image_url ? (
+              <img
+                src={album.cover_image_url}
+                alt={album.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                onError={(e) => {
+                  // 画像の読み込みに失敗した場合のフォールバック
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  const fallback = target.nextElementSibling as HTMLElement;
+                  if (fallback) {
+                    fallback.classList.remove('hidden');
+                  }
+                }}
+              />
+            ) : null}
+            
+            {/* フォールバック表示（画像がない場合、または読み込みに失敗した場合） */}
+            <div className={`w-full h-full bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center ${
+              album.cover_image_url ? 'hidden' : ''
+            }`}>
+              <ImageIcon size={48} className="text-orange-300" />
+            </div>
+            
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            
+            {/* 相対時間表示 */}
+            {relativeTime && (
+              <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
+                {relativeTime}
+              </div>
+            )}
+          </div>
+          
+          <div className="p-4">
+            <h3 className="font-semibold text-gray-900 text-lg mb-1 line-clamp-1">
+              {album.title}
+            </h3>
+            {album.description && (
+              <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                {album.description}
+              </p>
+            )}
+            
+            <div className="flex items-center justify-between text-sm text-gray-500">
+              <div className="flex items-center space-x-1">
+                <Calendar size={14} />
+                <span title={formatDate(albumDate)}>
+                  {formatDate(albumDate)}
+                </span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <ImageIcon size={14} />
+                <span>{album.photo_count || 0}枚</span>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* 新着コメントバッジ（アルバムレベル） */}
+        <NewCommentBadge
+          hasNew={hasNewComments}
+          variant="album"
+          size="md"
+        />
+      </div>
+    );
+  };
 
   // 初期化中または読み込み中の表示
   if (!albumsInitialized || albumsLoading) {
@@ -153,78 +244,9 @@ export const AlbumGrid: React.FC = () => {
     <div className="space-y-4">
       {/* アルバムグリッド */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {albums.map((album) => {
-          // 複数の日付フィールドから有効なものを選択
-          const albumDate = album.createdAt || album.created_at;
-          const relativeTime = formatRelativeTime(albumDate);
-          
-          return (
-            <Card
-              key={album.id}
-              onClick={() => setCurrentAlbum(album)}
-              className="overflow-hidden group hover:shadow-xl transition-all duration-300 cursor-pointer"
-            >
-              <div className="aspect-square relative">
-                {album.cover_image_url ? (
-                  <img
-                    src={album.cover_image_url}
-                    alt={album.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    onError={(e) => {
-                      // 画像の読み込みに失敗した場合のフォールバック
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      const fallback = target.nextElementSibling as HTMLElement;
-                      if (fallback) {
-                        fallback.classList.remove('hidden');
-                      }
-                    }}
-                  />
-                ) : null}
-                
-                {/* フォールバック表示（画像がない場合、または読み込みに失敗した場合） */}
-                <div className={`w-full h-full bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center ${
-                  album.cover_image_url ? 'hidden' : ''
-                }`}>
-                  <ImageIcon size={48} className="text-orange-300" />
-                </div>
-                
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                
-                {/* 相対時間表示 */}
-                {relativeTime && (
-                  <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
-                    {relativeTime}
-                  </div>
-                )}
-              </div>
-              
-              <div className="p-4">
-                <h3 className="font-semibold text-gray-900 text-lg mb-1 line-clamp-1">
-                  {album.title}
-                </h3>
-                {album.description && (
-                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                    {album.description}
-                  </p>
-                )}
-                
-                <div className="flex items-center justify-between text-sm text-gray-500">
-                  <div className="flex items-center space-x-1">
-                    <Calendar size={14} />
-                    <span title={formatDate(albumDate)}>
-                      {formatDate(albumDate)}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <ImageIcon size={14} />
-                    <span>{album.photo_count || 0}枚</span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          );
-        })}
+        {albums.map((album) => (
+          <AlbumWithBadge key={album.id} album={album} />
+        ))}
       </div>
     </div>
   );

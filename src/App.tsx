@@ -94,6 +94,9 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
       
+      {/* 一時的なテスト用コンポーネント - 最上部に配置 */}
+      <BadgeTest />
+
       {/* アクセシビリティボタン */}
       <button
         onClick={() => setShowAccessibilityPanel(true)}
@@ -279,7 +282,5 @@ function App() {
     </AccessibilityProvider>
   );
 }
-
-<BadgeTest />
 
 export default App;

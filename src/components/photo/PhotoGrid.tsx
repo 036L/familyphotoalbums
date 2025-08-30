@@ -1,7 +1,10 @@
+// src/components/photo/PhotoGrid.tsx - バッジ統合版
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Photo } from '../../types/core';
 import { PhotoModal } from './PhotoModal';
+import { NewCommentBadge } from '../ui/NewCommentBadge';
+import { useNewCommentBadge } from '../../hooks/ui/useNewCommentBadge';
 
 export const PhotoGrid: React.FC = () => {
   const { photos, photosLoading, currentAlbum } = useApp();
@@ -26,7 +29,7 @@ export const PhotoGrid: React.FC = () => {
         <div className="text-center py-8">
           <div className="w-16 h-16 bg-gradient-to-r from-orange-400 to-amber-400 rounded-2xl flex items-center justify-center mb-4 mx-auto animate-pulse">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
           <p className="text-gray-600">写真を読み込んでいます...</p>
@@ -57,49 +60,72 @@ export const PhotoGrid: React.FC = () => {
     );
   }
 
+  // 個別の写真バッジコンポーネント（パフォーマンス最適化）
+  const PhotoWithBadge: React.FC<{ photo: Photo; onClick: () => void }> = ({ photo, onClick }) => {
+    const { newCommentCount } = useNewCommentBadge({
+      targetId: photo.id,
+      targetType: 'photo',
+      enabled: true
+    });
+
+    return (
+      <div
+        className="aspect-square cursor-pointer group overflow-hidden rounded-xl bg-gray-100 relative"
+        onClick={onClick}
+      >
+        <img
+          src={photo.thumbnail_url || photo.url}
+          alt={photo.original_filename || photo.filename}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          loading="lazy"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            // エラー時は非表示にして、フォールバックアイコンを表示
+            target.style.display = 'none';
+            const parent = target.parentElement;
+            if (parent && !parent.querySelector('.fallback-icon')) {
+              const fallback = document.createElement('div');
+              fallback.className = 'fallback-icon absolute inset-0 flex items-center justify-center bg-gray-200';
+              fallback.innerHTML = `
+                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              `;
+              parent.appendChild(fallback);
+            }
+          }}
+        />
+        
+        {/* ホバー時のオーバーレイ */}
+        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          </div>
+        </div>
+
+        {/* 新着コメントバッジ */}
+        <NewCommentBadge
+          count={newCommentCount}
+          variant="photo"
+          size="sm"
+        />
+      </div>
+    );
+  };
+
   // 写真グリッドの表示
   return (
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {photos.map((photo) => (
-          <div
+          <PhotoWithBadge
             key={photo.id}
-            className="aspect-square cursor-pointer group overflow-hidden rounded-xl bg-gray-100 relative"
+            photo={photo}
             onClick={() => setSelectedPhoto(photo)}
-          >
-            <img
-              src={photo.thumbnail_url || photo.url}
-              alt={photo.original_filename || photo.filename}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              loading="lazy"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                // エラー時は非表示にして、フォールバックアイコンを表示
-                target.style.display = 'none';
-                const parent = target.parentElement;
-                if (parent && !parent.querySelector('.fallback-icon')) {
-                  const fallback = document.createElement('div');
-                  fallback.className = 'fallback-icon absolute inset-0 flex items-center justify-center bg-gray-200';
-                  fallback.innerHTML = `
-                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  `;
-                  parent.appendChild(fallback);
-                }
-              }}
-            />
-            
-            {/* ホバー時のオーバーレイ */}
-            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              </div>
-            </div>
-          </div>
+          />
         ))}
       </div>
 
