@@ -1,4 +1,4 @@
-// src/components/photo/PhotoModal.tsx - 完全版（SNSスタイル・状態管理統合）
+// src/components/photo/PhotoModal.tsx - Hooksルール違反修正版
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Calendar, User, X, Send, Mic } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -7,10 +7,10 @@ import { PhotoDeleteButton } from './PhotoDeleteButton';
 import { useApp } from '../../context/AppContext';
 import { useComments } from '../../hooks/useComments';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useNewCommentBadge } from '../../hooks/ui/useNewCommentBadge';
 import { errorHelpers } from '../../utils/errors';
 import type { Photo, Comment } from '../../types/core';
 import { supabase } from '../../lib/supabase';
-import { useNewCommentBadge } from '../../hooks/ui/useNewCommentBadge';
 
 // Props型の厳密な定義
 interface PhotoModalProps {
@@ -76,13 +76,6 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   const { user, profile } = useApp();
   const { canDeleteResource, canEditResource } = usePermissions();
 
-  // デバッグログ
-  const debugLog = useCallback((message: string, data?: any) => {
-    if (import.meta.env.DEV) {
-      console.log(`[PhotoModal] ${message}`, data);
-    }
-  }, []);
-
   // 現在の写真を取得
   const currentPhoto = useMemo(() => {
     if (!photo) return null;
@@ -92,6 +85,13 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     }
     return photo;
   }, [photo, photos, currentIndex]);
+
+  // ★ 新着コメントバッジフック - コンポーネントのトップレベルで宣言
+  const { markAsSeen } = useNewCommentBadge({
+    targetId: currentPhoto?.id || '', // 必ず文字列を渡す
+    targetType: 'photo',
+    enabled: !!(isOpen && currentPhoto) // 条件はenabledパラメータで制御
+  });
 
   // useCommentsから全ての機能を取得
   const { 
@@ -105,6 +105,13 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     likesState = {},
     isLikingComment
   } = useComments(currentPhoto?.id);
+
+  // デバッグログ
+  const debugLog = useCallback((message: string, data?: any) => {
+    if (import.meta.env.DEV) {
+      console.log(`[PhotoModal] ${message}`, data);
+    }
+  }, []);
 
   // ===== 写真いいね関連の処理 =====
   const initializePhotoLikes = useCallback((photo: Photo) => {
@@ -487,23 +494,20 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     }
   }, [currentPhoto?.id, isOpen, fetchPhotoLikes, debugLog]);
 
-  // モーダル開閉時の既読マーク（新規追加）
-useEffect(() => {
-  if (isOpen && currentPhoto) {
-    // モーダルを開いた時に既読マークを実行
-    const { markAsSeen } = useNewCommentBadge({
-      targetId: currentPhoto.id,
-      targetType: 'photo'
-    });
+  // ★ モーダル開閉時の既読マーク - 修正版（Hooksルール準拠）
+  useEffect(() => {
+    if (!isOpen || !currentPhoto || !markAsSeen) {
+      return; // 早期リターン（クリーンアップ不要）
+    }
     
-    // 少し遅延させてから実行（レンダリング完了を待つ）
+    // モーダルを開いた時に既読マークを実行
     const timer = setTimeout(() => {
+      debugLog('既読マーク実行', { photoId: currentPhoto.id });
       markAsSeen();
     }, 1000);
     
     return () => clearTimeout(timer);
-  }
-}, [isOpen, currentPhoto?.id]);
+  }, [isOpen, currentPhoto?.id, markAsSeen, debugLog]);
 
   useEffect(() => {
     if (!isOpen) return;

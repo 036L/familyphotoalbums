@@ -26,26 +26,29 @@ export const NewCommentBadge: React.FC<NewCommentBadgeProps> = ({
   // サイズ別スタイル
   const sizeStyles = {
     sm: {
-      photo: 'min-w-4 h-4 text-[10px] px-1.5',
+      photo: 'min-w-5 h-5 text-xs px-2', // 少し大きく（タッチ対応）
       album: 'w-2 h-2'
     },
     md: {
-      photo: 'min-w-5 h-5 text-xs px-2',
+      photo: 'min-w-6 h-6 text-sm px-2.5',
       album: 'w-2.5 h-2.5'
     },
     lg: {
-      photo: 'min-w-6 h-6 text-sm px-2.5',
+      photo: 'min-w-7 h-7 text-base px-3',
       album: 'w-3 h-3'
     }
   };
+// 配置スタイル（バリエーション別）
+const positionStyles = {
+  photo: 'absolute -top-2 -right-2', // 外側にはみ出し
+  album: 'absolute top-2 right-2'    // 内側配置
+};
 
-  // 基本スタイル
-  const baseStyles = 'absolute -top-1 -right-1 bg-red-500 text-white font-medium rounded-full flex items-center justify-center shadow-lg transition-all duration-200';
-  
-  // バリエーション別スタイル
-const variantStyles = variant === 'photo' 
-? `${sizeStyles[size].photo}` // 写真: 数字表示（アニメーション削除）
-: `${sizeStyles[size].album}`; // アルバム: ドット表示（アニメーション削除）
+// 基本スタイル（配置スタイルを分離）
+const baseStyles = 'bg-red-500 text-white font-medium rounded-full flex items-center justify-center shadow-lg transition-all duration-200 z-10';
+
+// 最終的な className
+const variantStyles = `${positionStyles[variant]} ${sizeStyles[size][variant]}`;
 
   // ホバー効果
   const hoverStyles = onClick 

@@ -69,6 +69,7 @@ export const PhotoGrid: React.FC = () => {
     });
 
     return (
+      <div className="relative">
       <div
         className="aspect-square cursor-pointer group overflow-hidden rounded-xl bg-gray-100 relative"
         onClick={onClick}
@@ -105,9 +106,9 @@ export const PhotoGrid: React.FC = () => {
             </svg>
           </div>
         </div>
-
-        {/* 新着コメントバッジ */}
-        <NewCommentBadge
+      </div>
+      {/* 新着コメントバッジ */}
+      <NewCommentBadge
           count={newCommentCount}
           variant="photo"
           size="sm"
