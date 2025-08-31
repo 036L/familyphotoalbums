@@ -14,7 +14,6 @@ import { Camera } from 'lucide-react';
 import { Modal } from './components/ui/Modal';
 import { PermissionGuard } from './components/auth/PermissionGuard';
 import type { Album } from './types/core';
-import { BadgeTest } from './components/test/BadgeTest';
 
 function AppContent() {
   const { 
@@ -93,9 +92,6 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
-      
-      {/* 一時的なテスト用コンポーネント - 最上部に配置 */}
-      <BadgeTest />
 
       {/* アクセシビリティボタン */}
       <button

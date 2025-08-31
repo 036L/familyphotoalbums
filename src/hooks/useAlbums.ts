@@ -1,4 +1,4 @@
-// src/hooks/useAlbums.ts - デモモード削除版
+// src/hooks/useAlbums.ts
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Album, AlbumCreateData } from '../types/core';
@@ -218,15 +218,6 @@ export const useAlbums = () => {
     }
   };
 
-  // 強制的な再初期化関数（デバッグ用）
-  const forceReinitialize = useCallback(() => {
-    debugLog('強制再初期化実行');
-    setInitialized(false);
-    setLoading(false);
-    setError(null);
-    setAlbums([]);
-  }, []);
-
   // デバッグ用の状態ログ出力（開発時のみ）
   useEffect(() => {
     if (import.meta.env.DEV) {
@@ -251,6 +242,5 @@ export const useAlbums = () => {
     deleteAlbum,
     updateAlbumCover,
     handlePhotoAdded, // 写真追加時の処理
-    forceReinitialize, // デバッグ用強制再初期化
   };
 };
