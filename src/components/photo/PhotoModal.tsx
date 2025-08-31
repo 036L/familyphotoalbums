@@ -10,6 +10,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { errorHelpers } from '../../utils/errors';
 import type { Photo, Comment } from '../../types/core';
 import { supabase } from '../../lib/supabase';
+import { useNewCommentBadge } from '../../hooks/ui/useNewCommentBadge';
 
 // Props型の厳密な定義
 interface PhotoModalProps {
@@ -485,6 +486,24 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
       fetchPhotoLikes(currentPhoto.id);
     }
   }, [currentPhoto?.id, isOpen, fetchPhotoLikes, debugLog]);
+
+  // モーダル開閉時の既読マーク（新規追加）
+useEffect(() => {
+  if (isOpen && currentPhoto) {
+    // モーダルを開いた時に既読マークを実行
+    const { markAsSeen } = useNewCommentBadge({
+      targetId: currentPhoto.id,
+      targetType: 'photo'
+    });
+    
+    // 少し遅延させてから実行（レンダリング完了を待つ）
+    const timer = setTimeout(() => {
+      markAsSeen();
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }
+}, [isOpen, currentPhoto?.id]);
 
   useEffect(() => {
     if (!isOpen) return;

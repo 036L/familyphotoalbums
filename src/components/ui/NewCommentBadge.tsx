@@ -43,9 +43,9 @@ export const NewCommentBadge: React.FC<NewCommentBadgeProps> = ({
   const baseStyles = 'absolute -top-1 -right-1 bg-red-500 text-white font-medium rounded-full flex items-center justify-center shadow-lg transition-all duration-200';
   
   // バリエーション別スタイル
-  const variantStyles = variant === 'photo' 
-    ? `${sizeStyles[size].photo} animate-pulse` // 写真: 数字表示 + パルス
-    : `${sizeStyles[size].album} animate-ping`; // アルバム: ドット表示 + ピング
+const variantStyles = variant === 'photo' 
+? `${sizeStyles[size].photo}` // 写真: 数字表示（アニメーション削除）
+: `${sizeStyles[size].album}`; // アルバム: ドット表示（アニメーション削除）
 
   // ホバー効果
   const hoverStyles = onClick 
@@ -74,12 +74,13 @@ export const NewCommentBadge: React.FC<NewCommentBadgeProps> = ({
       onClick={onClick}
       {...accessibilityProps}
     >
-      {displayContent}
       
       {/* ピング効果用の追加要素（アルバムレベルのみ） */}
       {variant === 'album' && (
         <div className="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-75" />
       )}
+
+      {displayContent}
     </div>
   );
 };
