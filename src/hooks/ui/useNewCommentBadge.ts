@@ -1,4 +1,4 @@
-// src/hooks/ui/useNewCommentBadge.ts - 開発ガイドライン準拠版
+// src/hooks/ui/useNewCommentBadge.ts
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useApp } from '../../context/AppContext';
@@ -8,13 +8,6 @@ import type {
   NewCommentBadgeInfo,
   NewCommentQueryResult
 } from '../../types/core';
-
-// デバッグログ関数（開発時のみ）
-const debugLog = (message: string, data?: any) => {
-  if (import.meta.env.DEV) {
-    console.log(`[useNewCommentBadge] ${message}`, data);
-  }
-};
 
 /**
  * 新着コメント通知バッジ用Hook
@@ -64,8 +57,6 @@ export const useNewCommentBadge = ({
   // 写真レベルの新着コメント数取得
   const fetchPhotoNewComments = useCallback(async (photoId: string, currentUserId: string) => {
     try {
-      debugLog('写真新着コメント取得開始', { photoId, userId: currentUserId });
-
       // 1. ユーザーの最終確認日時を取得
       const { data: lastSeenData, error: lastSeenError } = await supabase
         .from('user_last_seen')
@@ -80,11 +71,6 @@ export const useNewCommentBadge = ({
       }
 
       const userLastSeenAt = lastSeenData?.last_seen_at || null;
-      
-      debugLog('最終確認日時取得', { 
-        photoId, 
-        lastSeenAt: userLastSeenAt 
-      });
 
       // 2. 新着コメント数を計算
       let query = supabase
@@ -102,12 +88,6 @@ export const useNewCommentBadge = ({
       if (commentError) throw commentError;
 
       const newCount = count || 0;
-      
-      debugLog('写真新着コメント数取得完了', { 
-        photoId, 
-        newCount,
-        lastSeenAt: userLastSeenAt
-      });
 
       return {
         count: newCount,
@@ -116,7 +96,6 @@ export const useNewCommentBadge = ({
       };
 
     } catch (err) {
-      debugLog('写真新着コメント取得エラー', err);
       throw err;
     }
   }, []);
@@ -124,8 +103,6 @@ export const useNewCommentBadge = ({
   // アルバムレベルの新着コメント確認
   const fetchAlbumNewComments = useCallback(async (albumId: string, currentUserId: string) => {
     try {
-      debugLog('アルバム新着コメント確認開始', { albumId, userId: currentUserId });
-
       // バッチクエリで効率的に取得
       const { data, error } = await supabase.rpc('check_album_new_comments', {
         p_album_id: albumId,
@@ -133,17 +110,10 @@ export const useNewCommentBadge = ({
       });
 
       if (error) {
-        debugLog('アルバム新着コメント確認でRPC関数エラー、フォールバックを使用', error);
         return await fetchAlbumNewCommentsFallback(albumId, currentUserId);
       }
 
       const hasNew = data && data.length > 0 && data.some((item: any) => item.has_new_comments);
-
-      debugLog('アルバム新着コメント確認完了', { 
-        albumId, 
-        hasNew,
-        photosWithNewComments: data ? data.filter((item: any) => item.has_new_comments).length : 0
-      });
 
       return {
         count: 0, // アルバムレベルでは数字は表示しない
@@ -152,7 +122,6 @@ export const useNewCommentBadge = ({
       };
 
     } catch (err) {
-      debugLog('アルバム新着コメント確認エラー', err);
       // フォールバック処理
       return await fetchAlbumNewCommentsFallback(albumId, currentUserId);
     }
@@ -161,8 +130,6 @@ export const useNewCommentBadge = ({
   // アルバム新着コメント確認のフォールバック処理
   const fetchAlbumNewCommentsFallback = useCallback(async (albumId: string, currentUserId: string) => {
     try {
-      debugLog('アルバム新着コメント確認フォールバック実行', { albumId });
-
       // 1. アルバム内の写真IDを取得
       const { data: photos, error: photosError } = await supabase
         .from('photos')
@@ -186,12 +153,6 @@ export const useNewCommentBadge = ({
       const results = await Promise.all(promises);
       const hasAnyNew = results.some(hasNew => hasNew);
 
-      debugLog('アルバム新着コメント確認フォールバック完了', { 
-        albumId, 
-        totalPhotos: photoIds.length,
-        hasAnyNew
-      });
-
       return {
         count: 0,
         hasNew: hasAnyNew,
@@ -199,7 +160,6 @@ export const useNewCommentBadge = ({
       };
 
     } catch (err) {
-      debugLog('アルバム新着コメント確認フォールバックエラー', err);
       throw err;
     }
   }, [fetchPhotoNewComments]);
@@ -207,17 +167,11 @@ export const useNewCommentBadge = ({
   // 新着コメント情報の取得（メイン処理）
   const fetchNewCommentInfo = useCallback(async () => {
     if (!enabled || !userId || !targetId) {
-      debugLog('実行条件未満のためスキップ', { 
-        enabled, 
-        hasUserId: !!userId, 
-        hasTargetId: !!targetId 
-      });
       return;
     }
 
     // キャッシュチェック
     if (isCacheValid()) {
-      debugLog('キャッシュを使用', { targetId, targetType });
       setNewCommentCount(cachedData!.count);
       setHasNewComments(cachedData!.hasNew);
       setLastSeenAt(cachedData!.lastSeen);
@@ -227,7 +181,6 @@ export const useNewCommentBadge = ({
     try {
       setLoading(true);
       setError(null);
-      debugLog('新着コメント情報取得開始', { targetId, targetType });
 
       let result;
       
@@ -248,14 +201,7 @@ export const useNewCommentBadge = ({
       setCachedData(result);
       setCacheTimestamp(Date.now());
 
-      debugLog('新着コメント情報取得完了', { 
-        targetId, 
-        targetType, 
-        result 
-      });
-
     } catch (err) {
-      debugLog('新着コメント情報取得エラー', err);
       console.error('新着コメント情報の取得に失敗:', err);
       setError(err instanceof Error ? err.message : '新着コメント情報の取得に失敗しました');
     } finally {
@@ -275,17 +221,10 @@ export const useNewCommentBadge = ({
   // 最終確認日時更新（写真を確認済みとしてマーク）
   const markAsSeen = useCallback(async () => {
     if (!userId || !targetId || targetType !== 'photo') {
-      debugLog('markAsSeen: 条件未満', { 
-        hasUserId: !!userId, 
-        hasTargetId: !!targetId, 
-        targetType 
-      });
       return;
     }
 
     try {
-      debugLog('最終確認日時更新開始', { targetId, targetType });
-
       const now = new Date().toISOString();
 
       const { error } = await supabase
@@ -309,10 +248,7 @@ export const useNewCommentBadge = ({
       setCachedData(null);
       setCacheTimestamp(0);
 
-      debugLog('最終確認日時更新完了', { targetId, timestamp: now });
-
     } catch (err) {
-      debugLog('最終確認日時更新エラー', err);
       console.error('最終確認日時の更新に失敗:', err);
       setError(err instanceof Error ? err.message : '最終確認日時の更新に失敗しました');
     }
@@ -320,8 +256,6 @@ export const useNewCommentBadge = ({
 
   // 手動リフレッシュ（キャッシュを無視して再取得）
   const refresh = useCallback(async () => {
-    debugLog('手動リフレッシュ実行', { targetId, targetType });
-    
     // キャッシュをクリア
     setCachedData(null);
     setCacheTimestamp(0);
@@ -332,7 +266,6 @@ export const useNewCommentBadge = ({
   // 初期データ取得とリアルタイム更新の設定
   useEffect(() => {
     if (enabled && userId && targetId) {
-      debugLog('初期データ取得開始', { targetId, targetType });
       fetchNewCommentInfo();
       
       // リアルタイム更新の設定（コメントテーブルの変更を監視）
@@ -347,8 +280,6 @@ export const useNewCommentBadge = ({
             filter: targetType === 'photo' ? `photo_id=eq.${targetId}` : undefined,
           },
           (payload) => {
-            debugLog('リアルタイム更新検知', { targetId, payload });
-            
             // 少し遅延させてからリフレッシュ（データベースの反映を待つ）
             setTimeout(() => {
               refresh();
@@ -358,13 +289,11 @@ export const useNewCommentBadge = ({
         .subscribe();
 
       return () => {
-        debugLog('リアルタイム監視停止', { targetId });
         supabase.removeChannel(channel);
       };
     }
     
     // 条件に満たない場合は状態をリセット
-    debugLog('条件未満のため状態リセット', { enabled, hasUserId: !!userId, hasTargetId: !!targetId });
     setNewCommentCount(0);
     setHasNewComments(false);
     setLastSeenAt(null);

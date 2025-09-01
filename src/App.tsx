@@ -32,19 +32,6 @@ function AppContent() {
   const [newAlbumTitle, setNewAlbumTitle] = useState('');
   const [newAlbumDescription, setNewAlbumDescription] = useState('');
 
-  // デバッグログ（開発時のみ）
-  React.useEffect(() => {
-    if (import.meta.env.DEV) {
-      console.log('[App] 状態変更:', {
-        isAuthenticated,
-        currentAlbum: currentAlbum?.title,
-        loading,
-        albumsLoading,
-        photosLoading
-      });
-    }
-  }, [isAuthenticated, currentAlbum, loading, albumsLoading, photosLoading]);
-
   // 認証チェック中の表示
   if (loading) {
     return (
@@ -86,7 +73,6 @@ function AppContent() {
 
   // ホームに戻る処理を改善
   const handleBackToHome = () => {
-    console.log('[App] ホームに戻る');
     setCurrentAlbum(null);
   };
 

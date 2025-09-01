@@ -1,4 +1,4 @@
-// src/components/photo/PhotoModal.tsx - Hooksルール違反修正版
+// src/components/photo/PhotoModal.tsx
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Heart, MessageCircle, Calendar, User, X, Send, Mic } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -88,9 +88,9 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
 
   // ★ 新着コメントバッジフック - コンポーネントのトップレベルで宣言
   const { markAsSeen } = useNewCommentBadge({
-    targetId: currentPhoto?.id || '', // 必ず文字列を渡す
+    targetId: currentPhoto?.id || '',
     targetType: 'photo',
-    enabled: !!(isOpen && currentPhoto) // 条件はenabledパラメータで制御
+    enabled: !!(isOpen && currentPhoto)
   });
 
   // useCommentsから全ての機能を取得
@@ -106,30 +106,20 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     isLikingComment
   } = useComments(currentPhoto?.id);
 
-  // デバッグログ
-  const debugLog = useCallback((message: string, data?: any) => {
-    if (import.meta.env.DEV) {
-      console.log(`[PhotoModal] ${message}`, data);
-    }
-  }, []);
-
   // ===== 写真いいね関連の処理 =====
   const initializePhotoLikes = useCallback((photo: Photo) => {
     if (!photo) return;
-    debugLog('写真いいね状態初期化', { photoId: photo.id });
   
     setPhotoLikes(prev => ({
       ...prev,
       [photo.id]: { count: 0, isLiked: false }
     }));
-  }, [debugLog]);
+  }, []);
 
   const fetchPhotoLikes = useCallback(async (photoId: string) => {
     if (!photoId) return;
 
     try {
-      debugLog('写真いいね数取得開始', { photoId });
-
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       
       const { data: likeCounts, error: countError } = await supabase
@@ -149,17 +139,13 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
         [photoId]: likeState
       }));
 
-      debugLog('写真いいね数取得完了', { photoId, likeState });
     } catch (error) {
-      debugLog('写真いいね数取得エラー', error);
       console.error('写真いいね数取得エラー:', error);
     }
-  }, [debugLog]);
+  }, []);
 
   const togglePhotoLike = useCallback(async (photoId: string) => {
     try {
-      debugLog('写真いいね処理開始', { photoId });
-      
       if (isLikingPhoto === photoId) return;
       setIsLikingPhoto(photoId);
 
@@ -187,26 +173,23 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
           .eq('user_id', currentUser.id);
 
         if (deleteError) throw deleteError;
-        debugLog('写真いいね削除完了', photoId);
       } else {
         const { error: insertError } = await supabase
           .from('photo_likes')
           .insert({ photo_id: photoId, user_id: currentUser.id });
 
         if (insertError) throw insertError;
-        debugLog('写真いいね追加完了', photoId);
       }
 
       await fetchPhotoLikes(photoId);
 
     } catch (error) {
-      debugLog('写真いいね処理エラー', error);
       console.error('写真いいね処理エラー:', error);
       setError('いいねの処理に失敗しました');
     } finally {
       setIsLikingPhoto(null);
     }
-  }, [photoLikes, isLikingPhoto, fetchPhotoLikes, debugLog]);
+  }, [photoLikes, isLikingPhoto, fetchPhotoLikes]);
 
   // ===== コメント関連の処理 =====
   const persistCommentState = useCallback((photoId: string, updates: any) => {
@@ -413,10 +396,9 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
 
   // ===== その他の処理 =====
   const handleError = useCallback((errorMessage: string) => {
-    debugLog('エラー発生:', errorMessage);
     setError(errorMessage);
     setTimeout(() => setError(null), 3000);
-  }, [debugLog]);
+  }, []);
 
   const goToPrevious = useCallback(() => {
     if (!showNavigation || photos.length <= 1) return;
@@ -426,9 +408,8 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
       const newPhoto = photos[newIndex];
       setCurrentIndex(newIndex);
       onPhotoChange?.(newPhoto);
-      debugLog('前の写真へ移動:', { newIndex, photoId: newPhoto.id });
     }
-  }, [showNavigation, photos, currentIndex, onPhotoChange, debugLog]);
+  }, [showNavigation, photos, currentIndex, onPhotoChange]);
 
   const goToNext = useCallback(() => {
     if (!showNavigation || photos.length <= 1) return;
@@ -438,19 +419,15 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
       const newPhoto = photos[newIndex];
       setCurrentIndex(newIndex);
       onPhotoChange?.(newPhoto);
-      debugLog('次の写真へ移動:', { newIndex, photoId: newPhoto.id });
     }
-  }, [showNavigation, photos, currentIndex, onPhotoChange, debugLog]);
+  }, [showNavigation, photos, currentIndex, onPhotoChange]);
 
   const handleClose = useCallback(() => {
-    debugLog('モーダルを閉じる');
     setError(null);
     onClose();
-  }, [onClose, debugLog]);
+  }, [onClose]);
 
   const handlePhotoDeleted = useCallback((photoId: string) => {
-    debugLog('写真削除後の処理:', photoId);
-    
     setPhotoLikes(prev => {
       const newState = { ...prev };
       delete newState[photoId];
@@ -458,7 +435,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     });
     
     onPhotoDeleted?.(photoId);
-  }, [onPhotoDeleted, debugLog]);
+  }, [onPhotoDeleted]);
 
   const formatDate = useCallback((dateString: string) => {
     try {
@@ -489,25 +466,22 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   // ===== Effects =====
   useEffect(() => {
     if (currentPhoto && isOpen) {
-      debugLog('現在の写真変更による初期化', { photoId: currentPhoto.id });
       fetchPhotoLikes(currentPhoto.id);
     }
-  }, [currentPhoto?.id, isOpen, fetchPhotoLikes, debugLog]);
+  }, [currentPhoto?.id, isOpen, fetchPhotoLikes]);
 
   // ★ モーダル開閉時の既読マーク - 修正版（Hooksルール準拠）
   useEffect(() => {
     if (!isOpen || !currentPhoto || !markAsSeen) {
-      return; // 早期リターン（クリーンアップ不要）
+      return;
     }
     
-    // モーダルを開いた時に既読マークを実行
     const timer = setTimeout(() => {
-      debugLog('既読マーク実行', { photoId: currentPhoto.id });
       markAsSeen();
     }, 1000);
     
     return () => clearTimeout(timer);
-  }, [isOpen, currentPhoto?.id, markAsSeen, debugLog]);
+  }, [isOpen, currentPhoto?.id, markAsSeen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -527,8 +501,6 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
         }
         return;
       }
-
-      debugLog('キー押下:', event.key);
       
       switch (event.key) {
         case 'ArrowLeft':
@@ -548,7 +520,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, goToPrevious, goToNext, handleClose, debugLog]);
+  }, [isOpen, goToPrevious, goToNext, handleClose]);
 
   // ===== レンダリング用ヘルパー =====
   const renderPhotoLikeButton = useCallback(() => {
