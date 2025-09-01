@@ -19,6 +19,8 @@ interface PhotoModalProps {
   onClose: () => void;
   photos?: Photo[];
   className?: string;
+  // ★ 初期表示インデックスを追加
+  initialIndex?: number;
   // オプショナルなコールバック
   onPhotoChange?: (photo: Photo) => void;
   onPhotoDeleted?: (photoId: string) => void;
@@ -44,6 +46,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   onClose,
   photos = [],
   className = '',
+  initialIndex = 0, // ★ 追加
   onPhotoChange,
   onPhotoDeleted,
   showComments = true,
@@ -53,7 +56,13 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   ariaDescribedBy,
 }) => {
   // 基本状態
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(() => {
+    // ★ モーダルが開かれたときに正しいindexで初期化
+    if (initialIndex >= 0 && initialIndex < photos.length) {
+      return initialIndex;
+    }
+    return 0;
+  });
   const [error, setError] = useState<string | null>(null);
   
   // 写真いいね機能の状態
@@ -464,6 +473,13 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
   }, []);
 
   // ===== Effects =====
+  // ★ モーダル開閉時のindex初期化
+  useEffect(() => {
+    if (isOpen && initialIndex >= 0 && initialIndex < photos.length) {
+      setCurrentIndex(initialIndex);
+    }
+  }, [isOpen, initialIndex, photos.length]);
+
   useEffect(() => {
     if (currentPhoto && isOpen) {
       fetchPhotoLikes(currentPhoto.id);

@@ -125,74 +125,133 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
     `;
 
     // ハイコントラストモード
-    if (settingsToApply.highContrast) {
-      css += `
-        body { 
-          background: #000000 !important; 
-          color: #ffffff !important; 
-          min-height: 100vh !important;
-        }
-        .bg-gradient-to-br { 
-          background: #000000 !important; 
-        }
-        .from-orange-50, .to-amber-50 { background: transparent !important; }
-        .bg-white { background-color: #000000 !important; }
-        .bg-gray-50, .bg-gray-100 { background-color: #1a1a1a !important; }
-        .text-gray-900, .text-gray-800, .text-gray-700, .text-gray-600 { 
-          color: #ffffff !important; 
-        }
-        .text-gray-500, .text-gray-400 { color: #cccccc !important; }
-        .border-gray-200, .border-gray-300, .border-gray-100 { 
-          border-color: #ffffff !important; 
-        }
-        .bg-orange-50, .bg-orange-100 { 
-          background-color: #1a1a1a !important; 
-          border: 2px solid #ffff00 !important; 
-        }
-        .text-orange-600, .text-orange-700, .text-orange-500 { 
-          color: #ffff00 !important; 
-        }
-        .shadow-lg, .shadow-md, .shadow-xl, .shadow-2xl { 
-          box-shadow: 0 0 0 2px #ffffff !important; 
-        }
-        .bg-blue-50, .bg-blue-100 { 
-          background-color: #1a1a1a !important; 
-          border: 1px solid #ffff00 !important; 
-        }
-      `;
+if (settingsToApply.highContrast) {
+  css += `
+    body { 
+      background: #ffffff !important; 
+      color: #000000 !important; 
+      min-height: 100vh !important;
     }
+    .bg-gradient-to-br { 
+      background: #ffffff !important; 
+    }
+    .from-orange-50, .to-amber-50 { background: transparent !important; }
+    .bg-white { background-color: #ffffff !important; }
+    .bg-gray-50, .bg-gray-100 { background-color: #ffffff !important; }
+    .text-gray-900, .text-gray-800, .text-gray-700, .text-gray-600 { 
+      color: #000000 !important; 
+    }
+    .text-gray-500, .text-gray-400 { color: #333333 !important; }
+    .border-gray-200, .border-gray-300, .border-gray-100 { 
+      border-color: #000000 !important; 
+    }
+    .bg-orange-50, .bg-orange-100 { 
+      background-color: #ffffff !important; 
+      border: 2px solid #000000 !important; 
+    }
+    .text-orange-600, .text-orange-700, .text-orange-500 { 
+      color: #000000 !important; 
+    }
+    .shadow-lg, .shadow-md, .shadow-xl, .shadow-2xl { 
+      box-shadow: 0 0 0 2px #000000 !important; 
+    }
+    .bg-blue-50, .bg-blue-100 { 
+      background-color: #ffffff !important; 
+      border: 2px solid #000000 !important; 
+    }
+    .text-blue-600, .text-blue-700 { 
+      color: #000000 !important; 
+    }
+    /* ホバー時の可読性確保 */
+    .hover\\:bg-gray-50:hover, .hover\\:bg-gray-100:hover { 
+      background-color: #f0f0f0 !important; 
+      color: #000000 !important; 
+    }
+    .hover\\:text-gray-900:hover { 
+      color: #000000 !important; 
+    }
+    .hover\\:bg-blue-50:hover { 
+      background-color: #e6e6e6 !important; 
+      color: #000000 !important; 
+    }
+    .hover\\:border-blue-300:hover { 
+      border-color: #000000 !important; 
+    }
+    /* 選択状態のボタン */
+    .border-blue-500 { 
+      border-color: #000000 !important; 
+    }
+    .bg-blue-50 { 
+      background-color: #e6e6e6 !important; 
+      color: #000000 !important; 
+    }
+    .text-blue-700 { 
+      color: #000000 !important; 
+    }
+  `;
+}
 
     // ダークモード
-    if (settingsToApply.darkMode && !settingsToApply.highContrast) {
-      css += `
-        body { 
-          background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%) !important; 
-          color: #ffffff !important; 
-          min-height: 100vh !important;
-        }
-        .bg-gradient-to-br { 
-          background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%) !important; 
-        }
-        .from-orange-50 { background: transparent !important; }
-        .to-amber-50 { background: transparent !important; }
-        .bg-white { background-color: #1e1e1e !important; }
-        .bg-gray-50 { background-color: #2d2d2d !important; }
-        .bg-gray-100 { background-color: #2d2d2d !important; }
-        .text-gray-900 { color: #ffffff !important; }
-        .text-gray-600, .text-gray-700, .text-gray-800 { color: #b3b3b3 !important; }
-        .text-gray-500, .text-gray-400 { color: #8c8c8c !important; }
-        .border-gray-200, .border-gray-300, .border-gray-100 { 
-          border-color: #404040 !important; 
-        }
-        .bg-orange-50 { background-color: rgba(255, 107, 53, 0.1) !important; }
-        .bg-orange-100 { background-color: rgba(255, 107, 53, 0.2) !important; }
-        .shadow-lg, .shadow-md, .shadow-xl, .shadow-2xl { 
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important; 
-        }
-        .bg-blue-50 { background-color: rgba(59, 130, 246, 0.1) !important; }
-        .bg-blue-100 { background-color: rgba(59, 130, 246, 0.2) !important; }
-      `;
+if (settingsToApply.darkMode && !settingsToApply.highContrast) {
+  css += `
+    body { 
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%) !important; 
+      color: #ffffff !important; 
+      min-height: 100vh !important;
     }
+    .bg-gradient-to-br { 
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%) !important; 
+    }
+    .from-orange-50 { background: transparent !important; }
+    .to-amber-50 { background: transparent !important; }
+    .bg-white { background-color: #1e1e1e !important; }
+    .bg-gray-50 { background-color: #2d2d2d !important; }
+    .bg-gray-100 { background-color: #2d2d2d !important; }
+    .text-gray-900 { color: #ffffff !important; }
+    .text-gray-600, .text-gray-700, .text-gray-800 { color: #b3b3b3 !important; }
+    .text-gray-500, .text-gray-400 { color: #8c8c8c !important; }
+    .border-gray-200, .border-gray-300, .border-gray-100 { 
+      border-color: #404040 !important; 
+    }
+    .bg-orange-50 { background-color: rgba(255, 107, 53, 0.1) !important; }
+    .bg-orange-100 { background-color: rgba(255, 107, 53, 0.2) !important; }
+    .shadow-lg, .shadow-md, .shadow-xl, .shadow-2xl { 
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important; 
+    }
+    .bg-blue-50 { background-color: rgba(59, 130, 246, 0.1) !important; }
+    .bg-blue-100 { background-color: rgba(59, 130, 246, 0.2) !important; }
+    .hover\\:bg-gray-50:hover, .hover\\:bg-gray-100:hover { 
+      background-color: #404040 !important; 
+      color: #ffffff !important; 
+    }
+    .hover\\:text-gray-900:hover { 
+      color: #ffffff !important; 
+    }
+    .hover\\:bg-white:hover { 
+      background-color: #2d2d2d !important; 
+      color: #ffffff !important; 
+    }
+    /* 文字サイズボタンのホバー修正 */
+    .hover\\:bg-blue-50:hover { 
+      background-color: #1e3a8a !important; 
+      color: #ffffff !important; 
+    }
+    .hover\\:border-blue-300:hover { 
+      border-color: #60a5fa !important; 
+    }
+    /* 選択状態のボタンもダークモード対応 */
+    .bg-blue-50 { 
+      background-color: #1e40af !important; 
+      color: #ffffff !important; 
+    }
+    .border-blue-500 { 
+      border-color: #3b82f6 !important; 
+    }
+    .text-blue-700 { 
+      color: #ffffff !important; 
+    }
+  `;
+}
 
     // モーション軽減
     if (settingsToApply.reducedMotion) {
@@ -230,16 +289,17 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
     root.classList.toggle('keyboard-navigation', settingsToApply.keyboardNavigation);
 
     // 確実に背景を変更するため、直接bodyにスタイルを適用
-    if (settingsToApply.darkMode && !settingsToApply.highContrast) {
-      document.body.style.background = 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)';
-      document.body.style.minHeight = '100vh';
-    } else if (settingsToApply.highContrast) {
-      document.body.style.background = '#000000';
-      document.body.style.minHeight = '100vh';
-    } else {
-      document.body.style.background = '';
-      document.body.style.minHeight = '';
-    }
+if (settingsToApply.highContrast) {
+  document.body.style.background = '#ffffff';
+  document.body.style.color = '#000000';
+  document.body.style.minHeight = '100vh';
+} else if (settingsToApply.darkMode) {
+  document.body.style.background = 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)';
+  document.body.style.minHeight = '100vh';
+} else {
+  document.body.style.background = '';
+  document.body.style.minHeight = '';
+}
 
     console.log('アクセシビリティスタイル適用:', settingsToApply);
   }, []);

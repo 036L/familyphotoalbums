@@ -121,7 +121,7 @@ export const PhotoGrid: React.FC = () => {
   return (
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {photos.map((photo) => (
+        {photos.map((photo, index) => (
           <PhotoWithBadge
             key={photo.id}
             photo={photo}
@@ -129,22 +129,20 @@ export const PhotoGrid: React.FC = () => {
           />
         ))}
       </div>
-
+  
       {/* 写真モーダル */}
       <PhotoModal
         photo={selectedPhoto}
         photos={photos}
         isOpen={!!selectedPhoto}
-        onClose={() => {
-          console.log('[PhotoGrid] モーダルを閉じる');
-          setSelectedPhoto(null);
-        }}
+        onClose={() => setSelectedPhoto(null)}
         showNavigation={true}
         showComments={true}
         onPhotoChange={(newPhoto) => {
-          console.log('[PhotoGrid] 写真変更:', newPhoto?.filename);
           setSelectedPhoto(newPhoto);
         }}
+        // ★ 選択した写真のindexを計算して渡す
+        initialIndex={selectedPhoto ? photos.findIndex(p => p.id === selectedPhoto.id) : 0}
       />
     </>
   );
