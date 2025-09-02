@@ -65,6 +65,9 @@ interface AppContextType {
   // UI State - 最適化されたUI状態管理
   currentAlbum: Album | null;
   setCurrentAlbum: (album: Album | null) => void;
+
+  // ★ 写真直接表示機能を追加
+  openPhotoModal: (photoId: string) => Promise<void>;
   
   // Debug functions
   forceRefresh: () => void;
@@ -145,6 +148,60 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
   }, [photosHook]);
 
+  // ★ 写真直接表示機能を追加
+const openPhotoModal = useCallback(async (photoId: string) => {
+  try {
+    debugLog('写真直接表示開始', { photoId });
+    
+    // 1. 該当写真の情報を取得して、どのアルバムに属するかを特定
+    // まず全アルバムから写真を探す
+    let targetAlbum: Album | null = null;
+    let targetPhoto: Photo | null = null;
+    
+    for (const album of albumsState.albums) {
+      // そのアルバムの写真を一時的に取得
+      await photosHook.fetchPhotos(album.id);
+      const photo = photosState.photos.find(p => p.id === photoId);
+      
+      if (photo) {
+        targetAlbum = album;
+        targetPhoto = photo;
+        break;
+      }
+    }
+    
+    if (targetAlbum && targetPhoto) {
+      debugLog('対象写真発見', { 
+        albumTitle: targetAlbum.title, 
+        photoId: targetPhoto.id 
+      });
+      
+      // 2. アルバムを設定
+      setCurrentAlbum(targetAlbum);
+      
+      // 3. 写真一覧を取得
+      await photosHook.fetchPhotos(targetAlbum.id);
+      
+      // 4. 少し遅延してからモーダルを開く（状態更新の完了を待つ）
+      setTimeout(() => {
+        // この処理は実際にはPhotoGrid側で処理される
+        // ここでは写真IDを一時的に保存
+        window.dispatchEvent(new CustomEvent('openPhotoModal', { 
+          detail: { photoId } 
+        }));
+      }, 100);
+      
+      debugLog('写真直接表示完了');
+    } else {
+      debugLog('対象写真が見つかりません', { photoId });
+      console.warn('指定された写真が見つかりません:', photoId);
+    }
+  } catch (error) {
+    debugLog('写真直接表示エラー', error);
+    console.error('写真直接表示エラー:', error);
+  }
+}, [albumsState.albums, photosState.photos, photosHook]);
+
   // 最適化されたプロフィール更新処理
   const updateProfile = useCallback(async (updates: Partial<Profile>) => {
     try {
@@ -180,14 +237,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       throw error;
     }
   }, [auth.updateProfile, auth.profile, isDemo]);
-
-  // 強制リフレッシュ関数（デバッグ用）
-  const forceRefresh = useCallback(() => {
-    debugLog('強制リフレッシュ実行');
-    if (albumsHook.forceReinitialize) {
-      albumsHook.forceReinitialize();
-    }
-  }, [albumsHook]);
 
   // 認証状態の変更とアルバム初期化の同期（修正版）
   useEffect(() => {
@@ -304,7 +353,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     // UI State
     currentAlbum,
     setCurrentAlbum: handleSetCurrentAlbum,
-    
+
+    // ★ 写真直接表示機能を追加
+    openPhotoModal,
+  
     // Debug
     forceRefresh,
   }), [
@@ -323,6 +375,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     photosHook.uploadPhotos,
     photosHook.deletePhoto,
     handleSetCurrentAlbum,
+    openPhotoModal,
     forceRefresh,
   ]);
 

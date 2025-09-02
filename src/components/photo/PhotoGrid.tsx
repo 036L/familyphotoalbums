@@ -22,6 +22,29 @@ export const PhotoGrid: React.FC = () => {
     }
   }, [photos, photosLoading, currentAlbum]);
 
+  // ★ 写真直接表示のイベントリスナーを追加
+React.useEffect(() => {
+  const handleOpenPhotoModal = (event: CustomEvent) => {
+    const { photoId } = event.detail;
+    const targetPhoto = photos.find(p => p.id === photoId);
+    
+    if (targetPhoto) {
+      console.log('[PhotoGrid] 写真直接表示:', targetPhoto.filename);
+      setSelectedPhoto(targetPhoto);
+    } else {
+      console.warn('[PhotoGrid] 指定された写真が見つかりません:', photoId);
+    }
+  };
+
+  // イベントリスナーを登録
+  window.addEventListener('openPhotoModal', handleOpenPhotoModal as EventListener);
+
+  // クリーンアップ
+  return () => {
+    window.removeEventListener('openPhotoModal', handleOpenPhotoModal as EventListener);
+  };
+}, [photos]);
+
   // ローディング中の表示
   if (photosLoading) {
     return (
