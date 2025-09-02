@@ -3,7 +3,6 @@ import React, { createContext, useContext, ReactNode, useEffect, useCallback, us
 import { useAuth } from '../hooks/useAuth';
 import { useAlbums } from '../hooks/useAlbums';
 import { usePhotos } from '../hooks/usePhotos';
-import { useEnvironment } from '../hooks/useEnvironment';
 import type { Album, AlbumCreateData, Profile, User, Photo, UploadProgress } from '../types/core';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -92,7 +91,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const auth = useAuth();
   const albumsHook = useAlbums();
   const photosHook = usePhotos();
-  const { isDemo } = useEnvironment();
   
   // ローカルUIステート
   const [currentAlbum, setCurrentAlbum] = useState<Album | null>(null);
@@ -126,17 +124,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       await auth.signOut();
       setCurrentAlbum(null);
       
-      // デモモードの場合のクリーンアップ
-      if (isDemo) {
-        localStorage.removeItem('demoAlbums');
-      }
-      
       debugLog('ログアウト完了');
     } catch (error) {
       debugLog('ログアウトエラー', error);
       console.error('ログアウトエラー:', error);
     }
-  }, [auth.signOut, isDemo]);
+  }, [auth.signOut]);
 
   // 最適化されたアルバム選択処理
   const handleSetCurrentAlbum = useCallback((album: Album | null) => {
@@ -207,36 +200,27 @@ const openPhotoModal = useCallback(async (photoId: string) => {
     try {
       debugLog('プロフィール更新開始', updates);
       
-      if (isDemo) {
-        // デモモードでの更新処理
-        const currentProfile = auth.profile || {
-          id: 'demo-user-1',
-          name: 'デモユーザー',
-          email: 'test@example.com',
-          avatar_url: null,
-          role: 'admin' as const
-        };
-        
-        const updatedProfile = {
-          ...currentProfile,
-          ...updates,
-          updated_at: new Date().toISOString()
-        };
-        
-        localStorage.setItem('demoProfile', JSON.stringify(updatedProfile));
-        const result = await auth.updateProfile(updates);
-        debugLog('プロフィール更新完了', result);
-        return result;
-      } else {
         // 実際のSupabase実装
         return await auth.updateProfile(updates);
-      }
+      
     } catch (error) {
       debugLog('プロフィール更新エラー', error);
       console.error('プロフィール更新エラー:', error);
       throw error;
     }
-  }, [auth.updateProfile, auth.profile, isDemo]);
+  }, [auth.updateProfile, auth.profile]);
+
+  // ★ 強制リフレッシュ関数（デバッグ用）を修正
+const forceRefresh = useCallback(() => {
+  debugLog('強制リフレッシュ実行');
+  // forceReinitializeメソッドが存在するかチェック
+  if ('forceReinitialize' in albumsHook && typeof albumsHook.forceReinitialize === 'function') {
+    albumsHook.forceReinitialize();
+  } else {
+    // 存在しない場合は通常のfetchAlbumsを実行
+    albumsHook.fetchAlbums();
+  }
+}, [albumsHook]);
 
   // 認証状態の変更とアルバム初期化の同期（修正版）
   useEffect(() => {
@@ -252,7 +236,7 @@ const openPhotoModal = useCallback(async (photoId: string) => {
       }
 
       // デモモードまたは認証済みユーザーが存在する場合
-      if (isDemo || auth.user) {
+      if (auth.user) {
         // アルバムがまだ初期化されていない場合
         if (!albumsHook.initialized && !albumsHook.loading) {
           debugLog('アルバム初期化条件を満たした');
@@ -270,7 +254,6 @@ const openPhotoModal = useCallback(async (photoId: string) => {
       albumsInitialized: albumsHook.initialized,
       albumsLoading: albumsHook.loading,
       albumCount: albumsHook.albums.length,
-      isDemo,
       shouldInitialize: shouldInitializeAlbums()
     });
 
@@ -296,8 +279,7 @@ const openPhotoModal = useCallback(async (photoId: string) => {
     auth.user,
     albumsHook.initialized,
     albumsHook.loading,
-    albumsHook,
-    isDemo
+    albumsHook
   ]);
 
   // デバッグ用：状態変更の監視（開発時のみ）
@@ -316,8 +298,7 @@ const openPhotoModal = useCallback(async (photoId: string) => {
         
         // その他
         currentAlbum: currentAlbum?.title,
-        photoCount: photosState.photos.length,
-        isDemo
+        photoCount: photosState.photos.length
       });
     }
   }, [
@@ -325,8 +306,7 @@ const openPhotoModal = useCallback(async (photoId: string) => {
     auth.initialized, 
     albumsState, 
     photosState, 
-    currentAlbum, 
-    isDemo
+    currentAlbum
   ]);
 
   // メモ化されたコンテキスト値

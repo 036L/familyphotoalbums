@@ -23,7 +23,8 @@ function AppContent() {
     loading, 
     createAlbum, 
     albumsLoading,
-    photosLoading 
+    photosLoading,
+    albums
   } = useApp();
   
   const [showUpload, setShowUpload] = useState(false);
@@ -75,6 +76,26 @@ function AppContent() {
   const handleBackToHome = () => {
     setCurrentAlbum(null);
   };
+
+  React.useEffect(() => {
+    const handleOpenAlbumFromNotification = (event: CustomEvent) => {
+      const { albumId } = event.detail;
+      const targetAlbum = albums.find(album => album.id === albumId);
+      
+      if (targetAlbum) {
+        console.log('[App] 通知からアルバム表示:', targetAlbum.title);
+        setCurrentAlbum(targetAlbum);
+      }
+    };
+  
+    // イベントリスナーを登録
+    window.addEventListener('openAlbumFromNotification', handleOpenAlbumFromNotification as EventListener);
+  
+    // クリーンアップ
+    return () => {
+      window.removeEventListener('openAlbumFromNotification', handleOpenAlbumFromNotification as EventListener);
+    };
+  }, [albums, setCurrentAlbum]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">

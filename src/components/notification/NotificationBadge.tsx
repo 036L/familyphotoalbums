@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, X, Image as ImageIcon, UserPlus, MessageCircle } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
+import { useNewCommentBadge } from '../../hooks/ui/useNewCommentBadge';
 
 interface Notification {
   id: string;
@@ -17,67 +19,81 @@ interface NotificationBadgeProps {
 }
 
 export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className = '' }) => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  // ★ useAppからopenPhotoModalを取得
+  const { albums, openPhotoModal } = useApp();
 
-  const getNotificationIcon = (type: Notification['type']): React.ReactElement => {
-    const iconProps = { size: 16, className: "text-white" };
-    
-    switch (type) {
-      case 'new_photo':
-        return <ImageIcon {...iconProps} />;
-      case 'new_comment':
-        return <MessageCircle {...iconProps} />;
-      case 'new_member':
-        return <UserPlus {...iconProps} />;
-      case 'album_created':
-        return <ImageIcon {...iconProps} />;
-      default:
-        return <Bell {...iconProps} />;
-    }
-  };
+  // ★ 全アルバムの新着コメント状況を取得
+  const allAlbumsWithBadges = albums.map(album => {
+    const { hasNewComments } = useNewCommentBadge({
+      targetId: album.id,
+      targetType: 'album',
+      enabled: true
+    });
+    return { album, hasNewComments };
+  });
 
-  const getNotificationColor = (type: Notification['type']): string => {
-    switch (type) {
-      case 'new_photo':
-        return 'bg-blue-500';
-      case 'new_comment':
-        return 'bg-green-500';
-      case 'new_member':
-        return 'bg-purple-500';
-      case 'album_created':
-        return 'bg-orange-500';
-      default:
-        return 'bg-gray-500';
+  // ★ 新着コメントがあるアルバムから通知を生成
+  const notifications = allAlbumsWithBadges
+    .filter(({ hasNewComments }) => hasNewComments)
+    .map(({ album }) => ({
+      id: `album-${album.id}`,
+      type: 'new_comment' as const,
+      title: '新着コメント',
+      message: `「${album.title}」アルバムに新しいコメントがあります`,
+      timestamp: '最近',
+      read: false,
+      albumId: album.id,
+    }));
+
+  const unreadCount = notifications.length;
+
+  const handleNotificationClick = async (notification: any) => {
+    try {
+      // アルバムの最初の写真で新着コメントがある写真を探す
+      console.log('通知から写真遷移開始:', notification.albumId);
+      
+      // まずアルバムを開く
+      const targetAlbum = albums.find(album => album.id === notification.albumId);
+      if (targetAlbum) {
+        // アルバムビューに移動（AppContextのsetCurrentAlbumを使用）
+        // これは直接呼び出せないので、カスタムイベントで処理
+        window.dispatchEvent(new CustomEvent('openAlbumFromNotification', { 
+          detail: { albumId: notification.albumId } 
+        }));
+        
+        setIsOpen(false);
+      }
+    } catch (error) {
+      console.error('通知からの遷移エラー:', error);
     }
   };
 
   const markAsRead = (notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(n => 
-        n.id === notificationId ? { ...n, read: true } : n
-      )
-    );
-    setUnreadCount(prev => Math.max(0, prev - 1));
+    // 実際の実装では、ここで既読状態をSupabaseに保存
+    console.log('既読マーク:', notificationId);
   };
 
   const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    setUnreadCount(0);
+    // すべてを既読にする処理
+    console.log('全て既読');
   };
 
   const clearNotification = (notificationId: string) => {
-    const notification = notifications.find(n => n.id === notificationId);
-    setNotifications(prev => prev.filter(n => n.id !== notificationId));
-    
-    if (notification && !notification.read) {
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    }
+    // 通知を削除する処理
+    console.log('通知削除:', notificationId);
+  };
+
+  const getNotificationIcon = (type: 'new_comment'): React.ReactElement => {
+    const iconProps = { size: 16, className: "text-white" };
+    return <MessageCircle {...iconProps} />;
+  };
+
+  const getNotificationColor = (type: 'new_comment'): string => {
+    return 'bg-green-500';
   };
 
   const formatTimestamp = (timestamp: string): string => {
-    // 実際のアプリケーションでは、より詳細な日時処理を行う
     return timestamp;
   };
 
@@ -87,6 +103,7 @@ export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className 
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-gray-600 hover:text-orange-500 hover:bg-orange-50 rounded-xl transition-colors"
+        aria-label="通知を表示"
       >
         <Bell size={20} />
         {unreadCount > 0 && (
@@ -124,6 +141,7 @@ export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className 
                 <button
                   onClick={() => setIsOpen(false)}
                   className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                  aria-label="通知パネルを閉じる"
                 >
                   <X size={16} className="text-gray-500" />
                 </button>
@@ -142,29 +160,15 @@ export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className 
                   {notifications.map(notification => (
                     <div
                       key={notification.id}
-                      className={`p-4 hover:bg-gray-50 transition-colors ${
-                        !notification.read ? 'bg-blue-50' : ''
-                      }`}
+                      className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => handleNotificationClick(notification)}
                     >
                       <div className="flex items-start space-x-3">
-                        {/* アバターまたは通知アイコン */}
+                        {/* 通知アイコン */}
                         <div className="flex-shrink-0">
-                          {notification.avatar ? (
-                            <div className="relative">
-                              <img
-                                src={notification.avatar}
-                                alt=""
-                                className="w-10 h-10 rounded-full object-cover"
-                              />
-                              <div className={`absolute -bottom-1 -right-1 w-5 h-5 ${getNotificationColor(notification.type)} rounded-full flex items-center justify-center`}>
-                                {getNotificationIcon(notification.type)}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className={`w-10 h-10 ${getNotificationColor(notification.type)} rounded-full flex items-center justify-center`}>
-                              {getNotificationIcon(notification.type)}
-                            </div>
-                          )}
+                          <div className={`w-10 h-10 ${getNotificationColor(notification.type)} rounded-full flex items-center justify-center`}>
+                            {getNotificationIcon(notification.type)}
+                          </div>
                         </div>
 
                         {/* 通知内容 */}
@@ -186,7 +190,10 @@ export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className 
                             <div className="flex items-center space-x-1 ml-2">
                               {!notification.read && (
                                 <button
-                                  onClick={() => markAsRead(notification.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    markAsRead(notification.id);
+                                  }}
                                   className="p-1 hover:bg-gray-200 rounded-full transition-colors"
                                   title="既読にする"
                                 >
@@ -195,7 +202,10 @@ export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className 
                               )}
                               
                               <button
-                                onClick={() => clearNotification(notification.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  clearNotification(notification.id);
+                                }}
                                 className="p-1 hover:bg-gray-200 rounded-full transition-colors"
                                 title="削除"
                               >
@@ -214,8 +224,11 @@ export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className 
             {/* フッター */}
             {notifications.length > 0 && (
               <div className="p-3 border-t border-gray-100 bg-gray-50">
-                <button className="w-full text-sm text-orange-600 hover:text-orange-700 font-medium">
-                  すべての通知を見る
+                <button 
+                  onClick={() => setIsOpen(false)}
+                  className="w-full text-sm text-orange-600 hover:text-orange-700 font-medium"
+                >
+                  閉じる
                 </button>
               </div>
             )}
