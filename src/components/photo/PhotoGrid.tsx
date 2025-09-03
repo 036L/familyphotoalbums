@@ -22,7 +22,7 @@ export const PhotoGrid: React.FC = () => {
     }
   }, [photos, photosLoading, currentAlbum]);
 
-/*
+
   // ★ 写真直接表示のイベントリスナーを追加
 React.useEffect(() => {
   const handleOpenPhotoModal = (event: CustomEvent) => {
@@ -45,7 +45,6 @@ React.useEffect(() => {
     window.removeEventListener('openPhotoModal', handleOpenPhotoModal as EventListener);
   };
 }, [photos]);
-*/
 
   // ローディング中の表示
   if (photosLoading) {

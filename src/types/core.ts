@@ -405,3 +405,49 @@ export interface UserLastSeen {
     lastUpdateAt: string;
     oldestUnseenComment: string | null;
   }
+
+  // =========================
+// 通知システム関連の型定義
+// =========================
+
+// 通知の基本型
+export interface Notification {
+  id: string;
+  type: 'new_comment' | 'new_photo' | 'new_member' | 'album_created';
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  user_id: string;
+  source_user_id?: string;
+  source_user_name?: string;
+  target_type: 'photo' | 'album' | 'comment';
+  target_id: string;
+  metadata?: NotificationMetadata;
+}
+
+// 通知メタデータ
+export interface NotificationMetadata {
+  albumId?: string;
+  photoId?: string;
+  albumTitle?: string;
+  photoFilename?: string;
+  commentId?: string;
+  [key: string]: any;
+}
+
+// 通知作成用データ
+export type NotificationCreateData = Omit<Notification, 'id' | 'timestamp' | 'read'>;
+
+// 通知設定
+export interface NotificationSettings {
+  user_id: string;
+  email_notifications: boolean;
+  push_notifications: boolean;
+  comment_notifications: boolean;
+  photo_notifications: boolean;
+  album_notifications: boolean;
+  member_notifications: boolean;
+  created_at: string;
+  updated_at: string;
+}

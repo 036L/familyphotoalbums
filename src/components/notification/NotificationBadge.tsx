@@ -1,18 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Bell, X, Image as ImageIcon, UserPlus, MessageCircle } from 'lucide-react';
+// src/components/notification/NotificationBadge.tsx - 実装版
+import React, { useState, useCallback } from 'react';
+import { Bell, X, Image as ImageIcon, MessageCircle, UserPlus, Calendar } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { useNewCommentBadge } from '../../hooks/ui/useNewCommentBadge';
-
-interface Notification {
-  id: string;
-  type: 'new_photo' | 'new_comment' | 'new_member' | 'album_created';
-  title: string;
-  message: string;
-  timestamp: string;
-  read: boolean;
-  avatar?: string;
-  actionUrl?: string;
-}
+import { useNotifications } from '../../hooks/ui/useNotifications';
+import type { Notification } from '../../types/core';
 
 interface NotificationBadgeProps {
   className?: string;
@@ -20,12 +11,17 @@ interface NotificationBadgeProps {
 
 export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
-  // ★ useAppからopenPhotoModalを取得
-  const { albums } = useApp();
-
-  // ★ 一時的に固定値で動作確認
-  const notifications: any[] = [];
-  const unreadCount = 0;
+  
+  const { albums, setCurrentAlbum } = useApp();
+  const {
+    notifications,
+    unreadCount,
+    loading,
+    error,
+    markAsRead,
+    markAllAsRead,
+    clearNotification
+  } = useNotifications();
 
   const handleNotificationClick = async (notification: any) => {
     try {
@@ -48,29 +44,37 @@ export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className 
     }
   };
 
-  const markAsRead = (notificationId: string) => {
-    // 実際の実装では、ここで既読状態をSupabaseに保存
-    console.log('既読マーク:', notificationId);
-  };
-
-  const markAllAsRead = () => {
-    // すべてを既読にする処理
-    console.log('全て既読');
-  };
-
-  const clearNotification = (notificationId: string) => {
-    // 通知を削除する処理
-    console.log('通知削除:', notificationId);
-  };
-
-  const getNotificationIcon = (type: 'new_comment'): React.ReactElement => {
+  const getNotificationIcon = useCallback((type: Notification['type']): React.ReactElement => {
     const iconProps = { size: 16, className: "text-white" };
-    return <MessageCircle {...iconProps} />;
-  };
-
-  const getNotificationColor = (type: 'new_comment'): string => {
-    return 'bg-green-500';
-  };
+    
+    switch (type) {
+      case 'new_comment':
+        return <MessageCircle {...iconProps} />;
+      case 'new_photo':
+        return <ImageIcon {...iconProps} />;
+      case 'new_member':
+        return <UserPlus {...iconProps} />;
+      case 'album_created':
+        return <Calendar {...iconProps} />;
+      default:
+        return <Bell {...iconProps} />;
+    }
+  }, []);
+  
+  const getNotificationColor = useCallback((type: Notification['type']): string => {
+    switch (type) {
+      case 'new_comment':
+        return 'bg-green-500';
+      case 'new_photo':
+        return 'bg-blue-500';
+      case 'new_member':
+        return 'bg-purple-500';
+      case 'album_created':
+        return 'bg-orange-500';
+      default:
+        return 'bg-gray-500';
+    }
+  }, []);
 
   const formatTimestamp = (timestamp: string): string => {
     return timestamp;
