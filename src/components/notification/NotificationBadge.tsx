@@ -21,32 +21,11 @@ interface NotificationBadgeProps {
 export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
   // ★ useAppからopenPhotoModalを取得
-  const { albums, openPhotoModal } = useApp();
+  const { albums } = useApp();
 
-  // ★ 全アルバムの新着コメント状況を取得
-  const allAlbumsWithBadges = albums.map(album => {
-    const { hasNewComments } = useNewCommentBadge({
-      targetId: album.id,
-      targetType: 'album',
-      enabled: true
-    });
-    return { album, hasNewComments };
-  });
-
-  // ★ 新着コメントがあるアルバムから通知を生成
-  const notifications = allAlbumsWithBadges
-    .filter(({ hasNewComments }) => hasNewComments)
-    .map(({ album }) => ({
-      id: `album-${album.id}`,
-      type: 'new_comment' as const,
-      title: '新着コメント',
-      message: `「${album.title}」アルバムに新しいコメントがあります`,
-      timestamp: '最近',
-      read: false,
-      albumId: album.id,
-    }));
-
-  const unreadCount = notifications.length;
+  // ★ 一時的に固定値で動作確認
+  const notifications: any[] = [];
+  const unreadCount = 0;
 
   const handleNotificationClick = async (notification: any) => {
     try {

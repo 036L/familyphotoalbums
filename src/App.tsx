@@ -77,6 +77,7 @@ function AppContent() {
     setCurrentAlbum(null);
   };
 
+/*
   React.useEffect(() => {
     const handleOpenAlbumFromNotification = (event: CustomEvent) => {
       const { albumId } = event.detail;
@@ -95,7 +96,8 @@ function AppContent() {
     return () => {
       window.removeEventListener('openAlbumFromNotification', handleOpenAlbumFromNotification as EventListener);
     };
-  }, [albums, setCurrentAlbum]);
+  }, [albums]);
+  */
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">

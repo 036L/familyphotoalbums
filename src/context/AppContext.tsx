@@ -66,7 +66,7 @@ interface AppContextType {
   setCurrentAlbum: (album: Album | null) => void;
 
   // ★ 写真直接表示機能を追加
-  openPhotoModal: (photoId: string) => Promise<void>;
+  //openPhotoModal: (photoId: string) => Promise<void>;
   
   // Debug functions
   forceRefresh: () => void;
@@ -141,6 +141,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
   }, [photosHook]);
 
+/*
   // ★ 写真直接表示機能を追加
 const openPhotoModal = useCallback(async (photoId: string) => {
   try {
@@ -194,6 +195,7 @@ const openPhotoModal = useCallback(async (photoId: string) => {
     console.error('写真直接表示エラー:', error);
   }
 }, [albumsState.albums, photosState.photos, photosHook]);
+*/
 
   // 最適化されたプロフィール更新処理
   const updateProfile = useCallback(async (updates: Partial<Profile>) => {
@@ -335,7 +337,7 @@ const forceRefresh = useCallback(() => {
     setCurrentAlbum: handleSetCurrentAlbum,
 
     // ★ 写真直接表示機能を追加
-    openPhotoModal,
+    //openPhotoModal,
   
     // Debug
     forceRefresh,
@@ -355,7 +357,7 @@ const forceRefresh = useCallback(() => {
     photosHook.uploadPhotos,
     photosHook.deletePhoto,
     handleSetCurrentAlbum,
-    openPhotoModal,
+    //openPhotoModal,
     forceRefresh,
   ]);
 
