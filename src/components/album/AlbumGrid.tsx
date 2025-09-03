@@ -30,12 +30,9 @@ export const AlbumGrid: React.FC = () => {
 
   // 個別のアルバムバッジコンポーネント（パフォーマンス最適化）
   const AlbumWithBadge: React.FC<{ album: any }> = ({ album }) => {
-    const { hasNewComments } = useNewCommentBadge({
-      targetId: album.id,
-      targetType: 'album',
-      enabled: true
-    });
-
+    // ★ Hook呼び出しを削除し、一時的に固定値
+    const hasNewComments = false;
+  
     // 複数の日付フィールドから有効なものを選択
     const albumDate = album.createdAt || album.created_at;
     const relativeTime = formatRelativeTime(albumDate);
