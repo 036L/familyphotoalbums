@@ -80,6 +80,16 @@ export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className 
     return timestamp;
   };
 
+  React.useEffect(() => {
+    console.log('[NotificationBadge] 状態更新:', {
+      notificationsCount: notifications.length,
+      unreadCount,
+      loading,
+      error,
+      notifications: notifications.slice(0, 3) // 最初の3件のみログ出力
+    });
+  }, [notifications, unreadCount, loading, error]);
+
   return (
     <div className={`relative ${className}`}>
       {/* 通知ベル */}

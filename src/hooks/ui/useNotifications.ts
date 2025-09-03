@@ -30,14 +30,19 @@ export const useNotifications = (): UseNotificationsReturn => {
     return notifications.filter(n => !n.read).length;
   }, [notifications]);
 
-  // 通知の取得
-  const fetchNotifications = useCallback(async () => {
-    if (!userId) return;
-
+  // 通知の取得 // fetchNotifications関数内の修正
+const fetchNotifications = useCallback(async () => {
+    if (!userId) {
+      console.log('[useNotifications] userIdがありません');
+      return;
+    }
+  
+    console.log('[useNotifications] 通知取得開始, userId:', userId);
+  
     try {
       setLoading(true);
       setError(null);
-
+  
       const { data: notificationsData, error: fetchError } = await supabase
         .from('notifications')
         .select(`
@@ -50,14 +55,16 @@ export const useNotifications = (): UseNotificationsReturn => {
           metadata,
           is_read,
           created_at,
-          profiles!source_user_id(name, avatar_url)
+          source_profile:profiles!source_user_id(name, avatar_url)
         `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(50);
-
+  
+      console.log('[useNotifications] クエリ結果:', { notificationsData, fetchError });
+  
       if (fetchError) throw fetchError;
-
+  
       // 通知データを変換
       const transformedNotifications: Notification[] = (notificationsData || []).map(item => ({
         id: item.id,
@@ -68,16 +75,17 @@ export const useNotifications = (): UseNotificationsReturn => {
         read: item.is_read,
         user_id: userId,
         source_user_id: item.source_user_id,
-        source_user_name: (item.profiles as any)?.[0]?.name || 'ユーザー',
+        source_user_name: (item.source_profile as any)?.[0]?.name || 'ユーザー',
         target_type: item.target_type,
         target_id: item.target_id,
         metadata: item.metadata || {}
       }));
-
+  
+      console.log('[useNotifications] 変換後の通知:', transformedNotifications);
       setNotifications(transformedNotifications);
-
+  
     } catch (err) {
-      console.error('通知取得エラー:', err);
+      console.error('[useNotifications] 通知取得エラー:', err);
       setError(err instanceof Error ? err.message : '通知の取得に失敗しました');
     } finally {
       setLoading(false);
