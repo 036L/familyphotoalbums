@@ -68,7 +68,7 @@ export const useNotifications = (): UseNotificationsReturn => {
         read: item.is_read,
         user_id: userId,
         source_user_id: item.source_user_id,
-        source_user_name: item.profiles?.name || 'ユーザー',
+        source_user_name: (item.profiles as any)?.[0]?.name || 'ユーザー',
         target_type: item.target_type,
         target_id: item.target_id,
         metadata: item.metadata || {}
