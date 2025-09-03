@@ -5,7 +5,7 @@ import { useApp } from '../../context/AppContext';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { NewCommentBadge } from '../ui/NewCommentBadge';
-import { useNewCommentBadge } from '../../hooks/ui/useNewCommentBadge';
+import { useAlbumBadges } from '../../hooks/ui/useAlbumBadges';
 
 export const AlbumGrid: React.FC = () => {
   const { 
@@ -28,10 +28,13 @@ export const AlbumGrid: React.FC = () => {
     }
   }, [albums, albumsLoading, albumsInitialized]);
 
+  // ★ カスタムHookで全アルバムのバッジ状態を取得
+  const { badgeStates } = useAlbumBadges(albums);
+
   // 個別のアルバムバッジコンポーネント（パフォーマンス最適化）
   const AlbumWithBadge: React.FC<{ album: any }> = ({ album }) => {
-    // ★ Hook呼び出しを削除し、一時的に固定値
-    const hasNewComments = false;
+    // ★ カスタムHookから取得した状態を使用
+    const hasNewComments = badgeStates[album.id] || false;
   
     // 複数の日付フィールドから有効なものを選択
     const albumDate = album.createdAt || album.created_at;
