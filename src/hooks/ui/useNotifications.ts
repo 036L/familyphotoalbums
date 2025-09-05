@@ -31,26 +31,62 @@ export const useNotifications = (): UseNotificationsReturn => {
   }, [notifications]);
 
   // 通知の取得 // fetchNotifications関数内の修正
-const fetchNotifications = useCallback(async () => {
-    console.log('[useNotifications] デバッグ開始');
+  const fetchNotifications = useCallback(async () => {
+    console.log('[useNotifications] フェッチ開始 - 認証状態確認');
     console.log('[useNotifications] userId:', userId);
-    console.log('[useNotifications] user オブジェクト:', user);
-    console.log('[useNotifications] profile オブジェクト:', profile);
-
+    console.log('[useNotifications] user:', user ? { id: user.id, email: user.email } : null);
+    console.log('[useNotifications] profile:', profile ? { id: profile.id, name: profile.name } : null);
+  
     if (!userId) {
-      console.log('[useNotifications] userIdがないため終了');
+      console.log('[useNotifications] userIdなし - 待機');
+      setNotifications([]);
+      setLoading(false);
+      setError(null);
       return;
     }
   
     try {
       setLoading(true);
       setError(null);
-
-      // Supabaseの認証状態を確認
-    const { data: authUser, error: authError } = await supabase.auth.getUser();
-    console.log('[useNotifications] Supabase認証ユーザー:', authUser?.user?.id);
-    console.log('[useNotifications] 認証エラー:', authError);
   
+      // ★ 段階1: Supabase認証状態の確認
+      const { data: authUser, error: authError } = await supabase.auth.getUser();
+      console.log('[useNotifications] Supabase認証確認:', {
+        authUser: authUser?.user ? { id: authUser.user.id, email: authUser.user.email } : null,
+        authError: authError?.message
+      });
+  
+      if (authError) {
+        console.warn('[useNotifications] 認証エラー:', authError);
+        throw new Error(`認証状態を確認できません: ${authError.message}`);
+      }
+  
+      if (!authUser?.user) {
+        console.warn('[useNotifications] 認証ユーザーなし');
+        throw new Error('認証状態が無効です');
+      }
+  
+      // ★ 段階2: ユーザーIDの整合性確認
+      if (authUser.user.id !== userId) {
+        console.warn('[useNotifications] ユーザーID不一致:', {
+          appContextUserId: userId,
+          supabaseUserId: authUser.user.id
+        });
+        throw new Error('ユーザー認証状態が不整合です');
+      }
+  
+      // ★ 段階3: プロフィール存在確認（新規ユーザー対応）
+      if (!profile) {
+        console.log('[useNotifications] プロフィール未作成 - 初期化待機');
+        // 新規ユーザーの場合、プロフィール作成完了まで待機
+        setNotifications([]);
+        setLoading(false);
+        return;
+      }
+  
+      console.log('[useNotifications] 認証チェック完了 - 通知取得開始');
+  
+      // ★ 段階4: 通知データ取得（既存ロジック）
       const { data: notificationsData, error: fetchError } = await supabase
         .from('notifications')
         .select(`
@@ -69,11 +105,22 @@ const fetchNotifications = useCallback(async () => {
         .order('created_at', { ascending: false })
         .limit(50);
   
-      console.log('[useNotifications] クエリ結果:', { notificationsData, fetchError });
+      console.log('[useNotifications] 通知クエリ結果:', {
+        count: notificationsData?.length || 0,
+        error: fetchError?.message,
+        firstNotification: notificationsData?.[0] ? {
+          id: notificationsData[0].id,
+          type: notificationsData[0].type,
+          isRead: notificationsData[0].is_read
+        } : null
+      });
   
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error('[useNotifications] 通知取得エラー:', fetchError);
+        throw new Error(`通知取得失敗: ${fetchError.message}`);
+      }
   
-      // 通知データを変換
+      // ★ 段階5: データ変換（既存ロジック）
       const transformedNotifications: Notification[] = (notificationsData || []).map(item => ({
         id: item.id,
         type: item.type,
@@ -89,19 +136,28 @@ const fetchNotifications = useCallback(async () => {
         metadata: item.metadata || {}
       }));
   
-      console.log('[useNotifications] 変換後の通知:', transformedNotifications);
-      console.log('[useNotifications] 通知数:', transformedNotifications.length);
-      console.log('[useNotifications] 未読数:', transformedNotifications.filter(n => !n.read).length);
-
+      console.log('[useNotifications] 通知変換完了:', {
+        total: transformedNotifications.length,
+        unread: transformedNotifications.filter(n => !n.read).length,
+        types: [...new Set(transformedNotifications.map(n => n.type))]
+      });
+  
       setNotifications(transformedNotifications);
   
     } catch (err) {
-      console.error('[useNotifications] 通知取得エラー:', err);
-      setError(err instanceof Error ? err.message : '通知の取得に失敗しました');
+      const errorMessage = err instanceof Error ? err.message : '通知の取得に失敗しました';
+      console.error('[useNotifications] エラー詳細:', {
+        error: err,
+        userId,
+        hasUser: !!user,
+        hasProfile: !!profile
+      });
+      setError(errorMessage);
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, user, profile]);
 
   // 通知のタイトル生成
   const generateNotificationTitle = (type: string, metadata: any): string => {
@@ -223,7 +279,7 @@ const fetchNotifications = useCallback(async () => {
   useEffect(() => {
     if (userId) {
       fetchNotifications();
-
+  
       // リアルタイム更新の設定
       const channel = supabase
         .channel(`notifications:${userId}`)
@@ -236,6 +292,7 @@ const fetchNotifications = useCallback(async () => {
             filter: `user_id=eq.${userId}`,
           },
           (payload) => {
+            console.log('[useNotifications] リアルタイム更新:', payload.eventType);
             // 新しい通知があったら少し遅延してリフレッシュ
             setTimeout(() => {
               fetchNotifications();
@@ -243,21 +300,21 @@ const fetchNotifications = useCallback(async () => {
           }
         )
         .subscribe();
-
+  
       return () => {
         supabase.removeChannel(channel);
       };
     }
-
+  
     // userIdが無い場合は状態をクリア
     setNotifications([]);
     setLoading(false);
     setError(null);
-
+  
     return () => {
-      // クリーンアップ（何もしない場合でも関数を返す）
+      // クリーンアップ
     };
-  }, [userId, fetchNotifications]);
+  }, [userId, user, profile, fetchNotifications]); // ★ user, profileを依存配列に追加
 
   return {
     notifications,

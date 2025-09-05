@@ -1,4 +1,4 @@
-// src/hooks/useComments.ts - デモモード削除版
+// src/hooks/useComments.ts
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Comment } from '../types/core';
@@ -38,16 +38,10 @@ export const useComments = (photoId?: string) => {
       setError(null);
       debugLog('コメント取得開始', { photoId: currentPhotoId });
 
-      // 現在のユーザーを取得
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      
-      // 1. コメントを取得
+      // シンプルなコメント取得（JOINなし）
       const { data: commentsData, error: commentsError } = await supabase
         .from('comments')
-        .select(`
-          *,
-          profiles!comments_user_id_fkey(name, avatar_url)
-        `)
+        .select('*')
         .eq('photo_id', currentPhotoId)
         .order('created_at', { ascending: true });
 
@@ -60,79 +54,48 @@ export const useComments = (photoId?: string) => {
         return [];
       }
 
-      debugLog('コメント基本データ取得完了', { 
+      debugLog('コメント取得成功', { 
         photoId: currentPhotoId, 
-        commentCount: commentsData.length,
-        commentIds: commentsData.map((c: any) => c.id)
+        commentCount: commentsData.length 
       });
 
-      // 2. すべてのいいね情報を一度に取得
-      const commentIds = commentsData.map((c: any) => c.id);
-      const { data: allLikes, error: likesError } = await supabase
-        .from('comment_likes')
-        .select('comment_id, user_id')
-        .in('comment_id', commentIds);
+      // プロフィール情報を別途取得
+      const userIds = [...new Set(commentsData.map((c: any) => c.user_id))];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url')
+        .in('id', userIds);
 
-      if (likesError) throw likesError;
-
-      debugLog('いいね情報取得完了', { 
-        totalLikes: allLikes?.length || 0,
-        currentUserId: currentUser?.id
+      // コメントデータを構築
+      const commentsWithProfiles = commentsData.map((comment: any) => {
+        const profile = profilesData?.find(p => p.id === comment.user_id);
+        return {
+          ...comment,
+          user_name: profile?.name || 'ユーザー',
+          user_avatar: profile?.avatar_url || null,
+          likes_count: 0,
+          is_liked: false,
+        };
       });
 
-      // 3. いいね数をカウントし、現在ユーザーのいいね状態をチェック
-      const likeCounts: Record<string, number> = {};
-      const userLikes: Record<string, boolean> = {};
+      setComments(commentsWithProfiles);
       
-      // 初期化
-      commentIds.forEach((id: string) => {
-        likeCounts[id] = 0;
-        userLikes[id] = false;
-      });
-
-      // いいね情報を集計
-      (allLikes || []).forEach((like: any) => {
-        const commentId = like.comment_id;
-        likeCounts[commentId] = (likeCounts[commentId] || 0) + 1;
-        
-        if (currentUser && like.user_id === currentUser.id) {
-          userLikes[commentId] = true;
-        }
-      });
-
-      debugLog('いいね集計完了', { 
-        likeCounts, 
-        userLikes: currentUser ? userLikes : {} 
-      });
-
-      // 4. コメントデータを構築
-      const commentsWithLikes = commentsData.map((comment: any) => ({
-        ...comment,
-        user_name: comment.profiles?.name || '不明',
-        user_avatar: comment.profiles?.avatar_url || null,
-        likes_count: likeCounts[comment.id] || 0,
-        is_liked: currentUser ? (userLikes[comment.id] || false) : false,
-      }));
-
-      setComments(commentsWithLikes);
-      
-      // 5. いいね状態を設定
+      // いいね状態を初期化
       const newLikesState: Record<string, LikeState> = {};
-      commentsWithLikes.forEach((comment: Comment) => {
+      commentsWithProfiles.forEach((comment: Comment) => {
         newLikesState[comment.id] = {
-          count: comment.likes_count || 0,
-          isLiked: comment.is_liked || false
+          count: 0,
+          isLiked: false
         };
       });
       setLikesState(newLikesState);
       
       debugLog('コメント処理完了', { 
         photoId: currentPhotoId, 
-        commentCount: commentsWithLikes.length,
-        likesState: newLikesState
+        commentCount: commentsWithProfiles.length 
       });
       
-      return commentsWithLikes;
+      return commentsWithProfiles;
     } catch (err) {
       debugLog('コメント取得エラー', err);
       console.error('コメント取得エラー:', err);
@@ -145,7 +108,7 @@ export const useComments = (photoId?: string) => {
     }
   }, [photoId]);
 
-  // コメント追加
+  // コメント追加 - シンプル版
   const addComment = useCallback(async (content: string, targetPhotoId?: string, parentId?: string) => {
     const currentPhotoId = targetPhotoId || photoId;
     
@@ -154,49 +117,38 @@ export const useComments = (photoId?: string) => {
     }
 
     try {
-      debugLog('コメント追加開始', { content, photoId: currentPhotoId, parentId });
+      debugLog('コメント追加開始', { content, photoId: currentPhotoId });
 
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) throw new Error('ログインが必要です');
 
-      // まず基本的なコメント挿入を試行
+      // シンプルな挿入のみ
       const { data, error } = await supabase
         .from('comments')
         .insert({
-          content,
+          content: content,
           photo_id: currentPhotoId,
           user_id: currentUser.id,
           parent_id: parentId || null,
         })
-        .select()
+        .select('*')
         .single();
 
-      if (error) throw error;
-
-      // プロフィール情報を別途取得
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('name, avatar_url')
-        .eq('id', currentUser.id)
-        .single();
-
-      // プロフィール取得に失敗してもコメント投稿は成功とする
-      if (profileError) {
-        console.warn('プロフィール情報の取得に失敗:', profileError);
+      if (error) {
+        console.error('Supabase挿入エラー:', error);
+        throw error;
       }
 
+      // プロフィール情報を簡単に設定
       const newComment = {
         ...data,
-        user_name: profileData?.name || currentUser.user_metadata?.name || '不明',
-        user_avatar: profileData?.avatar_url || null,
+        user_name: currentUser.user_metadata?.name || currentUser.email || 'ユーザー',
+        user_avatar: null,
         likes_count: 0,
         is_liked: false,
       };
 
-      // コメントリストを更新
       setComments(prev => [...prev, newComment]);
-      
-      // いいね状態を初期化
       setLikesState(prev => ({
         ...prev,
         [newComment.id]: { count: 0, isLiked: false }
@@ -207,19 +159,6 @@ export const useComments = (photoId?: string) => {
     } catch (err) {
       debugLog('コメント投稿エラー', err);
       console.error('コメント投稿エラー:', err);
-      
-      // より具体的なエラーメッセージを提供
-      if (err && typeof err === 'object' && 'code' in err) {
-        const error = err as any;
-        if (error.code === '23503') {
-          throw new Error('写真が見つかりません');
-        } else if (error.code === '23505') {
-          throw new Error('重複したコメントです');
-        } else if (error.message?.includes('404')) {
-          throw new Error('サーバーに接続できません');
-        }
-      }
-      
       throw new Error('コメントの投稿に失敗しました');
     }
   }, [photoId]);
