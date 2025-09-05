@@ -80,15 +80,16 @@ export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className 
     return timestamp;
   };
 
-  React.useEffect(() => {
-    console.log('[NotificationBadge] 状態更新:', {
-      notificationsCount: notifications.length,
-      unreadCount,
-      loading,
-      error,
-      notifications: notifications.slice(0, 3) // 最初の3件のみログ出力
-    });
-  }, [notifications, unreadCount, loading, error]);
+  // コンポーネントの最初の部分に追加
+React.useEffect(() => {
+  console.log('[NotificationBadge] レンダリング状態:', {
+    notificationsLength: notifications.length,
+    unreadCount,
+    loading,
+    error,
+    firstNotification: notifications[0] || null
+  });
+}, [notifications, unreadCount, loading, error]);
 
   return (
     <div className={`relative ${className}`}>

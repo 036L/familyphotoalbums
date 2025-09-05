@@ -32,16 +32,24 @@ export const useNotifications = (): UseNotificationsReturn => {
 
   // 通知の取得 // fetchNotifications関数内の修正
 const fetchNotifications = useCallback(async () => {
+    console.log('[useNotifications] デバッグ開始');
+    console.log('[useNotifications] userId:', userId);
+    console.log('[useNotifications] user オブジェクト:', user);
+    console.log('[useNotifications] profile オブジェクト:', profile);
+
     if (!userId) {
-      console.log('[useNotifications] userIdがありません');
+      console.log('[useNotifications] userIdがないため終了');
       return;
     }
-  
-    console.log('[useNotifications] 通知取得開始, userId:', userId);
   
     try {
       setLoading(true);
       setError(null);
+
+      // Supabaseの認証状態を確認
+    const { data: authUser, error: authError } = await supabase.auth.getUser();
+    console.log('[useNotifications] Supabase認証ユーザー:', authUser?.user?.id);
+    console.log('[useNotifications] 認証エラー:', authError);
   
       const { data: notificationsData, error: fetchError } = await supabase
         .from('notifications')
@@ -82,6 +90,9 @@ const fetchNotifications = useCallback(async () => {
       }));
   
       console.log('[useNotifications] 変換後の通知:', transformedNotifications);
+      console.log('[useNotifications] 通知数:', transformedNotifications.length);
+      console.log('[useNotifications] 未読数:', transformedNotifications.filter(n => !n.read).length);
+
       setNotifications(transformedNotifications);
   
     } catch (err) {
