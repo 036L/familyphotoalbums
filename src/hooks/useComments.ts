@@ -159,6 +159,7 @@ export const useComments = (photoId?: string) => {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) throw new Error('ログインが必要です');
 
+      // まず基本的なコメント挿入を試行
       const { data, error } = await supabase
         .from('comments')
         .insert({
@@ -167,18 +168,27 @@ export const useComments = (photoId?: string) => {
           user_id: currentUser.id,
           parent_id: parentId || null,
         })
-        .select(`
-          *,
-          profiles!comments_user_id_fkey(name, avatar_url)
-        `)
+        .select()
         .single();
 
       if (error) throw error;
 
+      // プロフィール情報を別途取得
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('name, avatar_url')
+        .eq('id', currentUser.id)
+        .single();
+
+      // プロフィール取得に失敗してもコメント投稿は成功とする
+      if (profileError) {
+        console.warn('プロフィール情報の取得に失敗:', profileError);
+      }
+
       const newComment = {
         ...data,
-        user_name: data.profiles?.name || '不明',
-        user_avatar: data.profiles?.avatar_url || null,
+        user_name: profileData?.name || currentUser.user_metadata?.name || '不明',
+        user_avatar: profileData?.avatar_url || null,
         likes_count: 0,
         is_liked: false,
       };
@@ -197,6 +207,19 @@ export const useComments = (photoId?: string) => {
     } catch (err) {
       debugLog('コメント投稿エラー', err);
       console.error('コメント投稿エラー:', err);
+      
+      // より具体的なエラーメッセージを提供
+      if (err && typeof err === 'object' && 'code' in err) {
+        const error = err as any;
+        if (error.code === '23503') {
+          throw new Error('写真が見つかりません');
+        } else if (error.code === '23505') {
+          throw new Error('重複したコメントです');
+        } else if (error.message?.includes('404')) {
+          throw new Error('サーバーに接続できません');
+        }
+      }
+      
       throw new Error('コメントの投稿に失敗しました');
     }
   }, [photoId]);

@@ -486,18 +486,39 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({
     }
   }, [currentPhoto?.id, isOpen, fetchPhotoLikes]);
 
-  // ★ モーダル開閉時の既読マーク - 修正版（Hooksルール準拠）
+  // ★ モーダル開閉時の既読マーク - 修正版（Hooksルール準拠 + ヘッダー通知連動）
   useEffect(() => {
     if (!isOpen || !currentPhoto || !markAsSeen) {
       return;
     }
     
-    const timer = setTimeout(() => {
-      markAsSeen();
+    const timer = setTimeout(async () => {
+      try {
+        // 1. 写真レベルの既読処理（従来通り）
+        await markAsSeen();
+        console.log('[PhotoModal] 写真レベル既読処理完了:', currentPhoto.id);
+        
+        // 2. ヘッダー通知の既読処理（新規追加）
+        window.dispatchEvent(new CustomEvent('markPhotoNotificationsAsRead', {
+          detail: { photoId: currentPhoto.id }
+        }));
+        console.log('[PhotoModal] ヘッダー通知既読イベント送信:', currentPhoto.id);
+        
+        // 3. アルバムレベルの既読処理も実行（必要に応じて）
+        if (currentAlbum?.id) {
+          window.dispatchEvent(new CustomEvent('markAlbumNotificationsAsRead', {
+            detail: { albumId: currentAlbum.id }
+          }));
+          console.log('[PhotoModal] アルバム通知既読イベント送信:', currentAlbum.id);
+        }
+        
+      } catch (error) {
+        console.error('[PhotoModal] 既読処理エラー:', error);
+      }
     }, 1000);
     
     return () => clearTimeout(timer);
-  }, [isOpen, currentPhoto?.id, markAsSeen]);
+  }, [isOpen, currentPhoto?.id, markAsSeen, currentAlbum?.id]);
 
   useEffect(() => {
     if (!isOpen) return;

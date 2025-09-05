@@ -1,5 +1,5 @@
-// src/components/notification/NotificationBadge.tsx - 実装版
-import React, { useState, useCallback } from 'react';
+// src/components/notification/NotificationBadge.tsx - 写真既読イベント処理追加版
+import React, { useState, useCallback, useEffect } from 'react';
 import { Bell, X, Image as ImageIcon, MessageCircle, UserPlus, Calendar } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useNotifications } from '../../hooks/ui/useNotifications';
@@ -23,24 +23,130 @@ export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className 
     clearNotification
   } = useNotifications();
 
+  // ★ 写真既読イベント処理を追加
+  useEffect(() => {
+    const handleMarkPhotoNotificationsAsRead = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { photoId } = customEvent.detail;
+      
+      console.log('[NotificationBadge] 写真既読イベント受信:', { photoId });
+      
+      try {
+        // 該当写真に関連する未読通知を検索
+        const relatedNotifications = notifications.filter(n => 
+          n.target_type === 'photo' && 
+          n.target_id === photoId && 
+          !n.read
+        );
+        
+        console.log('[NotificationBadge] 対象通知:', relatedNotifications);
+        
+        // 関連する未読通知を既読にする
+        for (const notification of relatedNotifications) {
+          await markAsRead(notification.id);
+        }
+        
+        if (relatedNotifications.length > 0) {
+          console.log('[NotificationBadge] 写真関連通知を既読処理完了:', relatedNotifications.length);
+        }
+        
+      } catch (error) {
+        console.error('[NotificationBadge] 写真既読処理エラー:', error);
+      }
+    };
+
+    // アルバム既読イベント処理も追加
+    const handleMarkAlbumNotificationsAsRead = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { albumId } = customEvent.detail;
+      
+      console.log('[NotificationBadge] アルバム既読イベント受信:', { albumId });
+      
+      try {
+        // 該当アルバムに関連する未読通知を検索
+        const relatedNotifications = notifications.filter(n => 
+          n.target_type === 'album' && 
+          n.target_id === albumId && 
+          !n.read
+        );
+        
+        // 関連する未読通知を既読にする
+        for (const notification of relatedNotifications) {
+          await markAsRead(notification.id);
+        }
+        
+        if (relatedNotifications.length > 0) {
+          console.log('[NotificationBadge] アルバム関連通知を既読処理完了:', relatedNotifications.length);
+        }
+        
+      } catch (error) {
+        console.error('[NotificationBadge] アルバム既読処理エラー:', error);
+      }
+    };
+
+    // イベントリスナーを登録
+    window.addEventListener('markPhotoNotificationsAsRead', handleMarkPhotoNotificationsAsRead);
+    window.addEventListener('markAlbumNotificationsAsRead', handleMarkAlbumNotificationsAsRead);
+    
+    return () => {
+      // クリーンアップ
+      window.removeEventListener('markPhotoNotificationsAsRead', handleMarkPhotoNotificationsAsRead);
+      window.removeEventListener('markAlbumNotificationsAsRead', handleMarkAlbumNotificationsAsRead);
+    };
+  }, [notifications, markAsRead]);
+
+  // ★ アルバムからの通知遷移イベント処理を追加
+  useEffect(() => {
+    const handleOpenAlbumFromNotification = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { albumId } = customEvent.detail;
+      
+      console.log('[NotificationBadge] アルバム遷移イベント受信:', { albumId });
+      
+      const targetAlbum = albums.find(album => album.id === albumId);
+      if (targetAlbum) {
+        setCurrentAlbum(targetAlbum);
+        setIsOpen(false);
+        console.log('[NotificationBadge] アルバムに遷移:', targetAlbum.title);
+      }
+    };
+
+    window.addEventListener('openAlbumFromNotification', handleOpenAlbumFromNotification);
+    
+    return () => {
+      window.removeEventListener('openAlbumFromNotification', handleOpenAlbumFromNotification);
+    };
+  }, [albums, setCurrentAlbum]);
+
   const handleNotificationClick = async (notification: any) => {
     try {
-      // アルバムの最初の写真で新着コメントがある写真を探す
-      console.log('通知から写真遷移開始:', notification.albumId);
+      console.log('[NotificationBadge] 通知クリック:', notification);
       
-      // まずアルバムを開く
-      const targetAlbum = albums.find(album => album.id === notification.albumId);
-      if (targetAlbum) {
-        // アルバムビューに移動（AppContextのsetCurrentAlbumを使用）
-        // これは直接呼び出せないので、カスタムイベントで処理
-        window.dispatchEvent(new CustomEvent('openAlbumFromNotification', { 
-          detail: { albumId: notification.albumId } 
-        }));
-        
-        setIsOpen(false);
+      // 通知を既読にする
+      if (!notification.read) {
+        await markAsRead(notification.id);
       }
+      
+      // 通知の種類に応じて適切な遷移処理
+      if (notification.target_type === 'photo') {
+        // 写真への遷移：まずアルバムを開く
+        const albumId = notification.metadata?.albumId;
+        if (albumId) {
+          window.dispatchEvent(new CustomEvent('openAlbumFromNotification', { 
+            detail: { albumId } 
+          }));
+        }
+      } else if (notification.target_type === 'album') {
+        // アルバムへの直接遷移
+        window.dispatchEvent(new CustomEvent('openAlbumFromNotification', { 
+          detail: { albumId: notification.target_id } 
+        }));
+      }
+      
+      setIsOpen(false);
+      
     } catch (error) {
-      console.error('通知からの遷移エラー:', error);
+      console.error('[NotificationBadge] 通知からの遷移エラー:', error);
     }
   };
 
@@ -77,19 +183,35 @@ export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ className 
   }, []);
 
   const formatTimestamp = (timestamp: string): string => {
-    return timestamp;
+    try {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diff = now.getTime() - date.getTime();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      
+      if (hours < 1) {
+        return 'たった今';
+      } else if (hours < 24) {
+        return `${hours}時間前`;
+      } else {
+        const days = Math.floor(hours / 24);
+        return `${days}日前`;
+      }
+    } catch {
+      return timestamp;
+    }
   };
 
-  // コンポーネントの最初の部分に追加
-React.useEffect(() => {
-  console.log('[NotificationBadge] レンダリング状態:', {
-    notificationsLength: notifications.length,
-    unreadCount,
-    loading,
-    error,
-    firstNotification: notifications[0] || null
-  });
-}, [notifications, unreadCount, loading, error]);
+  // デバッグログ
+  useEffect(() => {
+    console.log('[NotificationBadge] レンダリング状態:', {
+      notificationsLength: notifications.length,
+      unreadCount,
+      loading,
+      error,
+      firstNotification: notifications[0] || null
+    });
+  }, [notifications, unreadCount, loading, error]);
 
   return (
     <div className={`relative ${className}`}>
@@ -144,7 +266,12 @@ React.useEffect(() => {
 
             {/* 通知リスト */}
             <div className="max-h-80 overflow-y-auto">
-              {notifications.length === 0 ? (
+              {loading ? (
+                <div className="p-8 text-center">
+                  <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                  <p className="text-gray-600">読み込み中...</p>
+                </div>
+              ) : notifications.length === 0 ? (
                 <div className="p-8 text-center">
                   <Bell size={32} className="text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-600">通知はありません</p>
@@ -154,7 +281,9 @@ React.useEffect(() => {
                   {notifications.map(notification => (
                     <div
                       key={notification.id}
-                      className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                      className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
+                        !notification.read ? 'bg-blue-50' : ''
+                      }`}
                       onClick={() => handleNotificationClick(notification)}
                     >
                       <div className="flex items-start space-x-3">
@@ -169,10 +298,10 @@ React.useEffect(() => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between">
                             <div>
-                              <p className="text-sm font-medium text-gray-900">
+                              <p className={`text-sm font-medium ${!notification.read ? 'text-gray-900' : 'text-gray-700'}`}>
                                 {notification.title}
                               </p>
-                              <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                              <p className={`text-sm mt-1 leading-relaxed ${!notification.read ? 'text-gray-800' : 'text-gray-600'}`}>
                                 {notification.message}
                               </p>
                               <p className="text-xs text-gray-500 mt-2">
@@ -183,16 +312,7 @@ React.useEffect(() => {
                             {/* アクション */}
                             <div className="flex items-center space-x-1 ml-2">
                               {!notification.read && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    markAsRead(notification.id);
-                                  }}
-                                  className="p-1 hover:bg-gray-200 rounded-full transition-colors"
-                                  title="既読にする"
-                                >
-                                  <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                                </button>
+                                <div className="w-2 h-2 bg-blue-500 rounded-full" title="未読" />
                               )}
                               
                               <button
@@ -211,6 +331,12 @@ React.useEffect(() => {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+              
+              {error && (
+                <div className="p-4 bg-red-50 border-l-4 border-red-400">
+                  <p className="text-red-700 text-sm">{error}</p>
                 </div>
               )}
             </div>
