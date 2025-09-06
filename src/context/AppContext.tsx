@@ -1,4 +1,3 @@
-// src/context/AppContext.tsx - エラー修正版
 import React, { createContext, useContext, ReactNode, useEffect, useCallback, useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useAlbums } from '../hooks/useAlbums';
@@ -15,11 +14,16 @@ const debugLog = (message: string, data?: any) => {
 
 // Supabase Userを独自のUser型に変換する関数
 const convertSupabaseUser = (supabaseUser: SupabaseUser | null): User | null => {
-  if (!supabaseUser) return null;
+  console.log('[AppContext] convertSupabaseUser呼び出し:', supabaseUser ? { id: supabaseUser.id, email: supabaseUser.email } : null);
   
-  return {
+  if (!supabaseUser) {
+    console.log('[AppContext] supabaseUserがnull');
+    return null;
+  }
+  
+  const convertedUser = {
     id: supabaseUser.id,
-    email: supabaseUser.email || '', // undefinedの場合は空文字に変換
+    email: supabaseUser.email || '',
     aud: supabaseUser.aud || 'authenticated',
     role: supabaseUser.role || 'authenticated',
     email_confirmed_at: supabaseUser.email_confirmed_at || '',
@@ -32,6 +36,9 @@ const convertSupabaseUser = (supabaseUser: SupabaseUser | null): User | null => 
     created_at: supabaseUser.created_at || '',
     updated_at: supabaseUser.updated_at || '',
   };
+  
+  console.log('[AppContext] 変換後ユーザー:', { id: convertedUser.id, email: convertedUser.email });
+  return convertedUser;
 };
 
 interface AppContextType {
@@ -96,12 +103,20 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [currentAlbum, setCurrentAlbum] = useState<Album | null>(null);
 
   // メモ化された認証状態
-  const authState = useMemo(() => ({
-    isAuthenticated: !!auth.user,
-    user: convertSupabaseUser(auth.user), // 型変換を適用
-    profile: auth.profile,
-    loading: auth.loading,
-  }), [auth.user, auth.profile, auth.loading]);
+  const authState = useMemo(() => {
+    console.log('[AppContext] authState計算:', {
+      authUser: auth.user ? { id: auth.user.id, email: auth.user.email } : null,
+      authProfile: auth.profile ? { id: auth.profile.id, name: auth.profile.name, role: auth.profile.role } : null,
+      authLoading: auth.loading
+    });
+    
+    return {
+      isAuthenticated: !!auth.user,
+      user: convertSupabaseUser(auth.user),
+      profile: auth.profile,
+      loading: auth.loading,
+    };
+  }, [auth.user, auth.profile, auth.loading]);
 
   // メモ化されたアルバム状態
   const albumsState = useMemo(() => ({
