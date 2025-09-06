@@ -84,30 +84,6 @@ export const useAuth = () => {
     };
   }, []);
 
-  // Supabase認証状態変更の監視
-  useEffect(() => {
-    if (!initialized) return; // 初期化前は不要
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event: AuthChangeEvent, session: Session | null) => {
-        debugLog('認証状態変更', { event, hasSession: !!session });
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          await fetchProfile(session.user.id);
-        } else {
-          setProfile(null);
-        }
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [initialized]);
-
   // プロフィール取得
   const fetchProfile = useCallback(async (userId: string) => {
     console.log('[useAuth] プロフィール取得開始:', userId);
@@ -138,7 +114,7 @@ export const useAuth = () => {
       setProfile(null);
       return null;
     }
-  }, []);
+  }, []); 
 
   // デフォルトプロフィール作成
   const createDefaultProfile = async (userId: string) => {
