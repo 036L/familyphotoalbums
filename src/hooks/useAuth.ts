@@ -20,57 +20,69 @@ export const useAuth = () => {
 
   // 初期化処理
   useEffect(() => {
-    let mounted = true;
-    debugLog('useAuth初期化開始');
-
-    const initAuth = async () => {
+    console.log('[useAuth] 初期化useEffect開始');
+    
+    const initializeAuth = async () => {
       try {
         setLoading(true);
+        console.log('[useAuth] Supabase認証状態取得開始');
         
-        debugLog('Supabase認証初期化開始');
-        
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { user }, error } = await supabase.auth.getUser();
+        console.log('[useAuth] Supabase認証結果:', {
+          user: user ? { id: user.id, email: user.email } : null,
+          error: error?.message
+        });
         
         if (error) {
-          debugLog('Session取得エラー', error);
-        }
-        
-        debugLog('Session取得結果', { hasSession: !!session });
-        
-        if (mounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
-          
-          if (session?.user) {
-            await fetchProfile(session.user.id);
-          }
-        }
-      } catch (error) {
-        debugLog('認証初期化エラー', error);
-        if (mounted) {
+          console.error('[useAuth] 認証取得エラー:', error);
           setUser(null);
           setProfile(null);
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
           setInitialized(true);
-          debugLog('認証初期化完了', {
-            hasUser: !!user,
-            hasProfile: !!profile
-          });
+          return;
         }
+        
+        setUser(user);
+        
+        if (user) {
+          console.log('[useAuth] プロフィール取得開始:', user.id);
+          await fetchProfile(user.id);
+        } else {
+          console.log('[useAuth] ユーザーなし - プロフィールクリア');
+          setProfile(null);
+        }
+        
+        setInitialized(true);
+        console.log('[useAuth] 初期化完了');
+        
+      } catch (err) {
+        console.error('[useAuth] 初期化エラー:', err);
+        setUser(null);
+        setProfile(null);
+        setInitialized(true);
+      } finally {
+        setLoading(false);
       }
     };
-
-    // 即座に初期化を開始
-    initAuth();
-
+    
+    initializeAuth();
+    
+    // 認証状態変更の監視
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[useAuth] 認証状態変更:', event, session?.user?.id);
+      
+      if (session?.user) {
+        setUser(session.user);
+        await fetchProfile(session.user.id);
+      } else {
+        setUser(null);
+        setProfile(null);
+      }
+    });
+    
     return () => {
-      mounted = false;
-      debugLog('useAuthクリーンアップ');
+      subscription.unsubscribe();
     };
-  }, []); // 依存配列は空
+  }, []);
 
   // Supabase認証状態変更の監視
   useEffect(() => {
@@ -97,30 +109,36 @@ export const useAuth = () => {
   }, [initialized]);
 
   // プロフィール取得
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string) => {
+    console.log('[useAuth] プロフィール取得開始:', userId);
+    
     try {
-      debugLog('プロフィール取得開始', userId);
-      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
-
+      
+      console.log('[useAuth] プロフィール取得結果:', {
+        data: data ? { id: data.id, name: data.name, role: data.role } : null,
+        error: error?.message
+      });
+      
       if (error) {
-        debugLog('プロフィール取得エラー', error);
-        // プロフィールが存在しない場合はデフォルトを作成
-        if (error.code === 'PGRST116') {
-          await createDefaultProfile(userId);
-        }
-      } else {
-        debugLog('プロフィール取得成功', data);
-        setProfile(data);
+        console.error('[useAuth] プロフィール取得エラー:', error);
+        setProfile(null);
+        return null;
       }
-    } catch (error) {
-      debugLog('プロフィール取得例外', error);
+      
+      setProfile(data);
+      return data;
+      
+    } catch (err) {
+      console.error('[useAuth] プロフィール取得例外:', err);
+      setProfile(null);
+      return null;
     }
-  };
+  }, []);
 
   // デフォルトプロフィール作成
   const createDefaultProfile = async (userId: string) => {
