@@ -1,9 +1,15 @@
-// src/lib/supabase.ts - デモモード削除版
+// src/lib/supabase.ts
 import { createClient } from '@supabase/supabase-js';
 
 // 環境変数の取得
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+console.log('[Supabase] 設定確認:', {
+  url: supabaseUrl,
+  keyLength: supabaseAnonKey.length,
+  keyStart: supabaseAnonKey.substring(0, 20) + '...'
+});
 
 // 環境変数のチェック
 if (!supabaseUrl || !supabaseAnonKey) {
@@ -16,9 +22,24 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-// Supabaseクライアントの作成
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+});
 
+// 接続テスト
+supabase.auth.getSession().then(({ data, error }) => {
+  console.log('[Supabase] 初期セッション:', {
+    hasSession: !!data.session,
+    hasUser: !!data.session?.user,
+    error: error?.message
+  });
+});
+
+/*
 // Database types
 export interface Database {
   public: {
@@ -232,4 +253,4 @@ export interface Database {
       };
     };
   };
-}
+}*/

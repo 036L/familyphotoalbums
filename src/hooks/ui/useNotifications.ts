@@ -38,12 +38,15 @@ export const useNotifications = (): UseNotificationsReturn => {
     console.log('[useNotifications] profile:', profile ? { id: profile.id, name: profile.name } : null);
   
     if (!userId) {
-      console.log('[useNotifications] userIdなし - 待機');
-      setNotifications([]);
-      setLoading(false);
-      setError(null);
-      return;
-    }
+        console.log('[useNotifications] userIdなし - 待機');
+        setNotifications([]);
+        setLoading(false);
+        setError(null);
+        return;
+      }
+
+    // ★ プロフィールチェックを削除（緩和）
+    console.log('[useNotifications] 認証チェック完了 - 通知取得開始');
   
     try {
       setLoading(true);
@@ -75,6 +78,7 @@ export const useNotifications = (): UseNotificationsReturn => {
         throw new Error('ユーザー認証状態が不整合です');
       }
   
+      /*
       // ★ 段階3: プロフィール存在確認（新規ユーザー対応）
       if (!profile) {
         console.log('[useNotifications] プロフィール未作成 - 初期化待機');
@@ -82,7 +86,7 @@ export const useNotifications = (): UseNotificationsReturn => {
         setNotifications([]);
         setLoading(false);
         return;
-      }
+      } */
   
       console.log('[useNotifications] 認証チェック完了 - 通知取得開始');
   
